@@ -2,6 +2,14 @@ import { createClient } from "@supabase/supabase-js";
 
 export type ProjectStatus = "submitted" | "reviewing" | "corrections" | "approved" | "rejected" | "certified";
 
+export type Reviewer = {
+  id: string;
+  name: string;
+  email: string;
+  expertise: string[];
+  created_at: string;
+};
+
 export type Project = {
   id: string;
   title: string;
@@ -23,6 +31,7 @@ export type Project = {
   funding_folio: string | null;
   funding_detail: string | null;
   researcher_rut: string | null;
+  review_mode: "individual" | "group" | null;
 };
 
 export type Document = {

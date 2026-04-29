@@ -7,7 +7,7 @@ import { getThemeLabel } from "@/lib/themes";
 import StatusBadge from "@/components/StatusBadge";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
-  AlertCircle, XCircle, Save, ChevronDown, FileSearch,
+  AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User,
 } from "lucide-react";
 
 const statusOptions: { value: ProjectStatus; label: string }[] = [
@@ -33,6 +33,13 @@ type EditState = {
   reviewer: string;
   reviewer2: string;
   saving: boolean;
+};
+
+type AutoAssignState = {
+  numReviewers: 1 | 2;
+  mode: "individual" | "group";
+  loading: boolean;
+  result: string;
 };
 
 function getInitials(name: string) {
@@ -62,6 +69,7 @@ export default function ReviewerDashboard() {
   const [savedId, setSavedId]     = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [myReviews, setMyReviews] = useState<{ project_id: string; round: number }[]>([]);
+  const [autoAssign, setAutoAssign] = useState<Record<string, AutoAssignState>>({});
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
@@ -81,15 +89,13 @@ export default function ReviewerDashboard() {
     setMyReviews(reviewData ?? []);
 
     const initial: Record<string, EditState> = {};
+    const initialAA: Record<string, AutoAssignState> = {};
     list.forEach((p) => {
-      initial[p.id] = {
-        status: p.status,
-        reviewer: p.reviewer ?? "",
-        reviewer2: p.reviewer2 ?? "",
-        saving: false,
-      };
+      initial[p.id] = { status: p.status, reviewer: p.reviewer ?? "", reviewer2: p.reviewer2 ?? "", saving: false };
+      initialAA[p.id] = { numReviewers: 2, mode: "individual", loading: false, result: "" };
     });
     setEdits(initial);
+    setAutoAssign(initialAA);
     setLoading(false);
   }, []);
 
@@ -133,6 +139,27 @@ export default function ReviewerDashboard() {
     setTimeout(() => setSavedId(null), 2000);
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], saving: false } }));
     loadProjects();
+  }
+
+  async function handleAutoAssign(projectId: string) {
+    const aa = autoAssign[projectId];
+    if (!aa) return;
+    setAutoAssign((prev) => ({ ...prev, [projectId]: { ...prev[projectId], loading: true, result: "" } }));
+    const res = await fetch(`/api/admin/projects/${projectId}/auto-assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numReviewers: aa.numReviewers, mode: aa.mode }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const names = data.assigned.map((a: { name: string; fromExpertise: boolean }) =>
+        `${a.name}${a.fromExpertise ? " ✓" : " (fallback)"}`
+      ).join(", ");
+      setAutoAssign((prev) => ({ ...prev, [projectId]: { ...prev[projectId], loading: false, result: `Asignado: ${names}` } }));
+      loadProjects();
+    } else {
+      setAutoAssign((prev) => ({ ...prev, [projectId]: { ...prev[projectId], loading: false, result: `Error: ${data.error}` } }));
+    }
   }
 
   async function handleLogout() {
@@ -250,11 +277,21 @@ export default function ReviewerDashboard() {
                           {/* Review CTA for assigned reviewers */}
                           {assigned && !reviewed && ["submitted", "reviewing", "corrections"].includes(p.status) && (
                             <button
-                              onClick={() => router.push(`/revisores/review/${p.id}`)}
+                              onClick={() => router.push(
+                                p.review_mode === "group"
+                                  ? `/revisores/review/${p.id}/group`
+                                  : `/revisores/review/${p.id}`
+                              )}
                               className="flex items-center gap-1.5 text-xs bg-[#CC5200] hover:bg-[#B34700] text-white font-bold px-3 py-1.5 rounded-full transition-colors"
                             >
-                              <FileSearch className="w-3.5 h-3.5" /> Revisar
+                              <FileSearch className="w-3.5 h-3.5" />
+                              {p.review_mode === "group" ? "Revisión grupal" : "Revisar"}
                             </button>
+                          )}
+                          {p.review_mode === "group" && (
+                            <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-1 rounded-full border border-violet-100 flex items-center gap-1">
+                              <Users className="w-3 h-3" /> Grupal
+                            </span>
                           )}
                           {assigned && reviewed && (
                             <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-1 rounded-full border border-emerald-100">
@@ -335,6 +372,56 @@ export default function ReviewerDashboard() {
                         )}
                       </button>
                     </div>
+
+                    {/* Auto-assign panel */}
+                    {(() => {
+                      const aa = autoAssign[p.id];
+                      if (!aa) return null;
+                      return (
+                        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3">
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1">
+                            <Zap className="w-3.5 h-3.5" /> Auto-asignar
+                          </span>
+                          <select
+                            value={aa.numReviewers}
+                            onChange={(e) => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], numReviewers: Number(e.target.value) as 1 | 2, mode: Number(e.target.value) === 1 ? "individual" : prev[p.id].mode } }))}
+                            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          >
+                            <option value={1}>1 revisor</option>
+                            <option value={2}>2 revisores</option>
+                          </select>
+                          {aa.numReviewers === 2 && (
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "individual" } }))}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "individual" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
+                              >
+                                <User className="w-3 h-3" /> Separado
+                              </button>
+                              <button
+                                onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "group" } }))}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "group" ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
+                              >
+                                <Users className="w-3 h-3" /> Grupal
+                              </button>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleAutoAssign(p.id)}
+                            disabled={aa.loading}
+                            className="flex items-center gap-1.5 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors"
+                          >
+                            {aa.loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                            Asignar
+                          </button>
+                          {aa.result && (
+                            <span className={`text-xs font-medium ${aa.result.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>
+                              {aa.result}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

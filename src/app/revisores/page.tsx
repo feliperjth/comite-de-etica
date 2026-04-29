@@ -26,7 +26,15 @@ export default function RevisoresLogin() {
     });
 
     if (res.ok) {
-      router.push("/revisores/dashboard");
+      // Check if reviewer has expertise set
+      const reviewersRes = await fetch("/api/reviewers");
+      const reviewers = await reviewersRes.json();
+      const myProfile = reviewers.find((r: { email: string }) => r.email === email.trim());
+      if (!myProfile || !myProfile.expertise?.length) {
+        router.push("/revisores/perfil");
+      } else {
+        router.push("/revisores/dashboard");
+      }
     } else {
       const data = await res.json();
       setError(data.error ?? "Error al verificar la clave");

@@ -106,8 +106,9 @@ export async function POST(req: Request) {
         .eq("id", project_id);
     }
 
-    // 6. If both reviewers submitted — decide outcome
-    if ((allReviews?.length ?? 0) >= 2) {
+    // 6. Decide outcome: 1 reviewer needed if reviewer2 is null, else 2
+    const reviewersNeeded = project.reviewer2 ? 2 : 1;
+    if ((allReviews?.length ?? 0) >= reviewersNeeded) {
       const bothAccepted = allReviews!.every((r) => r.overall_decision === "accepted");
 
       if (bothAccepted) {
