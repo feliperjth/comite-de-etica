@@ -105,10 +105,11 @@ export default function ReviewerDashboard() {
 
   useEffect(() => {
     const name = decodeURIComponent(getCookie("reviewer_name"));
+    if (!name) { router.push("/revisores"); return; }
     setReviewerName(name);
     loadProjects();
     fetch("/api/reviewers").then((r) => r.json()).then(setReviewers);
-  }, [loadProjects]);
+  }, [loadProjects, router]);
 
   function isAssigned(p: Project): boolean {
     const name = reviewerName.toLowerCase().trim();
