@@ -1,26 +1,51 @@
 @import "tailwindcss";
 
+/* ── Paleta UAI ─────────────────────────────────────────────────────────
+   Ajusta estos valores si tienes los códigos oficiales de la universidad.
+   Azul navy UAI ≈ #1B2B4B  |  Oro/Dorado UAI ≈ #C4963A
+───────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  /* Brand Colors */
+  --uai-navy:       #1A1A1A;
+  --uai-navy-dark:  #000000;
+  --uai-navy-light: #2E2E2E;
+  --uai-gold:       #CC5200;
+  --uai-gold-hover: #B34700;
+  --uai-gold-light: #FFF3EB;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-background:    var(--background);
+  --color-foreground:    var(--foreground);
+  --font-sans:           var(--font-geist-sans);
+  --font-mono:           var(--font-geist-mono);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* UAI en Tailwind — usa bg-uai-navy, text-uai-gold, etc. */
+  --color-uai-navy:       var(--uai-navy);
+  --color-uai-navy-dark:  var(--uai-navy-dark);
+  --color-uai-navy-light: var(--uai-navy-light);
+  --color-uai-gold:       var(--uai-gold);
+  --color-uai-gold-hover: var(--uai-gold-hover);
+  --color-uai-gold-light: var(--uai-gold-light);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
 }
+
+html { scroll-behavior: smooth; }
+
+::selection {
+  background-color: var(--uai-gold);
+  color: var(--uai-navy-dark);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
