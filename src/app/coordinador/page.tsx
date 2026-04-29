@@ -268,7 +268,7 @@ export default function CoordinadorStats() {
                   <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => [`${v} proyecto${v !== 1 ? "s" : ""}`, ""]} />
+              <Tooltip formatter={(v) => [`${v} proyecto${Number(v) !== 1 ? "s" : ""}`, ""]} />
               <Legend iconType="circle" iconSize={8} />
             </PieChart>
           </ResponsiveContainer>
@@ -284,7 +284,7 @@ export default function CoordinadorStats() {
               <BarChart data={typeData} layout="vertical" margin={{ left: 10, right: 20 }}>
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                 <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [`${v} proyecto${v !== 1 ? "s" : ""}`, ""]} />
+                <Tooltip formatter={(v) => [`${v} proyecto${Number(v) !== 1 ? "s" : ""}`, ""]} />
                 <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -301,7 +301,7 @@ export default function CoordinadorStats() {
               <BarChart data={themeData} layout="vertical" margin={{ left: 10, right: 20 }}>
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                 <YAxis type="category" dataKey="name" width={160} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [`${v} proyecto${v !== 1 ? "s" : ""}`, ""]} />
+                <Tooltip formatter={(v) => [`${v} proyecto${Number(v) !== 1 ? "s" : ""}`, ""]} />
                 <Bar dataKey="value" fill="#CC5200" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -321,7 +321,7 @@ export default function CoordinadorStats() {
                   <Cell key={i} fill={FUNDING_COLORS[i % FUNDING_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => [`${v} proyecto${v !== 1 ? "s" : ""}`, ""]} />
+              <Tooltip formatter={(v) => [`${v} proyecto${Number(v) !== 1 ? "s" : ""}`, ""]} />
               <Legend iconType="circle" iconSize={8} />
             </PieChart>
           </ResponsiveContainer>
@@ -353,7 +353,7 @@ export default function CoordinadorStats() {
             <BarChart data={advisorData} layout="vertical" margin={{ left: 10, right: 20 }}>
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => [`${v} proyecto${v !== 1 ? "s" : ""}`, ""]} />
+              <Tooltip formatter={(v) => [`${v} proyecto${Number(v) !== 1 ? "s" : ""}`, ""]} />
               <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -370,7 +370,7 @@ export default function CoordinadorStats() {
             <BarChart data={monthlyData} margin={{ left: 0, right: 10 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => [`${v} proyecto${v !== 1 ? "s" : ""}`, ""]} />
+              <Tooltip formatter={(v) => [`${v} proyecto${Number(v) !== 1 ? "s" : ""}`, ""]} />
               <Bar dataKey="value" fill="#1A1A1A" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
