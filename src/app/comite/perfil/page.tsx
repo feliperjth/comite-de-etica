@@ -49,7 +49,9 @@ export default function ComitePerfil() {
     setLoading(true);
     const res = await fetch("/api/comite/reviews");
     if (!res.ok) {
-      router.push("/comite");
+      // Only redirect on auth failure; transient errors just stop loading
+      if (res.status === 401) router.push("/comite");
+      setLoading(false);
       return;
     }
     const data = await res.json();
@@ -73,7 +75,8 @@ export default function ComitePerfil() {
     }
 
     setLoading(false);
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
