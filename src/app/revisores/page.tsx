@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+
+function getCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  return document.cookie.split("; ").find((r) => r.startsWith(name + "="))?.split("=")[1] ?? "";
+}
 
 export default function RevisoresLogin() {
   const [password, setPassword]     = useState("");
@@ -12,7 +17,21 @@ export default function RevisoresLogin() {
   const [error, setError]           = useState("");
   const [loading, setLoading]       = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [checking, setChecking]     = useState(true);
   const router = useRouter();
+
+  // If already logged in, skip login page
+  useEffect(() => {
+    const savedEmail = decodeURIComponent(getCookie("reviewer_email"));
+    const savedName  = decodeURIComponent(getCookie("reviewer_name"));
+    if (savedEmail && savedName) {
+      router.replace("/revisores/dashboard");
+    } else {
+      setChecking(false);
+    }
+  }, [router]);
+
+  if (checking) return null;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

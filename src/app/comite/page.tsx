@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -11,7 +11,18 @@ export default function ComiteLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]             = useState("");
   const [loading, setLoading]         = useState(false);
+  const [checking, setChecking]       = useState(true);
   const router = useRouter();
+
+  // If already logged in, skip login page
+  useEffect(() => {
+    fetch("/api/me").then(r => r.json()).then(me => {
+      if (me.type === "comite") router.replace("/comite/perfil");
+      else setChecking(false);
+    });
+  }, [router]);
+
+  if (checking) return null;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

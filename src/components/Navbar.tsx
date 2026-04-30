@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Plus, ChevronDown, LogOut, FolderOpen, LayoutDashboard, User, Shield, BarChart2 } from "lucide-react";
+import { Plus, ChevronDown, LogOut, FolderOpen, LayoutDashboard, User, Shield, BarChart2, ClipboardList } from "lucide-react";
 import LogoImage from "./LogoImage";
 
 type SessionUser = {
@@ -183,6 +183,14 @@ export default function Navbar() {
                         >
                           <LayoutDashboard className="w-4 h-4 text-slate-400" />
                           Panel completo
+                        </Link>
+                        <Link
+                          href="/investigador/perfil"
+                          onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <ClipboardList className="w-4 h-4 text-slate-400" />
+                          Ver investigadores
                         </Link>
                         {user.email === "felipe.rojast@uai.cl" && (
                           <Link
