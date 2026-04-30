@@ -52,3 +52,10 @@ export function getSupabase() {
   if (!url || !key) throw new Error("Supabase no configurado. Agrega NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en .env.local");
   return createClient(url, key);
 }
+
+/** Server-only client using the service role key — bypasses RLS. Only use in API routes. */
+export function getSupabaseAdmin() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) throw new Error("Agrega SUPABASE_SERVICE_ROLE_KEY en las variables de entorno del servidor.");
+  return createClient(url, serviceKey, { auth: { persistSession: false } });
+}

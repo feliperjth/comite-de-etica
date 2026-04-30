@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(
   req: NextRequest,
@@ -7,7 +7,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const { numReviewers, mode } = await req.json() as { numReviewers: 1 | 2; mode: "individual" | "group" };
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
 
   // 1. Get project
   const { data: project } = await supabase
