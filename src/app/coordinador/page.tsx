@@ -8,7 +8,8 @@ import {
 } from "recharts";
 import { getSupabase } from "@/lib/supabase";
 import { themes } from "@/lib/themes";
-import { BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle, TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw, HardDrive } from "lucide-react";
+import { BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle, TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw, HardDrive, AlertTriangle } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
 
 const DOC_DEFINITIONS = [
   { id: "protocol",    label: "Protocolo de investigación",              required: true  },
@@ -45,6 +46,7 @@ const FUNDING_COLORS = ["#8b5cf6", "#CC5200", "#94a3b8"];
 
 type Project = {
   id: string;
+  title: string;
   status: string;
   project_type: string;
   theme: string;
@@ -52,6 +54,7 @@ type Project = {
   funding_type: string | null;
   funding_folio: string | null;
   researcher_name: string;
+  researcher_email: string;
   created_at: string;
 };
 
@@ -69,6 +72,8 @@ export default function CoordinadorStats() {
   const [templateMsg, setTemplateMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing]         = useState(false);
   const [syncMsg, setSyncMsg]         = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState(false);
 
   async function handleSyncAll() {
     setSyncing(true);
@@ -106,6 +111,15 @@ export default function CoordinadorStats() {
     setTimeout(() => setTemplateMsg(null), 3000);
   }
 
+  async function handleDeleteProject() {
+    if (!confirmDelete) return;
+    setDeletingProject(true);
+    await fetch(`/api/projects/${confirmDelete.id}`, { method: "DELETE" });
+    setProjects((prev) => prev.filter((p) => p.id !== confirmDelete.id));
+    setConfirmDelete(null);
+    setDeletingProject(false);
+  }
+
   async function handleTemplateDelete(docId: string) {
     setDeleting(docId);
     await fetch("/api/admin/templates", {
@@ -123,8 +137,8 @@ export default function CoordinadorStats() {
       const supabase = getSupabase();
       supabase
         .from("projects")
-        .select("id,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,created_at")
-        .order("created_at", { ascending: true })
+        .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,created_at")
+        .order("created_at", { ascending: false })
         .then(({ data }) => { setProjects(data ?? []); setLoading(false); });
       loadTemplates();
     });
@@ -376,6 +390,37 @@ export default function CoordinadorStats() {
           </ResponsiveContainer>
         </div>
       )}
+      {/* ── Projects list ─────────────────────────────────────────────── */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mt-6 mb-6">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-bold text-slate-700 flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-[#CC5200]" /> Todos los proyectos
+          </h2>
+          <span className="text-xs text-slate-400 bg-slate-50 px-3 py-1 rounded-full">{projects.length} proyectos</span>
+        </div>
+        <div className="divide-y divide-slate-50">
+          {projects.map((p) => (
+            <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/50 transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-800 text-sm leading-snug truncate">{p.title}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{p.researcher_name} · {p.researcher_email}</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <StatusBadge status={p.status} />
+                  <span className="text-xs text-slate-400">{new Date(p.created_at).toLocaleDateString("es-CL")}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmDelete(p)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                title="Eliminar proyecto"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Template management ───────────────────────────────────────── */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 mt-6">
         <div className="flex items-center justify-between mb-6">
@@ -469,6 +514,46 @@ export default function CoordinadorStats() {
           })}
         </div>
       </div>
+      {/* ── Confirm delete modal ─────────────────────────────────────── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 max-w-md w-full">
+            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <AlertTriangle className="w-7 h-7 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 text-center mb-2">¿Eliminar proyecto?</h2>
+            <p className="text-slate-500 text-sm text-center mb-1">
+              Esta acción es <strong>irreversible</strong>.
+            </p>
+            <div className="bg-slate-50 rounded-xl px-4 py-3 my-4 text-sm text-slate-700 text-center leading-snug">
+              <strong>{confirmDelete.title}</strong><br />
+              <span className="text-slate-400 text-xs">{confirmDelete.researcher_name}</span>
+            </div>
+            <p className="text-xs text-slate-400 text-center mb-6">
+              Se eliminarán también todas las revisiones, documentos y borradores asociados.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deletingProject}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-40"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={deletingProject}
+                className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {deletingProject
+                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Eliminando...</>
+                  : <><Trash2 className="w-4 h-4" /> Sí, eliminar</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
