@@ -37,6 +37,7 @@ export default function ComitePerfil() {
   const [name, setName]                         = useState("");
   const [email, setEmail]                       = useState("");
   const [loading, setLoading]                   = useState(true);
+  const [ready, setReady]                       = useState(false);
 
   const [expertise, setExpertise]               = useState<string[]>([]);
   const [expertiseName, setExpertiseName]       = useState("");
@@ -49,8 +50,7 @@ export default function ComitePerfil() {
     setLoading(true);
     const res = await fetch("/api/comite/reviews");
     if (!res.ok) {
-      // Only redirect on auth failure; transient errors just stop loading
-      if (res.status === 401) router.push("/comite");
+      router.push("/comite");
       setLoading(false);
       return;
     }
@@ -60,6 +60,7 @@ export default function ComitePerfil() {
     setAssignedProjects(data.assignedProjects ?? []);
     setName(data.name ?? "");
     setEmail(data.email ?? "");
+    setReady(true);
 
     // Load existing expertise from reviewers table
     const rvRes = await fetch("/api/reviewers");
@@ -119,6 +120,14 @@ export default function ComitePerfil() {
 
   const accepted    = reviews.filter((r) => r.overall_decision === "accepted").length;
   const corrections = reviews.filter((r) => r.overall_decision === "corrections").length;
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <RefreshCw className="w-8 h-8 animate-spin text-slate-300" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
