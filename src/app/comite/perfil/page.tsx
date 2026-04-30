@@ -94,10 +94,6 @@ export default function ComitePerfil() {
       setExpertiseMsg({ type: "err", text: "Selecciona exactamente 3 áreas." });
       return;
     }
-    if (!expertiseName.trim()) {
-      setExpertiseMsg({ type: "err", text: "Ingresa tu nombre completo." });
-      return;
-    }
     setSavingExpertise(true);
     setExpertiseMsg(null);
     const res = await fetch("/api/reviewers", {
@@ -193,20 +189,6 @@ export default function ComitePerfil() {
         </div>
 
         <div className="p-6">
-          {/* Name field */}
-          {!name && (
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tu nombre completo</label>
-              <input
-                type="text"
-                value={expertiseName}
-                onChange={(e) => setExpertiseName(e.target.value)}
-                placeholder="Dra. Ana Ríos"
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-            </div>
-          )}
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
             {themes.map((t) => {
               const selected = expertise.includes(t.id);
