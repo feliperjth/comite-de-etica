@@ -333,30 +333,31 @@ export default function ReviewerDashboard() {
               const reviewed   = hasReviewed(p);
 
               return (
-                <div key={p.id} className="p-6 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-5">
-                    {/* Project info */}
-                    <div className="flex items-start gap-4 flex-1 min-w-0">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColors[i % avatarColors.length]}`}>
+                <div key={p.id} className="px-6 py-5 hover:bg-slate-50/50 transition-colors">
+                  <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4 xl:gap-6 xl:items-start">
+
+                    {/* ── Left: project info ── */}
+                    <div className="flex items-start gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${avatarColors[i % avatarColors.length]}`}>
                         {getInitials(p.researcher_name)}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-slate-800 leading-snug mb-1">{p.title}</div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mb-2">
-                          <span>{p.researcher_name}</span>
-                          <span>·</span>
-                          <span>{p.project_type}</span>
-                          <span>·</span>
-                          <span>{getThemeLabel(p.theme).split(" ").slice(0, 3).join(" ")}</span>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800 text-sm leading-snug">{p.title}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {p.researcher_name} · {p.project_type} · {getThemeLabel(p.theme)}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap mt-2">
                           <StatusBadge status={p.status} />
                           {p.current_round && p.current_round > 1 && (
-                            <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-1 rounded-full border border-violet-100">
+                            <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100">
                               Ronda {p.current_round}
                             </span>
                           )}
-                          {/* Review CTA for assigned reviewers */}
+                          {p.review_mode === "group" && (
+                            <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100 flex items-center gap-1">
+                              <Users className="w-3 h-3" /> Grupal
+                            </span>
+                          )}
                           {assigned && !reviewed && ["submitted", "reviewing", "corrections"].includes(p.status) && (
                             <button
                               onClick={() => router.push(
@@ -364,139 +365,111 @@ export default function ReviewerDashboard() {
                                   ? `/revisores/review/${p.id}/group`
                                   : `/revisores/review/${p.id}`
                               )}
-                              className="flex items-center gap-1.5 text-xs bg-[#CC5200] hover:bg-[#B34700] text-white font-bold px-3 py-1.5 rounded-full transition-colors"
+                              className="flex items-center gap-1.5 text-xs bg-[#CC5200] hover:bg-[#B34700] text-white font-bold px-3 py-1 rounded-full transition-colors"
                             >
-                              <FileSearch className="w-3.5 h-3.5" />
+                              <FileSearch className="w-3 h-3" />
                               {p.review_mode === "group" ? "Revisión grupal" : "Revisar"}
                             </button>
                           )}
-                          {p.review_mode === "group" && (
-                            <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-1 rounded-full border border-violet-100 flex items-center gap-1">
-                              <Users className="w-3 h-3" /> Grupal
-                            </span>
-                          )}
                           {assigned && reviewed && (
-                            <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-1 rounded-full border border-emerald-100">
-                              ✓ Revisado por ti
+                            <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-100">
+                              ✓ Revisado
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:shrink-0">
-                      {/* Status selector */}
+                    {/* ── Right: controls (fixed 360px column) ── */}
+                    <div className="flex flex-col gap-2">
+
+                      {/* Status */}
                       <div className="relative">
                         <select
                           value={edit.status}
-                          onChange={(e) =>
-                            setEdits((prev) => ({
-                              ...prev,
-                              [p.id]: { ...prev[p.id], status: e.target.value as ProjectStatus },
-                            }))
-                          }
-                          className="appearance-none w-full sm:w-48 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 pr-9 cursor-pointer"
+                          onChange={(e) => setEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], status: e.target.value as ProjectStatus } }))}
+                          className="appearance-none w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 pr-8 cursor-pointer"
                         >
                           {statusOptions.map((o) => (
                             <option key={o.value} value={o.value}>{o.label}</option>
                           ))}
                         </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
 
-                      {/* Reviewers */}
-                      <div className="flex flex-col gap-1.5">
+                      {/* Reviewers side by side */}
+                      <div className="grid grid-cols-2 gap-2">
                         <input
                           type="text"
                           value={edit.reviewer}
-                          onChange={(e) =>
-                            setEdits((prev) => ({
-                              ...prev,
-                              [p.id]: { ...prev[p.id], reviewer: e.target.value },
-                            }))
-                          }
+                          onChange={(e) => setEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], reviewer: e.target.value } }))}
                           placeholder="Revisor 1..."
-                          className="w-full sm:w-44 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
                         />
                         <input
                           type="text"
                           value={edit.reviewer2}
-                          onChange={(e) =>
-                            setEdits((prev) => ({
-                              ...prev,
-                              [p.id]: { ...prev[p.id], reviewer2: e.target.value },
-                            }))
-                          }
+                          onChange={(e) => setEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], reviewer2: e.target.value } }))}
                           placeholder="Revisor 2..."
-                          className="w-full sm:w-44 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
                         />
                       </div>
 
-                      {/* Save button */}
-                      <button
-                        onClick={() => saveProject(p.id)}
-                        disabled={(!changed && !isSaved) || edit.saving}
-                        className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                          isSaved
-                            ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                            : changed
-                            ? "bg-uai-navy text-white hover:bg-uai-navy-dark shadow-sm"
-                            : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                        }`}
-                      >
-                        {isSaved ? (
-                          <><CheckCircle className="w-4 h-4" /> Guardado</>
-                        ) : edit.saving ? (
-                          <><RefreshCw className="w-4 h-4 animate-spin" /> Guardando...</>
-                        ) : (
-                          <><Save className="w-4 h-4" /> Guardar</>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Auto-assign panel */}
-                    {(() => {
-                      const aa = autoAssign[p.id];
-                      if (!aa) return null;
-                      return (
-                        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3">
-                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1">
-                            <Zap className="w-3.5 h-3.5" /> Auto-asignar
-                          </span>
-                          <select
-                            value={aa.numReviewers}
-                            onChange={(e) => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], numReviewers: Number(e.target.value) as 1 | 2, mode: Number(e.target.value) === 1 ? "individual" : prev[p.id].mode } }))}
-                            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
-                          >
-                            <option value={1}>1 revisor</option>
-                            <option value={2}>2 revisores</option>
-                          </select>
-                          {aa.numReviewers === 2 && (
-                            <div className="flex gap-1.5">
-                              <button
-                                onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "individual" } }))}
-                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "individual" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
-                              >
-                                <User className="w-3 h-3" /> Separado
-                              </button>
-                              <button
-                                onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "group" } }))}
-                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "group" ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
-                              >
-                                <Users className="w-3 h-3" /> Grupal
-                              </button>
-                            </div>
-                          )}
-                          <button
-                            onClick={() => handleAutoAssign(p.id)}
-                            disabled={aa.loading}
-                            className="flex items-center gap-1.5 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors"
-                          >
-                            {aa.loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                            Asignar
-                          </button>
-                          {aa.result && (
+                      {/* Auto-assign + Save in one row */}
+                      {(() => {
+                        const aa = autoAssign[p.id];
+                        if (!aa) return null;
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 shrink-0">
+                              <Zap className="w-3 h-3 text-[#CC5200]" /> Auto
+                            </span>
+                            <select
+                              value={aa.numReviewers}
+                              onChange={(e) => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], numReviewers: Number(e.target.value) as 1 | 2, mode: Number(e.target.value) === 1 ? "individual" : prev[p.id].mode } }))}
+                              className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            >
+                              <option value={1}>1 revisor</option>
+                              <option value={2}>2 revisores</option>
+                            </select>
+                            {aa.numReviewers === 2 && (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "individual" } }))}
+                                  className={`flex items-center gap-0.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "individual" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200"}`}
+                                >
+                                  <User className="w-3 h-3" /> Sep.
+                                </button>
+                                <button
+                                  onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "group" } }))}
+                                  className={`flex items-center gap-0.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "group" ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200"}`}
+                                >
+                                  <Users className="w-3 h-3" /> Grup.
+                                </button>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => handleAutoAssign(p.id)}
+                              disabled={aa.loading}
+                              className="flex items-center gap-1 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                              {aa.loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                              Asignar
+                            </button>
+                            <button
+                              onClick={() => saveProject(p.id)}
+                              disabled={(!changed && !isSaved) || edit.saving}
+                              className={`ml-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                isSaved ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : changed ? "bg-uai-navy text-white hover:bg-uai-navy-dark shadow-sm"
+                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                              }`}
+                            >
+                              {isSaved ? <><CheckCircle className="w-3.5 h-3.5" /> Guardado</>
+                               : edit.saving ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Guardando...</>
+                               : <><Save className="w-3.5 h-3.5" /> Guardar</>}
+                            </button>
+                            {aa.result && (
                             <span className={`text-xs font-medium ${aa.result.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>
                               {aa.result}
                             </span>
@@ -504,6 +477,7 @@ export default function ReviewerDashboard() {
                         </div>
                       );
                     })()}
+                    </div>
                   </div>
                 </div>
               );
