@@ -8,6 +8,7 @@ import StatusBadge from "@/components/StatusBadge";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
   AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
+  Trash2, AlertTriangle, X,
 } from "lucide-react";
 import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
@@ -74,6 +75,12 @@ export default function ReviewerDashboard() {
   const [autoAssign, setAutoAssign] = useState<Record<string, AutoAssignState>>({});
   const [reviewers, setReviewers]   = useState<Reviewer[]>([]);
   const [showReviewers, setShowReviewers] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ ok: number; errors: string[] } | null>(null);
+  const [bulkNumReviewers, setBulkNumReviewers] = useState<1|2>(2);
+  const [bulkMode, setBulkMode] = useState<"individual"|"group">("individual");
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
@@ -170,6 +177,35 @@ export default function ReviewerDashboard() {
     }
   }
 
+  async function handleDeleteProject(id: string) {
+    setDeletingId(id);
+    await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setConfirmDelete(null);
+    setDeletingId(null);
+  }
+
+  async function handleBulkAutoAssign() {
+    const unassigned = projects.filter((p) => !p.reviewer && !p.reviewer2 && ["submitted","reviewing","corrections"].includes(p.status));
+    if (!unassigned.length) { setBulkResult({ ok: 0, errors: ["No hay proyectos sin asignar"] }); return; }
+    setBulkAssigning(true);
+    setBulkResult(null);
+    let ok = 0;
+    const errors: string[] = [];
+    for (const p of unassigned) {
+      const res = await fetch(`/api/admin/projects/${p.id}/auto-assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numReviewers: bulkNumReviewers, mode: bulkMode }),
+      });
+      if (res.ok) ok++;
+      else { const d = await res.json(); errors.push(`${p.title.slice(0, 30)}: ${d.error}`); }
+    }
+    setBulkResult({ ok, errors });
+    setBulkAssigning(false);
+    loadProjects();
+  }
+
   async function handleLogout() {
     await fetch("/api/auth", { method: "DELETE" });
     router.push("/revisores");
@@ -184,6 +220,7 @@ export default function ReviewerDashboard() {
   ];
 
   return (
+    <>
     <div className="max-w-7xl mx-auto px-4 py-10">
       {/* Header */}
       <div className="flex items-center justify-between mb-10">
@@ -231,6 +268,49 @@ export default function ReviewerDashboard() {
             <div className="text-slate-400 text-xs mt-0.5">{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Acciones globales ── */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Zap className="w-4 h-4 text-[#CC5200]" />
+          <span className="font-semibold text-slate-700">Acciones globales</span>
+          <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-0.5 rounded-full ml-1">
+            {projects.filter(p => !p.reviewer && !p.reviewer2 && ["submitted","reviewing","corrections"].includes(p.status)).length} sin asignar
+          </span>
+        </div>
+        <div className="px-6 py-4 flex flex-wrap items-center gap-3">
+          {/* Asignar todos */}
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Asignar todos los no asignados:</span>
+          <select value={bulkNumReviewers} onChange={e => setBulkNumReviewers(Number(e.target.value) as 1|2)}
+            className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+            <option value={1}>1 revisor</option>
+            <option value={2}>2 revisores</option>
+          </select>
+          {bulkNumReviewers === 2 && (
+            <div className="flex gap-1">
+              <button onClick={() => setBulkMode("individual")}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${bulkMode === "individual" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200"}`}>
+                <User className="w-3 h-3" /> Separado
+              </button>
+              <button onClick={() => setBulkMode("group")}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${bulkMode === "group" ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200"}`}>
+                <Users className="w-3 h-3" /> Grupal
+              </button>
+            </div>
+          )}
+          <button onClick={handleBulkAutoAssign} disabled={bulkAssigning}
+            className="flex items-center gap-1.5 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors">
+            {bulkAssigning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            {bulkAssigning ? "Asignando..." : "Asignar todos"}
+          </button>
+          {bulkResult && (
+            <span className={`text-xs font-medium flex items-center gap-1 ${bulkResult.errors.length && !bulkResult.ok ? "text-red-500" : "text-emerald-600"}`}>
+              <CheckCircle className="w-3.5 h-3.5" />
+              {bulkResult.ok} asignados{bulkResult.errors.length ? `, ${bulkResult.errors.length} errores` : ""}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Reviewers panel */}
@@ -434,20 +514,29 @@ export default function ReviewerDashboard() {
                             <span className={`text-xs font-medium ${aa.result.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>{aa.result}</span>
                           )}
                         </>}
-                        {/* Guardar — empujado a la derecha */}
-                        <button
-                          onClick={() => saveProject(p.id)}
-                          disabled={(!changed && !isSaved) || edit.saving}
-                          className={`ml-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            isSaved ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                            : changed ? "bg-uai-navy text-white hover:bg-uai-navy-dark shadow-sm"
-                            : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                          }`}
-                        >
-                          {isSaved ? <><CheckCircle className="w-3.5 h-3.5" /> Guardado</>
-                           : edit.saving ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Guardando...</>
-                           : <><Save className="w-3.5 h-3.5" /> Guardar</>}
-                        </button>
+                        {/* Guardar + Eliminar — empujados a la derecha */}
+                        <div className="ml-auto flex items-center gap-2">
+                          <button
+                            onClick={() => saveProject(p.id)}
+                            disabled={(!changed && !isSaved) || edit.saving}
+                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              isSaved ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                              : changed ? "bg-uai-navy text-white hover:bg-uai-navy-dark shadow-sm"
+                              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {isSaved ? <><CheckCircle className="w-3.5 h-3.5" /> Guardado</>
+                             : edit.saving ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Guardando...</>
+                             : <><Save className="w-3.5 h-3.5" /> Guardar</>}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(p)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all"
+                            title="Eliminar proyecto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                          </button>
+                        </div>
                       </div>
                     );
                   })()}
@@ -458,5 +547,41 @@ export default function ReviewerDashboard() {
         )}
       </div>
     </div>
+
+    {/* ── Modal confirmación eliminar ── */}
+    {confirmDelete && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 max-w-md w-full">
+          <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <AlertTriangle className="w-7 h-7 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 text-center mb-2">¿Eliminar proyecto?</h2>
+          <p className="text-slate-500 text-sm text-center mb-3">Esta acción es <strong>irreversible</strong>.</p>
+          <div className="bg-slate-50 rounded-xl px-4 py-3 my-4 text-sm text-slate-700 text-center leading-snug">
+            <strong>{confirmDelete.title}</strong><br />
+            <span className="text-slate-400 text-xs">{confirmDelete.researcher_name}</span>
+          </div>
+          <p className="text-xs text-slate-400 text-center mb-6">Se eliminarán también todas las revisiones y documentos asociados.</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setConfirmDelete(null)}
+              disabled={!!deletingId}
+              className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" /> Cancelar
+            </button>
+            <button
+              onClick={() => handleDeleteProject(confirmDelete.id)}
+              disabled={!!deletingId}
+              className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {deletingId ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deletingId ? "Eliminando..." : "Sí, eliminar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
