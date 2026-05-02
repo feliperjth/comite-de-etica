@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, User } from "lucide-react";
-import AnimatedStats from "@/components/AnimatedStats";
 
 const features = [
   {
@@ -105,8 +104,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Animated stats */}
-      <AnimatedStats />
+      {/* Stats */}
+      <section className="bg-white border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-8">
+          {[
+            { value: "120+", label: "Proyectos revisados" },
+            { value: "94%",  label: "Tasa de aprobación" },
+            { value: "~12 días", label: "Tiempo promedio de revisión" },
+            { value: "8",    label: "Revisores especializados" },
+          ].map((s) => (
+            <div key={s.label} className="text-center">
+              <div className="text-3xl font-bold text-uai-navy">{s.value}</div>
+              <div className="text-slate-400 text-sm mt-1">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Profile selector */}
       <section className="bg-white border-b border-slate-100 py-10 px-4">
