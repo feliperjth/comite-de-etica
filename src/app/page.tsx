@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, User } from "lucide-react";
+import AnimatedStats from "@/components/AnimatedStats";
 
 const features = [
   {
@@ -56,12 +57,6 @@ const steps = [
   { num: "04", title: "Envío y seguimiento", desc: "Envía al comité y sigue el progreso de tu revisión en tiempo real." },
 ];
 
-const stats = [
-  { value: "120+", label: "Proyectos revisados" },
-  { value: "94%", label: "Tasa de aprobación" },
-  { value: "~12 días", label: "Tiempo promedio de revisión" },
-  { value: "8", label: "Revisores especializados" },
-];
 
 export default function Home() {
   return (
@@ -110,6 +105,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Animated stats */}
+      <AnimatedStats />
+
       {/* Profile selector */}
       <section className="bg-white border-b border-slate-100 py-10 px-4">
         <div className="max-w-3xl mx-auto">
@@ -147,18 +145,6 @@ export default function Home() {
               <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-[#CC5200] group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="bg-white border-b border-slate-100">
-        <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="text-3xl font-bold text-uai-navy">{s.value}</div>
-              <div className="text-slate-400 text-sm mt-1">{s.label}</div>
-            </div>
-          ))}
         </div>
       </section>
 
