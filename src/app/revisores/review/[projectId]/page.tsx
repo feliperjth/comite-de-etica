@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase, type Project } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
-import { CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft, Loader2, FileText, Download, Eye, X, ExternalLink, Sparkles } from "lucide-react";
+import { CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft, Loader2, FileText, Download, Eye, X, ExternalLink } from "lucide-react";
+import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 
 const docLabels: Record<string, string> = {
   protocol:    "Protocolo de investigación",
@@ -58,10 +59,6 @@ export default function ReviewPage() {
   const [viewer, setViewer]          = useState<{ url: string; name: string } | null>(null);
   const docsRef                      = useRef<HTMLDivElement>(null);
 
-  const [aiAnalysis, setAiAnalysis]  = useState<string | null>(null);
-  const [aiLoading, setAiLoading]    = useState(false);
-  const [aiError, setAiError]        = useState("");
-  const [aiOpen, setAiOpen]          = useState(false);
 
   const closeViewer = useCallback(() => {
     setViewer(null);
@@ -126,43 +123,6 @@ export default function ReviewPage() {
       ...prev,
       [key]: { ...prev[key], expanded: !prev[key].expanded },
     }));
-  }
-
-  async function handleAiAnalysis() {
-    if (!project) return;
-    setAiLoading(true);
-    setAiError("");
-    const text = project.abstract ?? project.title;
-    const res = await fetch("/api/review", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, title: project.title }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setAiAnalysis(data.review);
-      setAiOpen(true);
-    } else {
-      setAiError(data.error ?? "Error al analizar con IA.");
-    }
-    setAiLoading(false);
-  }
-
-  function renderAiMarkdown(text: string) {
-    return text.split("\n").map((line, i) => {
-      if (line.startsWith("## ")) {
-        return <h3 key={i} className="font-bold text-slate-800 text-sm mt-4 mb-1">{line.slice(3)}</h3>;
-      }
-      if (line.startsWith("**") && line.endsWith("**")) {
-        return <p key={i} className="font-semibold text-slate-700 text-xs">{line.slice(2, -2)}</p>;
-      }
-      const boldReplaced = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-      if (boldReplaced !== line) {
-        return <p key={i} className="text-slate-600 text-xs leading-relaxed" dangerouslySetInnerHTML={{ __html: boldReplaced }} />;
-      }
-      if (line.trim() === "") return <div key={i} className="h-1" />;
-      return <p key={i} className="text-slate-600 text-xs leading-relaxed">{line}</p>;
-    });
   }
 
   const completedCount = sections.filter((s) => sectionState[s.key]?.decision !== null).length;
@@ -258,49 +218,7 @@ export default function ReviewPage() {
       </div>
 
       {/* AI Analysis panel */}
-      <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl border border-violet-200 shadow-sm overflow-hidden mb-8">
-        <div className="px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-violet-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-violet-900 text-sm">Análisis ético con IA (Gemini)</p>
-              <p className="text-violet-500 text-xs">Evaluación preliminar de los tres pilares éticos</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {aiAnalysis && (
-              <button
-                onClick={() => setAiOpen((o) => !o)}
-                className="text-violet-400 hover:text-violet-600 transition-colors"
-              >
-                {aiOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            )}
-            <button
-              onClick={handleAiAnalysis}
-              disabled={aiLoading}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm"
-            >
-              {aiLoading
-                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analizando...</>
-                : <><Sparkles className="w-3.5 h-3.5" /> {aiAnalysis ? "Volver a analizar" : "Analizar con IA"}</>
-              }
-            </button>
-          </div>
-        </div>
-        {aiError && (
-          <div className="mx-5 mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
-            {aiError}
-          </div>
-        )}
-        {aiAnalysis && aiOpen && (
-          <div className="border-t border-violet-200 bg-white/70 px-5 py-4">
-            <div className="space-y-0.5">{renderAiMarkdown(aiAnalysis)}</div>
-          </div>
-        )}
-      </div>
+      <AiAnalysisPanel title={project.title} abstract={project.abstract} mode="revisor" />
 
       {/* Documents panel */}
       <div ref={docsRef} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">

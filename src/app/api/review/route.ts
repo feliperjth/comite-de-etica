@@ -1,6 +1,90 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
+const PROMPTS = {
+  investigador: (title: string, text: string) => `
+Eres un asesor de ética de la investigación que apoya a investigadores universitarios en Chile a mejorar sus propuestas ANTES de presentarlas formalmente al Comité de Ética. El investigador quiere saber qué tan sólida es su documentación ética y qué debe reforzar o completar.
+
+Tu análisis debe ser:
+- Constructivo y orientado a la acción: "Incluye en el consentimiento...", "Especifica en el protocolo...", etc.
+- Específico sobre qué información falta o es insuficiente
+- Empático: el investigador quiere mejorar, no ser evaluado formalmente
+- En español, lenguaje claro y directo
+
+Analiza el siguiente proyecto según los tres pilares éticos e indica al investigador qué debe fortalecer:
+
+**Título:** ${title || "Sin título"}
+
+**Descripción / Resumen:**
+${text}
+
+Responde con este formato exacto:
+
+## Pilar 1: Autonomía y Consentimiento Informado
+**Estado de tu documentación:** [SÓLIDO / MEJORABLE / INCOMPLETO / NO ESPECIFICADO]
+**Lo que tienes bien:** ...
+**Qué debes reforzar:** ...
+**Acción concreta:** ...
+
+## Pilar 2: Beneficencia y Minimización de Riesgos
+**Estado de tu documentación:** [SÓLIDO / MEJORABLE / INCOMPLETO / NO ESPECIFICADO]
+**Lo que tienes bien:** ...
+**Qué debes reforzar:** ...
+**Acción concreta:** ...
+
+## Pilar 3: Justicia y Equidad
+**Estado de tu documentación:** [SÓLIDO / MEJORABLE / INCOMPLETO / NO ESPECIFICADO]
+**Lo que tienes bien:** ...
+**Qué debes reforzar:** ...
+**Acción concreta:** ...
+
+## Recomendación antes de enviar al comité
+[2-3 oraciones sobre qué priorizar para fortalecer tu propuesta ética antes de la revisión formal]
+`.trim(),
+
+  revisor: (title: string, text: string) => `
+Eres un experto en ética de la investigación en psicología, con experiencia en comités de ética de universidades latinoamericanas. Estás asistiendo a un REVISOR DEL COMITÉ DE ÉTICA a realizar su evaluación de manera sistemática y fundamentada.
+
+Tu análisis debe ser:
+- Técnico y formal (lenguaje de evaluación ética académica)
+- Preciso sobre el nivel de cumplimiento de cada pilar según la información disponible
+- Enfocado en identificar vacíos que requieren corrección formal por parte del investigador
+- Señalar explícitamente si algún aspecto no puede evaluarse solo con el resumen disponible y requiere revisar los documentos adjuntos
+
+Este análisis es una herramienta de apoyo al revisor, no un reemplazo de su juicio profesional. Responde en español.
+
+Analiza el siguiente proyecto de investigación:
+
+**Título:** ${title || "Sin título"}
+
+**Descripción / Resumen:**
+${text}
+
+Responde con este formato exacto:
+
+## Pilar 1: Autonomía y Respeto por las Personas
+**Evaluación:** [CUMPLE / CUMPLE PARCIALMENTE / REQUIERE CORRECCIÓN / NO EVALUABLE SIN DOCUMENTOS]
+**Aspectos satisfactorios:** ...
+**Deficiencias identificadas:** ...
+**Observación para el acta:** ...
+
+## Pilar 2: Beneficencia y No Maleficencia
+**Evaluación:** [CUMPLE / CUMPLE PARCIALMENTE / REQUIERE CORRECCIÓN / NO EVALUABLE SIN DOCUMENTOS]
+**Aspectos satisfactorios:** ...
+**Deficiencias identificadas:** ...
+**Observación para el acta:** ...
+
+## Pilar 3: Justicia
+**Evaluación:** [CUMPLE / CUMPLE PARCIALMENTE / REQUIERE CORRECCIÓN / NO EVALUABLE SIN DOCUMENTOS]
+**Aspectos satisfactorios:** ...
+**Deficiencias identificadas:** ...
+**Observación para el acta:** ...
+
+## Dictamen preliminar
+[2-3 oraciones sobre la preparación general del proyecto para aprobación ética, y si se recomienda aprobación directa, correcciones menores o correcciones sustantivas]
+`.trim(),
+};
+
 export async function POST(request: NextRequest) {
   if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json(
@@ -9,7 +93,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { text, title } = await request.json();
+  const { text, title, mode = "revisor" } = await request.json() as {
+    text: string;
+    title?: string;
+    mode?: "investigador" | "revisor";
+  };
 
   if (!text || text.trim().length < 50) {
     return NextResponse.json(
@@ -18,40 +106,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const promptFn = PROMPTS[mode] ?? PROMPTS.revisor;
+  const prompt = promptFn(title ?? "", text);
+
   const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genai.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-  const prompt = `Eres un experto en ética de la investigación en psicología, con experiencia en comités de ética de universidades latinoamericanas. Tu rol es ayudar a los investigadores a identificar aspectos éticos a fortalecer ANTES de enviar su proyecto al comité formal. Sé constructivo, específico y directo. Usa lenguaje claro. Responde en español.
-
-Analiza el siguiente proyecto según los tres pilares éticos fundamentales:
-
-**Título:** ${title || "Sin título"}
-
-**Descripción / Metodología:**
-${text}
-
-Responde con este formato exacto:
-
-## Pilar 1: Autonomía y Respeto por las Personas
-**Estado:** [CUMPLE / CUMPLE PARCIALMENTE / NO ESPECIFICADO / REQUIERE ATENCIÓN]
-**Aspectos positivos:** ...
-**A mejorar:** ...
-**Recomendación:** ...
-
-## Pilar 2: Beneficencia y No Maleficencia
-**Estado:** [CUMPLE / CUMPLE PARCIALMENTE / NO ESPECIFICADO / REQUIERE ATENCIÓN]
-**Aspectos positivos:** ...
-**A mejorar:** ...
-**Recomendación:** ...
-
-## Pilar 3: Justicia
-**Estado:** [CUMPLE / CUMPLE PARCIALMENTE / NO ESPECIFICADO / REQUIERE ATENCIÓN]
-**Aspectos positivos:** ...
-**A mejorar:** ...
-**Recomendación:** ...
-
-## Conclusión
-[2-3 oraciones sobre la preparación general del proyecto para ser enviado al Comité de Ética]`;
 
   const result = await model.generateContent(prompt);
   const review = result.response.text();

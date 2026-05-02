@@ -5,6 +5,7 @@ import ResubmitForm from "@/components/ResubmitForm";
 import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 
 const statusSteps = [
   { key: "submitted",   label: "Recibido",           icon: Clock },
@@ -197,6 +198,17 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* AI self-assessment for investigators */}
+        {!isReviewer && project.status !== "certified" && project.status !== "rejected" && (
+          <div className="mb-6">
+            <AiAnalysisPanel
+              title={project.title}
+              abstract={project.abstract}
+              mode="investigador"
+            />
           </div>
         )}
 
