@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { getSupabase } from "@/lib/supabase";
 import { themes } from "@/lib/themes";
 import {
   BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle,
   TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw,
-  HardDrive, AlertTriangle, Activity,
+  HardDrive, AlertTriangle, Activity, Layers, Calendar, Users2, Zap,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -686,6 +687,61 @@ export default function CoordinadorStats() {
       value,
     }));
 
+  // Monthly stacked by outcome
+  const monthlyStackedMap: Record<string, Record<string, number>> = {};
+  projects.forEach(p => {
+    const d = new Date(p.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    if (!monthlyStackedMap[key]) monthlyStackedMap[key] = {};
+    const s = p.status;
+    monthlyStackedMap[key][s] = (monthlyStackedMap[key][s] ?? 0) + 1;
+  });
+  const monthlyStackedData = Object.entries(monthlyStackedMap)
+    .sort(([a],[b]) => a.localeCompare(b))
+    .map(([key, st]) => ({
+      name: new Date(key+"-01").toLocaleDateString("es-CL",{ month:"short", year:"2-digit" }),
+      Aprobado:    (st["approved"] ?? 0) + (st["certified"] ?? 0),
+      Revisión:     st["reviewing"]   ?? 0,
+      Observaciones:st["corrections"] ?? 0,
+      Rechazado:    st["rejected"]    ?? 0,
+      Enviado:      st["submitted"]   ?? 0,
+    }));
+
+  // Type × approval breakdown
+  const typeApprovalData = (Object.keys(TYPE_LABELS) as (keyof typeof TYPE_LABELS)[])
+    .map(key => {
+      const tp = projects.filter(p => p.project_type === key);
+      if (!tp.length) return null;
+      return {
+        name: TYPE_LABELS[key],
+        approved:    tp.filter(p => p.status === "approved" || p.status === "certified").length,
+        corrections: tp.filter(p => p.status === "corrections").length,
+        reviewing:   tp.filter(p => p.status === "reviewing" || p.status === "submitted").length,
+        rejected:    tp.filter(p => p.status === "rejected").length,
+        total:       tp.length,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null)
+    .sort((a, b) => b.total - a.total);
+
+  // Radar: type distribution (for RadarChart)
+  const radarData = Object.entries(TYPE_LABELS)
+    .map(([key, name]) => ({ subject: name, value: typeCounts[key] ?? 0, fullMark: total || 1 }))
+    .filter(d => d.value > 0);
+
+  // Day of week distribution
+  const DAY_LABELS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const dayBuckets = [0,0,0,0,0,0,0];
+  projects.forEach(p => { dayBuckets[new Date(p.created_at).getDay()]++; });
+  const dayOfWeekData = DAY_LABELS.map((name, i) => ({ name, value: dayBuckets[i] }));
+
+  // Key insights
+  const numMonths     = Object.keys(monthlyMap).length;
+  const avgPerMonth   = numMonths > 0 ? (total / numMonths).toFixed(1) : "0";
+  const correctionRate= total > 0 ? Math.round((statusCounts["corrections"] ?? 0) / total * 100) : 0;
+  const peakMonth     = [...monthlyData].sort((a,b) => b.value - a.value)[0];
+  const topTypeEntry  = Object.entries(typeCounts).sort((a,b) => b[1]-a[1])[0];
+
   const pctOf = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
   const axisStyle = { fontSize: 11, fill: "#94a3b8" };
@@ -802,26 +858,180 @@ export default function CoordinadorStats() {
           </div>
         </div>
 
-        {/* ── Monthly trend full-width ──────────────────────────────────── */}
-        {monthlyData.length > 1 && (
-          <ChartCard title="Proyectos enviados por mes" icon={TrendingUp} accent="#22c55e">
+        {/* ── Insight Strip ────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            {
+              label: "Promedio mensual",
+              value: avgPerMonth,
+              unit: "proyectos / mes",
+              color: "#60a5fa",
+              bg: "from-blue-50 to-sky-50",
+              border: "border-blue-100",
+              icon: TrendingUp,
+            },
+            {
+              label: "Tasa de correcciones",
+              value: `${correctionRate}%`,
+              unit: "necesitaron ajustes",
+              color: "#f97316",
+              bg: "from-orange-50 to-amber-50",
+              border: "border-orange-100",
+              icon: AlertCircle,
+            },
+            {
+              label: "Mes más activo",
+              value: peakMonth?.name ?? "—",
+              unit: peakMonth ? `${peakMonth.value} proyectos` : "sin datos",
+              color: "#22c55e",
+              bg: "from-emerald-50 to-green-50",
+              border: "border-emerald-100",
+              icon: Calendar,
+            },
+            {
+              label: "Tipo predominante",
+              value: topTypeEntry ? TYPE_LABELS[topTypeEntry[0]] : "—",
+              unit: topTypeEntry ? `${topTypeEntry[1]} proyectos` : "sin datos",
+              color: "#c084fc",
+              bg: "from-violet-50 to-purple-50",
+              border: "border-violet-100",
+              icon: Layers,
+            },
+          ].map((ins) => (
+            <div key={ins.label}
+              className={`relative overflow-hidden rounded-2xl border ${ins.border} bg-gradient-to-br ${ins.bg} p-5 shadow-sm hover:shadow-md transition-shadow group`}>
+              <div className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full opacity-10 pointer-events-none transition-opacity group-hover:opacity-20"
+                style={{ backgroundColor: ins.color }} />
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${ins.color}20`, color: ins.color }}>
+                  <ins.icon className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">{ins.label}</span>
+              </div>
+              <div className="text-2xl font-black text-slate-800 leading-none mb-1 tabular-nums">{ins.value}</div>
+              <div className="text-[11px] text-slate-400 font-medium">{ins.unit}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Monthly stacked bar ───────────────────────────────────────── */}
+        {monthlyStackedData.length > 1 && (
+          <ChartCard title="Evolución mensual por resultado" icon={TrendingUp} accent="#22c55e">
+            <div className="flex items-center gap-4 mb-4 flex-wrap">
+              {[
+                { key: "Aprobado", color: "#22c55e" },
+                { key: "Revisión", color: "#3b82f6" },
+                { key: "Observaciones", color: "#f97316" },
+                { key: "Rechazado", color: "#ef4444" },
+                { key: "Enviado", color: "#94a3b8" },
+              ].map(l => (
+                <div key={l.key} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: l.color }} />
+                  <span className="text-[11px] text-slate-500 font-medium">{l.key}</span>
+                </div>
+              ))}
+            </div>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={monthlyData} margin={{ left: 0, right: 16, top: 8 }}>
+              <BarChart data={monthlyStackedData} margin={{ left: 0, right: 16, top: 4 }}>
                 <defs>
-                  <linearGradient id="areaGreen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                  {[
+                    ["gradAprobado","#16a34a","#4ade80"],
+                    ["gradRevision","#1d4ed8","#60a5fa"],
+                    ["gradObserv",  "#c2410c","#fb923c"],
+                    ["gradRechaz",  "#b91c1c","#f87171"],
+                    ["gradEnviado", "#64748b","#cbd5e1"],
+                  ].map(([id,c1,c2]) => (
+                    <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={c1} stopOpacity={0.9} />
+                      <stop offset="100%" stopColor={c2} stopOpacity={0.7} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: "#0A1628", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 12 }}
+                  cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                />
+                <Bar dataKey="Aprobado"     stackId="a" fill="url(#gradAprobado)" />
+                <Bar dataKey="Revisión"     stackId="a" fill="url(#gradRevision)" />
+                <Bar dataKey="Observaciones" stackId="a" fill="url(#gradObserv)" />
+                <Bar dataKey="Rechazado"    stackId="a" fill="url(#gradRechaz)" />
+                <Bar dataKey="Enviado"      stackId="a" fill="url(#gradEnviado)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {/* ── Type × approval rate + Day of week ───────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          {/* Type × approval breakdown */}
+          {typeApprovalData.length > 0 && (
+            <ChartCard title="Resultado por tipo de investigación" icon={Zap} accent="#CC5200">
+              <div className="space-y-4 pt-1">
+                {typeApprovalData.map((t) => {
+                  const apPct   = (t.approved    / t.total) * 100;
+                  const corPct  = (t.corrections / t.total) * 100;
+                  const revPct  = (t.reviewing   / t.total) * 100;
+                  const rejPct  = (t.rejected    / t.total) * 100;
+                  return (
+                    <div key={t.name}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-slate-700">{t.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-black tabular-nums text-emerald-600">{Math.round(apPct)}%</span>
+                          <span className="text-[10px] text-slate-300">({t.total})</span>
+                        </div>
+                      </div>
+                      <div className="h-4 rounded-full overflow-hidden flex gap-px bg-slate-100">
+                        {apPct  > 0 && <div className="h-full rounded-l-full transition-all duration-1000" style={{ width: animated ? `${apPct}%`  : "0%", background: "linear-gradient(90deg,#16a34a,#22c55e)", transitionDelay: "400ms" }} />}
+                        {corPct > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${corPct}%` : "0%", background: "linear-gradient(90deg,#ea580c,#fb923c)", transitionDelay: "600ms" }} />}
+                        {revPct > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${revPct}%` : "0%", background: "linear-gradient(90deg,#1d4ed8,#60a5fa)", transitionDelay: "800ms" }} />}
+                        {rejPct > 0 && <div className="h-full rounded-r-full transition-all duration-1000" style={{ width: animated ? `${rejPct}%` : "0%", background: "linear-gradient(90deg,#b91c1c,#f87171)", transitionDelay: "1000ms" }} />}
+                      </div>
+                      <div className="flex gap-3 mt-1.5">
+                        {apPct  > 0 && <span className="text-[10px] text-emerald-600 font-medium">✓ {Math.round(apPct)}% aprobado</span>}
+                        {corPct > 0 && <span className="text-[10px] text-orange-500 font-medium">⚑ {Math.round(corPct)}% obs.</span>}
+                        {rejPct > 0 && <span className="text-[10px] text-red-500 font-medium">✗ {Math.round(rejPct)}% rechazo</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-4 mt-5 pt-4 border-t border-slate-50">
+                {[["#22c55e","Aprobado"],["#f97316","Observaciones"],["#3b82f6","En revisión"],["#ef4444","Rechazado"]].map(([c,l]) => (
+                  <div key={l} className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: c }} />
+                    <span className="text-[10px] text-slate-400">{l}</span>
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+          )}
+
+          {/* Day of week */}
+          <ChartCard title="Envíos por día de la semana" icon={Calendar} accent="#8b5cf6">
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={dayOfWeekData} margin={{ left: 0, right: 8, top: 8, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="barDay" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#c084fc" stopOpacity={0.5} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip content={<DarkTooltip />} cursor={{ stroke: "#22c55e", strokeWidth: 1, strokeOpacity: 0.3 }} />
-                <Area dataKey="value" stroke="#22c55e" strokeWidth={2.5} fill="url(#areaGreen)"
-                  dot={{ r: 4, fill: "#22c55e", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#22c55e" }} />
-              </AreaChart>
+                <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(139,92,246,0.06)" }} />
+                <Bar dataKey="value" fill="url(#barDay)" radius={[6, 6, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
+            <p className="text-[11px] text-slate-400 text-center mt-1">
+              Patrón de envíos por día de la semana
+            </p>
           </ChartCard>
-        )}
+        </div>
 
         {/* ── Funding spotlight ─────────────────────────────────────────── */}
         <div>
@@ -836,17 +1046,16 @@ export default function CoordinadorStats() {
             </div>
             <div className="flex-1 h-px bg-gradient-to-l from-transparent via-amber-300/40 to-violet-300/40" />
           </div>
-
           <div className="grid md:grid-cols-2 gap-5">
             <FundingCard type="fondecyt" projects={fondecytProjects} total={total} active={animated} />
             <FundingCard type="grant_uai" projects={grantProjects}    total={total} active={animated} />
           </div>
         </div>
 
-        {/* ── Analytics 2-col ───────────────────────────────────────────── */}
+        {/* ── Status + Type radar 2-col ─────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-          {/* Status distribution as horizontal bars */}
+          {/* Status distribution */}
           <ChartCard title="Distribución por estado" accent="#CC5200">
             <div className="space-y-3.5 pt-1">
               {statusData.filter(d => d.value > 0).map((s) => {
@@ -855,18 +1064,18 @@ export default function CoordinadorStats() {
                   <div key={s.name}>
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
                         <span className="text-xs font-semibold text-slate-600">{s.name}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold tabular-nums" style={{ color: s.color }}>{s.value}</span>
-                        <span className="text-[10px] text-slate-300 tabular-nums w-8 text-right">{Math.round(p)}%</span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm font-black tabular-nums" style={{ color: s.color }}>{s.value}</span>
+                        <span className="text-[10px] text-slate-300 tabular-nums w-9 text-right">{Math.round(p)}%</span>
                       </div>
                     </div>
-                    <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-1000"
                         style={{ width: animated ? `${p}%` : "0%", backgroundColor: s.color,
-                          boxShadow: `0 0 8px ${s.color}55`, transitionDelay: "300ms" }} />
+                          boxShadow: `0 0 10px ${s.color}66`, transitionDelay: "300ms" }} />
                     </div>
                   </div>
                 );
@@ -874,66 +1083,84 @@ export default function CoordinadorStats() {
             </div>
           </ChartCard>
 
-          {/* Type bars */}
-          <ChartCard title="Tipo de investigación" icon={BookOpen} accent="#3b82f6">
-            {typeData.length === 0
-              ? <p className="text-slate-400 text-sm py-10 text-center">Sin datos aún.</p>
-              : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={typeData} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
-                    <defs>
-                      <linearGradient id="barBlue" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.65} />
-                        <stop offset="100%" stopColor="#60a5fa" />
-                      </linearGradient>
-                    </defs>
-                    <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={145} tick={axisStyle} axisLine={false} tickLine={false} />
-                    <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(59,130,246,0.05)" }} />
-                    <Bar dataKey="value" fill="url(#barBlue)" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-          </ChartCard>
-
-          {/* Theme bars full-width */}
-          {themeData.length > 0 && (
-            <div className="lg:col-span-2">
-              <ChartCard title="Área temática" icon={BookOpen} accent="#CC5200">
-                <ResponsiveContainer width="100%" height={Math.max(240, themeData.length * 38)}>
-                  <BarChart data={themeData} layout="vertical" margin={{ left: 8, right: 36, top: 4 }}>
-                    <defs>
-                      <linearGradient id="barOrange" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#CC5200" stopOpacity={0.7} />
-                        <stop offset="100%" stopColor="#f97316" />
-                      </linearGradient>
-                    </defs>
-                    <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={175} tick={axisStyle} axisLine={false} tickLine={false} />
-                    <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(204,82,0,0.05)" }} />
-                    <Bar dataKey="value" fill="url(#barOrange)" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            </div>
+          {/* Type radar chart */}
+          {radarData.length >= 3 ? (
+            <ChartCard title="Tipo de investigación (radar)" icon={Layers} accent="#3b82f6">
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={radarData} margin={{ top: 16, right: 32, bottom: 0, left: 32 }}>
+                  <PolarGrid stroke="rgba(0,0,0,0.06)" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }} />
+                  <PolarRadiusAxis tick={false} axisLine={false} />
+                  <Radar dataKey="value" stroke="#3b82f6" strokeWidth={2}
+                    fill="#3b82f6" fillOpacity={0.2}
+                    dot={{ fill: "#3b82f6", r: 3 }} />
+                  <Tooltip
+                    contentStyle={{ background: "#0A1628", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 12 }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          ) : (
+            <ChartCard title="Tipo de investigación" icon={BookOpen} accent="#3b82f6">
+              {typeData.length === 0
+                ? <p className="text-slate-400 text-sm py-10 text-center">Sin datos aún.</p>
+                : (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={typeData} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+                      <defs>
+                        <linearGradient id="barBlue" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.65} />
+                          <stop offset="100%" stopColor="#60a5fa" />
+                        </linearGradient>
+                      </defs>
+                      <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={145} tick={axisStyle} axisLine={false} tickLine={false} />
+                      <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(59,130,246,0.05)" }} />
+                      <Bar dataKey="value" fill="url(#barBlue)" radius={[0, 6, 6, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+            </ChartCard>
           )}
         </div>
 
-        {/* Advisors full-width */}
+        {/* ── Theme full-width ──────────────────────────────────────────── */}
+        {themeData.length > 0 && (
+          <ChartCard title="Distribución por área temática" icon={BookOpen} accent="#CC5200">
+            <ResponsiveContainer width="100%" height={Math.max(240, themeData.length * 40)}>
+              <BarChart data={themeData} layout="vertical" margin={{ left: 8, right: 48, top: 4 }}>
+                <defs>
+                  <linearGradient id="barOrange" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#CC5200" stopOpacity={0.75} />
+                    <stop offset="100%" stopColor="#f97316" />
+                  </linearGradient>
+                </defs>
+                <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={185} tick={axisStyle} axisLine={false} tickLine={false} />
+                <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(204,82,0,0.05)" }} />
+                <Bar dataKey="value" fill="url(#barOrange)" radius={[0, 6, 6, 0]}
+                  label={{ position: "right", fontSize: 11, fill: "#94a3b8", fontWeight: 700 }} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {/* ── Advisor full-width ────────────────────────────────────────── */}
         {advisorData.length > 0 && (
-          <ChartCard title="Proyectos por profesor/a guía" icon={TrendingUp} accent="#8b5cf6">
-            <ResponsiveContainer width="100%" height={Math.max(200, advisorData.length * 34)}>
-              <BarChart data={advisorData} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+          <ChartCard title="Proyectos por profesor/a guía" icon={Users2} accent="#8b5cf6">
+            <ResponsiveContainer width="100%" height={Math.max(200, advisorData.length * 36)}>
+              <BarChart data={advisorData} layout="vertical" margin={{ left: 8, right: 48, top: 4 }}>
                 <defs>
                   <linearGradient id="barViolet" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.65} />
+                    <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.7} />
                     <stop offset="100%" stopColor="#c084fc" />
                   </linearGradient>
                 </defs>
                 <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={190} tick={axisStyle} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={200} tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(139,92,246,0.05)" }} />
-                <Bar dataKey="value" fill="url(#barViolet)" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="value" fill="url(#barViolet)" radius={[0, 6, 6, 0]}
+                  label={{ position: "right", fontSize: 11, fill: "#94a3b8", fontWeight: 700 }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
