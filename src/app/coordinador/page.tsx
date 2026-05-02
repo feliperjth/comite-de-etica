@@ -97,9 +97,9 @@ function RingGauge({ pct, color, size = 52, sw = 4.5, delay = 0, active }: {
 
 // ─── KPI sub-component ─────────────────────────────────────────────────────
 
-function KPICard({ value, label, icon: Icon, color, ring, delay, active }: {
+function KPICard({ value, label, icon: Icon, color, ring, delay, active, pct }: {
   value: number; label: string; icon: React.ElementType;
-  color: string; ring: number; delay: number; active: boolean;
+  color: string; ring: number; delay: number; active: boolean; pct?: number;
 }) {
   const displayed = useCountUp(value, active, delay);
   return (
@@ -113,6 +113,110 @@ function KPICard({ value, label, icon: Icon, color, ring, delay, active }: {
       </div>
       <div className="text-2xl font-bold text-white tabular-nums leading-none mb-1">{displayed}</div>
       <div className="text-[11px] text-white/50 font-medium leading-snug">{label}</div>
+      {pct !== undefined && (
+        <div className="mt-2.5 h-1 rounded-full bg-white/[0.07] overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-1000"
+            style={{ width: active ? `${pct}%` : "0%", backgroundColor: color, transitionDelay: `${delay + 600}ms` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Approval Rate Hero Gauge ──────────────────────────────────────────────
+
+function ApprovalGauge({ pct, active }: { pct: number; active: boolean }) {
+  const size = 200; const sw = 14; const r = (size - sw) / 2;
+  const C = 2 * Math.PI * r;
+  // Only draw 270° arc (from 135° to 405°)
+  const arcRatio = 0.75;
+  const bgLen = C * arcRatio;
+  const fillLen = active ? (pct / 100) * bgLen : 0;
+  // rotate so arc starts at bottom-left (135°)
+  const rotation = 135;
+
+  return (
+    <div className="relative flex flex-col items-center">
+      <svg width={size} height={size} style={{ transform: `rotate(${rotation}deg)` }}>
+        <defs>
+          <linearGradient id="approvalArc" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f97316" />
+            <stop offset="50%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+          <filter id="arcGlow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+        {/* Track */}
+        <circle cx={size/2} cy={size/2} r={r} fill="none"
+          stroke="rgba(255,255,255,0.07)" strokeWidth={sw} strokeLinecap="round"
+          strokeDasharray={`${bgLen} ${C}`} strokeDashoffset={0} />
+        {/* Fill arc */}
+        <circle cx={size/2} cy={size/2} r={r} fill="none"
+          stroke="url(#approvalArc)" strokeWidth={sw} strokeLinecap="round"
+          strokeDasharray={`${fillLen} ${C}`} strokeDashoffset={0}
+          style={{ transition: active ? "stroke-dasharray 2.2s cubic-bezier(0.34,1.2,0.64,1) 300ms" : "none",
+            filter: "drop-shadow(0 0 6px rgba(34,197,94,0.5))" }} />
+      </svg>
+      {/* Center label – counter-rotate to stay upright */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ transform: `rotate(-${rotation}deg)` }}>
+        <div className="text-5xl font-black text-white tabular-nums leading-none">{active ? pct : 0}%</div>
+        <div className="text-[11px] text-white/40 font-bold uppercase tracking-widest mt-1.5">Aprobación</div>
+        <div className="text-[10px] text-white/25 mt-0.5">tasa histórica</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Pipeline funnel ───────────────────────────────────────────────────────
+
+const PIPELINE_STAGES = [
+  { key: "submitted",   label: "Enviados",      short: "Recibido",    color: "#f59e0b", bg: "#f59e0b18" },
+  { key: "reviewing",   label: "En revisión",   short: "Revisión",    color: "#3b82f6", bg: "#3b82f618" },
+  { key: "corrections", label: "Observaciones", short: "Corrección",  color: "#f97316", bg: "#f9731618" },
+  { key: "approved",    label: "Aprobados",     short: "Aprobado",    color: "#22c55e", bg: "#22c55e18" },
+  { key: "certified",   label: "Certificados",  short: "Certificado", color: "#a78bfa", bg: "#a78bfa18" },
+  { key: "rejected",    label: "Rechazados",    short: "Rechazado",   color: "#ef4444", bg: "#ef444418" },
+];
+
+function PipelineFunnel({ counts, total, active }: {
+  counts: Record<string, number>; total: number; active: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+      {PIPELINE_STAGES.map((s, i) => {
+        const n   = counts[s.key] ?? 0;
+        const pct = total > 0 ? Math.round((n / total) * 100) : 0;
+        return (
+          <div key={s.key} className="relative flex flex-col items-center gap-1.5">
+            {/* Arrow connector (hidden on last) */}
+            {i < PIPELINE_STAGES.length - 1 && (
+              <div className="hidden md:block absolute top-5 -right-1 z-10">
+                <svg width={10} height={12} viewBox="0 0 10 12">
+                  <path d="M1 1 L9 6 L1 11" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            )}
+            <div className="w-full rounded-xl border border-white/[0.08] p-3 text-center"
+              style={{ backgroundColor: s.bg, borderColor: `${s.color}30` }}>
+              <div className="text-2xl font-black tabular-nums leading-none mb-0.5"
+                style={{ color: s.color }}>{n}</div>
+              <div className="text-[10px] text-white/45 font-semibold">{s.short}</div>
+              <div className="mt-2 h-1 rounded-full bg-white/[0.08] overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: active ? `${pct}%` : "0%",
+                    backgroundColor: s.color,
+                    transitionDelay: `${i * 120 + 400}ms`,
+                  }} />
+              </div>
+              <div className="text-[9px] mt-1 font-bold tabular-nums" style={{ color: `${s.color}99` }}>{pct}%</div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -584,45 +688,92 @@ export default function CoordinadorStats() {
 
   const pctOf = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
-  const statCards = [
-    { label: "Total enviados",     value: total,                              icon: Activity,     color: "#60a5fa", ring: 100 },
-    { label: "Aprobados",          value: statusCounts["approved"]   ?? 0,    icon: CheckCircle,  color: "#22c55e", ring: pctOf(statusCounts["approved"]   ?? 0) },
-    { label: "En revisión",        value: statusCounts["reviewing"]  ?? 0,    icon: Clock,        color: "#3b82f6", ring: pctOf(statusCounts["reviewing"]  ?? 0) },
-    { label: "Con observaciones",  value: statusCounts["corrections"]?? 0,    icon: AlertCircle,  color: "#f97316", ring: pctOf(statusCounts["corrections"] ?? 0) },
-    { label: "Rechazados",         value: statusCounts["rejected"]   ?? 0,    icon: XCircle,      color: "#ef4444", ring: pctOf(statusCounts["rejected"]   ?? 0) },
-    { label: "Con financiamiento", value: fundedTotal,                        icon: DollarSign,   color: "#c084fc", ring: pctOf(fundedTotal) },
-  ];
-
   const axisStyle = { fontSize: 11, fill: "#94a3b8" };
+  const approvalPct = total > 0
+    ? Math.round(((statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)) / total * 100)
+    : 0;
+
+  const statCards = [
+    { label: "Total enviados",     value: total,                              icon: Activity,     color: "#60a5fa", ring: 100,                          pct: 100 },
+    { label: "Aprobados",          value: statusCounts["approved"]   ?? 0,    icon: CheckCircle,  color: "#22c55e", ring: pctOf(statusCounts["approved"]   ?? 0), pct: pctOf(statusCounts["approved"] ?? 0) },
+    { label: "En revisión",        value: statusCounts["reviewing"]  ?? 0,    icon: Clock,        color: "#3b82f6", ring: pctOf(statusCounts["reviewing"]  ?? 0), pct: pctOf(statusCounts["reviewing"] ?? 0) },
+    { label: "Con observaciones",  value: statusCounts["corrections"]?? 0,    icon: AlertCircle,  color: "#f97316", ring: pctOf(statusCounts["corrections"] ?? 0), pct: pctOf(statusCounts["corrections"] ?? 0) },
+    { label: "Rechazados",         value: statusCounts["rejected"]   ?? 0,    icon: XCircle,      color: "#ef4444", ring: pctOf(statusCounts["rejected"]   ?? 0), pct: pctOf(statusCounts["rejected"] ?? 0) },
+    { label: "Con financiamiento", value: fundedTotal,                        icon: DollarSign,   color: "#c084fc", ring: pctOf(fundedTotal),            pct: pctOf(fundedTotal) },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50/70">
 
       {/* ── Dark animated header ─────────────────────────────────────────── */}
-      <div className="relative bg-gradient-to-br from-[#040E1C] via-[#071422] to-[#0C1F38] px-4 pt-11 pb-10 overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-700/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#CC5200]/8 rounded-full blur-3xl pointer-events-none translate-y-1/2 -translate-x-1/4" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:26px_26px] pointer-events-none" />
+      <div className="relative bg-gradient-to-br from-[#020A16] via-[#060F1E] to-[#0A1828] px-4 pt-10 pb-12 overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-700/8 rounded-full blur-3xl pointer-events-none -translate-y-1/3 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-700/8 rounded-full blur-3xl pointer-events-none translate-y-1/3 -translate-x-1/4" />
+        <div className="absolute top-1/2 left-1/2 w-[800px] h-[400px] bg-[#CC5200]/5 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto">
+
+          {/* Title row */}
           <div className="flex items-center gap-3 mb-1.5">
             <div className="w-9 h-9 rounded-xl bg-[#CC5200]/20 border border-[#CC5200]/30 flex items-center justify-center shrink-0">
               <BarChart2 className="w-4 h-4 text-[#CC5200]" />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Estadísticas</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Panel de Estadísticas</h1>
             <div className="hidden sm:flex items-center gap-1.5 ml-2 bg-white/[0.06] border border-white/[0.08] px-3 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">En vivo</span>
             </div>
           </div>
-          <p className="text-white/35 text-sm ml-12 mb-8 font-medium">
-            Panel de análisis · Comité de Ética Escuela de Psicología UAI
+          <p className="text-white/30 text-sm ml-12 mb-8 font-medium">
+            Comité de Ética · Escuela de Psicología · Universidad Adolfo Ibáñez
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {statCards.map((s, i) => (
-              <KPICard key={s.label} value={s.value} label={s.label}
-                icon={s.icon} color={s.color} ring={s.ring} delay={i * 90} active={animated} />
-            ))}
+
+          {/* Hero layout: KPI grid + Approval Gauge */}
+          <div className="flex flex-col lg:flex-row items-start gap-6">
+
+            {/* KPI cards */}
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {statCards.map((s, i) => (
+                <KPICard key={s.label} value={s.value} label={s.label}
+                  icon={s.icon} color={s.color} ring={s.ring} delay={i * 90} active={animated} pct={s.pct} />
+              ))}
+            </div>
+
+            {/* Approval rate hero gauge */}
+            <div className="lg:shrink-0 flex flex-col items-center gap-3 w-full lg:w-auto">
+              <div className="relative rounded-3xl border border-white/[0.08] bg-white/[0.04] p-6 flex flex-col items-center backdrop-blur-sm">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.18em] mb-3">Rendimiento global</p>
+                <ApprovalGauge pct={approvalPct} active={animated} />
+                <div className="mt-3 flex items-center gap-4 text-center">
+                  <div>
+                    <div className="text-xl font-black text-emerald-400 tabular-nums">{(statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)}</div>
+                    <div className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">Aprobados</div>
+                  </div>
+                  <div className="w-px h-8 bg-white/[0.08]" />
+                  <div>
+                    <div className="text-xl font-black text-slate-300 tabular-nums">{total}</div>
+                    <div className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">Total</div>
+                  </div>
+                  <div className="w-px h-8 bg-white/[0.08]" />
+                  <div>
+                    <div className="text-xl font-black text-red-400 tabular-nums">{statusCounts["rejected"] ?? 0}</div>
+                    <div className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">Rechazados</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pipeline funnel */}
+          <div className="mt-7">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] font-bold text-white/25 uppercase tracking-[0.2em]">Flujo del proceso</span>
+              <div className="flex-1 h-px bg-white/[0.05]" />
+            </div>
+            <PipelineFunnel counts={statusCounts} total={total} active={animated} />
           </div>
         </div>
       </div>
@@ -651,6 +802,27 @@ export default function CoordinadorStats() {
           </div>
         </div>
 
+        {/* ── Monthly trend full-width ──────────────────────────────────── */}
+        {monthlyData.length > 1 && (
+          <ChartCard title="Proyectos enviados por mes" icon={TrendingUp} accent="#22c55e">
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={monthlyData} margin={{ left: 0, right: 16, top: 8 }}>
+                <defs>
+                  <linearGradient id="areaGreen" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
+                <Tooltip content={<DarkTooltip />} cursor={{ stroke: "#22c55e", strokeWidth: 1, strokeOpacity: 0.3 }} />
+                <Area dataKey="value" stroke="#22c55e" strokeWidth={2.5} fill="url(#areaGreen)"
+                  dot={{ r: 4, fill: "#22c55e", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#22c55e" }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
         {/* ── Funding spotlight ─────────────────────────────────────────── */}
         <div>
           <div className="flex items-center gap-3 mb-4">
@@ -674,21 +846,32 @@ export default function CoordinadorStats() {
         {/* ── Analytics 2-col ───────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-          {/* Status donut */}
-          <ChartCard title="Estado de proyectos" accent="#CC5200">
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={statusData.filter(d => d.value > 0)} dataKey="value" nameKey="name"
-                  cx="50%" cy="48%" outerRadius={88} innerRadius={52} paddingAngle={3} stroke="none"
-                  animationBegin={animated ? 0 : 9999} animationDuration={1400}>
-                  {statusData.filter(d => d.value > 0).map((e) => (
-                    <Cell key={e.name} fill={e.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<DarkTooltip />} />
-                <Legend content={<CustomLegend />} />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Status distribution as horizontal bars */}
+          <ChartCard title="Distribución por estado" accent="#CC5200">
+            <div className="space-y-3.5 pt-1">
+              {statusData.filter(d => d.value > 0).map((s) => {
+                const p = total > 0 ? (s.value / total) * 100 : 0;
+                return (
+                  <div key={s.name}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="text-xs font-semibold text-slate-600">{s.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold tabular-nums" style={{ color: s.color }}>{s.value}</span>
+                        <span className="text-[10px] text-slate-300 tabular-nums w-8 text-right">{Math.round(p)}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-1000"
+                        style={{ width: animated ? `${p}%` : "0%", backgroundColor: s.color,
+                          boxShadow: `0 0 8px ${s.color}55`, transitionDelay: "300ms" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </ChartCard>
 
           {/* Type bars */}
@@ -713,13 +896,12 @@ export default function CoordinadorStats() {
               )}
           </ChartCard>
 
-          {/* Theme bars */}
-          <ChartCard title="Área temática" icon={BookOpen} accent="#CC5200">
-            {themeData.length === 0
-              ? <p className="text-slate-400 text-sm py-10 text-center">Sin datos aún.</p>
-              : (
-                <ResponsiveContainer width="100%" height={290}>
-                  <BarChart data={themeData} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+          {/* Theme bars full-width */}
+          {themeData.length > 0 && (
+            <div className="lg:col-span-2">
+              <ChartCard title="Área temática" icon={BookOpen} accent="#CC5200">
+                <ResponsiveContainer width="100%" height={Math.max(240, themeData.length * 38)}>
+                  <BarChart data={themeData} layout="vertical" margin={{ left: 8, right: 36, top: 4 }}>
                     <defs>
                       <linearGradient id="barOrange" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#CC5200" stopOpacity={0.7} />
@@ -727,59 +909,20 @@ export default function CoordinadorStats() {
                       </linearGradient>
                     </defs>
                     <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={160} tick={axisStyle} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={175} tick={axisStyle} axisLine={false} tickLine={false} />
                     <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(204,82,0,0.05)" }} />
                     <Bar dataKey="value" fill="url(#barOrange)" radius={[0, 6, 6, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              )}
-          </ChartCard>
-
-          {/* Monthly trend */}
-          {monthlyData.length > 1
-            ? (
-              <ChartCard title="Proyectos enviados por mes" icon={TrendingUp} accent="#22c55e">
-                <ResponsiveContainer width="100%" height={290}>
-                  <AreaChart data={monthlyData} margin={{ left: 0, right: 16, top: 8 }}>
-                    <defs>
-                      <linearGradient id="areaGreen" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                    <Tooltip content={<DarkTooltip />} cursor={{ stroke: "#22c55e", strokeWidth: 1, strokeOpacity: 0.3 }} />
-                    <Area dataKey="value" stroke="#22c55e" strokeWidth={2.5} fill="url(#areaGreen)" dot={{ r: 3, fill: "#22c55e", strokeWidth: 0 }} activeDot={{ r: 5 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
               </ChartCard>
-            )
-            : (
-              <ChartCard title="Proyectos por estado (detalle)" accent="#f59e0b">
-                <div className="space-y-3 pt-2">
-                  {statusData.filter(d => d.value > 0).map((s) => (
-                    <div key={s.name}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-xs font-semibold text-slate-600">{s.name}</span>
-                        <span className="text-xs font-bold tabular-nums" style={{ color: s.color }}>{s.value}</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-1000"
-                          style={{ width: animated && total > 0 ? `${(s.value/total)*100}%` : "0%", backgroundColor: s.color }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ChartCard>
-            )
-          }
+            </div>
+          )}
         </div>
 
         {/* Advisors full-width */}
         {advisorData.length > 0 && (
           <ChartCard title="Proyectos por profesor/a guía" icon={TrendingUp} accent="#8b5cf6">
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={Math.max(200, advisorData.length * 34)}>
               <BarChart data={advisorData} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
                 <defs>
                   <linearGradient id="barViolet" x1="0" y1="0" x2="1" y2="0">
