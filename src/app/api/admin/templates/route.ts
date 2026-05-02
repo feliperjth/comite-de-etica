@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
 
 const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 const BUCKET      = "templates";
@@ -9,12 +9,20 @@ function isAdmin(req: NextRequest) {
 }
 
 async function ensureBucket() {
-  const supabase = getSupabaseAdmin();
-  const { data: buckets } = await supabase.storage.listBuckets();
-  if (!buckets?.find(b => b.name === BUCKET)) {
-    await supabase.storage.createBucket(BUCKET, { public: true, allowedMimeTypes: ["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"] });
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.find(b => b.name === BUCKET)) {
+      await supabase.storage.createBucket(BUCKET, {
+        public: true,
+        allowedMimeTypes: ["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      });
+    }
+    return supabase;
+  } catch {
+    // No service role key available — fall back to anon client (bucket must exist)
+    return getSupabase();
   }
-  return supabase;
 }
 
 // GET — list current templates with public URLs
@@ -52,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   // Remove any existing file for this doc type (all extensions)
   const { data: existing } = await supabase.storage.from(BUCKET).list("");
-  const toRemove = (existing ?? []).filter(f => f.name.replace(/\.[^.]+$/, "") === docId).map(f => f.name);
+  const toRemove = (existing ?? []).filter((f: { name: string }) => f.name.replace(/\.[^.]+$/, "") === docId).map((f: { name: string }) => f.name);
   if (toRemove.length > 0) await supabase.storage.from(BUCKET).remove(toRemove);
 
   const buffer = await file.arrayBuffer();
@@ -75,7 +83,7 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = await ensureBucket();
   const { data: existing } = await supabase.storage.from(BUCKET).list("");
-  const toRemove = (existing ?? []).filter(f => f.name.replace(/\.[^.]+$/, "") === docId).map(f => f.name);
+  const toRemove = (existing ?? []).filter((f: { name: string }) => f.name.replace(/\.[^.]+$/, "") === docId).map((f: { name: string }) => f.name);
   if (toRemove.length > 0) await supabase.storage.from(BUCKET).remove(toRemove);
 
   return NextResponse.json({ ok: true });
