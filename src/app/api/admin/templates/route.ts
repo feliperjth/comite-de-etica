@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 const BUCKET      = "templates";
@@ -12,7 +12,7 @@ function isAdmin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase.storage.from(BUCKET).list("", { limit: 50 });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const docId = formData.get("docId") as string | null;
   if (!file || !docId) return NextResponse.json({ error: "Falta archivo o tipo" }, { status: 400 });
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
   const ext  = file.name.split(".").pop() ?? "pdf";
   const path = `${docId}.${ext}`;
 
@@ -62,7 +62,7 @@ export async function DELETE(req: NextRequest) {
   const { docId } = await req.json();
   if (!docId) return NextResponse.json({ error: "Falta docId" }, { status: 400 });
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
   const { data: existing } = await supabase.storage.from(BUCKET).list("");
   const toRemove = (existing ?? [])
     .filter((f: { name: string }) => f.name.replace(/\.[^.]+$/, "") === docId)

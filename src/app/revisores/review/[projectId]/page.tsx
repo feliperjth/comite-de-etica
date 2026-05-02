@@ -4,7 +4,11 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase, type Project } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
-import { CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft, Loader2, FileText, Download, Eye, X, ExternalLink } from "lucide-react";
+import {
+  CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft,
+  Loader2, FileText, Download, Eye, X, ExternalLink,
+  Monitor, FolderDown, ArrowRight,
+} from "lucide-react";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 
 const docLabels: Record<string, string> = {
@@ -14,7 +18,8 @@ const docLabels: Record<string, string> = {
   instruments: "Instrumentos / tests a utilizar",
 };
 
-type Decision = "accepted" | "corrections" | null;
+type Decision   = "accepted" | "corrections" | null;
+type ReviewMode = "platform" | "download" | null;
 
 interface SectionState {
   decision: Decision;
@@ -46,26 +51,29 @@ export default function ReviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
 
-  const [project, setProject]       = useState<Project | null>(null);
+  const [project, setProject]           = useState<Project | null>(null);
   const [loadingProject, setLoadingProject] = useState(true);
-  const [reviewerName, setReviewerName]  = useState("");
+  const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState("");
-  const [sectionState, setSectionState]  = useState<Record<string, SectionState>>(initState);
-  const [submitting, setSubmitting]  = useState(false);
-  const [submitError, setSubmitError] = useState("");
-  const [done, setDone]              = useState(false);
-  const [documents, setDocuments]    = useState<{ id: string; doc_type: string; file_name: string; url: string }[]>([]);
-  const [docsOpen, setDocsOpen]      = useState(true);
-  const [viewer, setViewer]          = useState<{ url: string; name: string } | null>(null);
-  const docsRef                      = useRef<HTMLDivElement>(null);
+  const [sectionState, setSectionState] = useState<Record<string, SectionState>>(initState);
+  const [submitting, setSubmitting]     = useState(false);
+  const [submitError, setSubmitError]   = useState("");
+  const [done, setDone]                 = useState(false);
+  const [documents, setDocuments]       = useState<{ id: string; doc_type: string; file_name: string; url: string }[]>([]);
+  const [docsOpen, setDocsOpen]         = useState(true);
+  const [viewer, setViewer]             = useState<{ url: string; name: string } | null>(null);
+  const docsRef                         = useRef<HTMLDivElement>(null);
 
+  // Mode & download-mode states
+  const [mode, setMode]                       = useState<ReviewMode>(null);
+  const [downloadDecision, setDownloadDecision] = useState<"accepted" | "corrections" | null>(null);
+  const [downloadComment, setDownloadComment]   = useState("");
 
   const closeViewer = useCallback(() => {
     setViewer(null);
     setTimeout(() => docsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }, []);
 
-  // Intercept browser back button while viewer is open
   useEffect(() => {
     if (!viewer) return;
     window.history.pushState({ viewerOpen: true }, "");
@@ -85,7 +93,6 @@ export default function ReviewPage() {
     setProject(data);
     setLoadingProject(false);
 
-    // Load documents via API (server-side signed URLs)
     const docsRes = await fetch(`/api/projects/${projectId}/documents`);
     if (docsRes.ok) {
       const docsData = await docsRes.json();
@@ -103,7 +110,7 @@ export default function ReviewPage() {
         decision,
         expanded: decision === "corrections",
         selectedCorrections: decision === "accepted" ? [] : prev[key].selectedCorrections,
-        customComment: decision === "accepted" ? "" : prev[key].customComment,
+        customComment:       decision === "accepted" ? "" : prev[key].customComment,
       },
     }));
   }
@@ -128,7 +135,7 @@ export default function ReviewPage() {
   const completedCount = sections.filter((s) => sectionState[s.key]?.decision !== null).length;
   const allDone = completedCount === sections.length;
 
-  async function handleSubmit() {
+  async function handlePlatformSubmit() {
     if (!project) return;
     setSubmitting(true);
     setSubmitError("");
@@ -140,10 +147,10 @@ export default function ReviewPage() {
       round:         project.current_round ?? 1,
       origin:        window.location.origin,
       sections: sections.map((s) => ({
-        section_key:         s.key,
-        decision:            sectionState[s.key].decision!,
-        standard_comments:   sectionState[s.key].selectedCorrections,
-        custom_comment:      sectionState[s.key].customComment,
+        section_key:       s.key,
+        decision:          sectionState[s.key].decision!,
+        standard_comments: sectionState[s.key].selectedCorrections,
+        custom_comment:    sectionState[s.key].customComment,
       })),
     };
 
@@ -153,15 +160,48 @@ export default function ReviewPage() {
       body: JSON.stringify(payload),
     });
 
-    if (res.ok) {
-      setDone(true);
-    } else {
+    if (res.ok) { setDone(true); }
+    else {
       const data = await res.json();
       setSubmitError(data.error ?? "Error al enviar la revisión.");
     }
     setSubmitting(false);
   }
 
+  async function handleDownloadSubmit() {
+    if (!project || !downloadDecision) return;
+    setSubmitting(true);
+    setSubmitError("");
+
+    const payload = {
+      project_id:    project.id,
+      reviewer_name: reviewerName,
+      reviewer_email: reviewerEmail,
+      round:         project.current_round ?? 1,
+      origin:        window.location.origin,
+      sections: sections.map((s) => ({
+        section_key:       s.key,
+        decision:          downloadDecision,
+        standard_comments: [],
+        custom_comment:    downloadDecision === "corrections" ? downloadComment : "",
+      })),
+    };
+
+    const res = await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) { setDone(true); }
+    else {
+      const data = await res.json();
+      setSubmitError(data.error ?? "Error al enviar la revisión.");
+    }
+    setSubmitting(false);
+  }
+
+  // ── Done ──────────────────────────────────────────────────────────────────
   if (done) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -200,45 +240,170 @@ export default function ReviewPage() {
     );
   }
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      {/* Back */}
-      <button
-        onClick={() => router.push("/revisores/dashboard")}
-        className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-sm font-medium mb-8 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Volver al dashboard
-      </button>
+  // ── Shared: back button + project header ──────────────────────────────────
+  const nav = (
+    <button
+      onClick={() => router.push("/revisores/dashboard")}
+      className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-sm font-medium mb-8 transition-colors"
+    >
+      <ArrowLeft className="w-4 h-4" /> Volver al dashboard
+    </button>
+  );
 
-      {/* Project header */}
-      <div className="bg-[#1A1A1A] rounded-2xl p-6 mb-8 text-white">
-        <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest mb-2">Revisando como: {reviewerName}</p>
-        <h1 className="font-bold text-lg leading-snug mb-2">{project.title}</h1>
-        <p className="text-slate-400 text-sm">{project.researcher_name} · {project.project_type} · Ronda {project.current_round ?? 1}</p>
+  const projectHeader = (
+    <div className="bg-[#1A1A1A] rounded-2xl p-6 mb-8 text-white">
+      <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest mb-2">
+        Revisando como: {reviewerName}
+      </p>
+      <h1 className="font-bold text-lg leading-snug mb-2">{project.title}</h1>
+      <p className="text-slate-400 text-sm">
+        {project.researcher_name} · {project.project_type} · Ronda {project.current_round ?? 1}
+      </p>
+    </div>
+  );
+
+  // ── Mode selector badge (shown while in a mode) ───────────────────────────
+  const modeBadge = mode && (
+    <div className="flex items-center gap-2 mb-6">
+      <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
+        mode === "platform"
+          ? "bg-orange-50 border-orange-200 text-[#CC5200]"
+          : "bg-slate-100 border-slate-200 text-slate-600"
+      }`}>
+        {mode === "platform" ? <Monitor className="w-3.5 h-3.5" /> : <FolderDown className="w-3.5 h-3.5" />}
+        {mode === "platform" ? "Revisión en plataforma" : "Revisión local"}
       </div>
+      <button
+        onClick={() => setMode(null)}
+        className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
+      >
+        Cambiar modo
+      </button>
+    </div>
+  );
 
-      {/* AI Analysis panel */}
-      <AiAnalysisPanel title={project.title} abstract={project.abstract} mode="revisor" />
+  // ── Document viewer modal ─────────────────────────────────────────────────
+  const viewerModal = viewer && (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/80" onClick={closeViewer}>
+      <div
+        className="flex items-center justify-between px-5 py-3 bg-[#1A1A1A] shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <FileText className="w-4 h-4 text-[#CC5200]" />
+          <span className="text-white text-sm font-semibold truncate max-w-[60vw]">{viewer.name}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href={viewer.url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" /> Abrir en nueva pestaña
+          </a>
+          <button onClick={closeViewer} className="text-slate-400 hover:text-white transition-colors ml-2">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {viewer.name.toLowerCase().endsWith(".pdf") ? (
+          <iframe src={viewer.url} className="w-full h-full border-0" title={viewer.name} />
+        ) : (
+          <iframe
+            src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewer.url)}&embedded=true`}
+            className="w-full h-full border-0 bg-white"
+            title={viewer.name}
+          />
+        )}
+      </div>
+    </div>
+  );
 
-      {/* Documents panel */}
-      <div ref={docsRef} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
+  // ══════════════════════════════════════════════════════════════════════════
+  // MODE SELECTION SCREEN
+  // ══════════════════════════════════════════════════════════════════════════
+  if (mode === null) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        {nav}
+        {projectHeader}
+
+        <div className="text-center mb-8">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Modo de revisión</p>
+          <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo deseas revisar este proyecto?</h2>
+          <p className="text-slate-400 text-sm mt-2">
+            Elige el modo que mejor se adapte a tu proceso de evaluación
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Platform mode card */}
+          <button
+            onClick={() => setMode("platform")}
+            className="group bg-white border-2 border-slate-100 hover:border-[#CC5200] rounded-2xl p-6 text-left transition-all hover:shadow-md"
+          >
+            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+              <Monitor className="w-6 h-6 text-[#CC5200]" />
+            </div>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar en la plataforma</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-5">
+              Evalúa sección por sección del formulario UAI directamente en el sistema, con criterios de corrección automatizados para cada sección.
+            </p>
+            <div className="flex items-center gap-1.5 text-[#CC5200] text-sm font-semibold">
+              Comenzar revisión <ArrowRight className="w-4 h-4" />
+            </div>
+          </button>
+
+          {/* Download mode card */}
+          <button
+            onClick={() => setMode("download")}
+            className="group bg-white border-2 border-slate-100 hover:border-slate-800 rounded-2xl p-6 text-left transition-all hover:shadow-md"
+          >
+            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-slate-200 transition-colors">
+              <FolderDown className="w-6 h-6 text-slate-600" />
+            </div>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Descargar para revisión local</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-5">
+              Descarga los documentos del proyecto para revisarlos en tu equipo e ingresa tu evaluación general una vez finalizada.
+            </p>
+            <div className="flex items-center gap-1.5 text-slate-600 text-sm font-semibold">
+              Descargar documentos <ArrowRight className="w-4 h-4" />
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PLATFORM MODE — section-by-section review
+  // ══════════════════════════════════════════════════════════════════════════
+  if (mode === "platform") {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        {nav}
+        {projectHeader}
+        {modeBadge}
+
+        {/* AI Analysis */}
+        <AiAnalysisPanel title={project.title} abstract={project.abstract} mode="revisor" />
+
+        {/* Documents panel */}
+        <div ref={docsRef} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
           <button
             onClick={() => setDocsOpen((o) => !o)}
             className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
           >
             <div className="flex items-center gap-2.5">
               <FileText className="w-4 h-4 text-[#CC5200]" />
-              <span className="font-semibold text-slate-700 text-sm">
-                Documentos del proyecto
-              </span>
+              <span className="font-semibold text-slate-700 text-sm">Documentos del proyecto</span>
               <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">
                 {documents.length}
               </span>
             </div>
             {docsOpen
               ? <ChevronUp className="w-4 h-4 text-slate-400" />
-              : <ChevronDown className="w-4 h-4 text-slate-400" />
-            }
+              : <ChevronDown className="w-4 h-4 text-slate-400" />}
           </button>
 
           {docsOpen && (
@@ -279,141 +444,290 @@ export default function ReviewPage() {
           )}
         </div>
 
-      {/* Progress */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-slate-600">Progreso de revisión</span>
-          <span className="text-sm font-bold text-[#CC5200]">{completedCount}/{sections.length} secciones</span>
+        {/* Progress */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-slate-600">Progreso de revisión</span>
+            <span className="text-sm font-bold text-[#CC5200]">{completedCount}/{sections.length} secciones</span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-2">
+            <div
+              className="h-2 rounded-full bg-[#CC5200] transition-all duration-300"
+              style={{ width: `${(completedCount / sections.length) * 100}%` }}
+            />
+          </div>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-2">
-          <div
-            className="h-2 rounded-full bg-[#CC5200] transition-all duration-300"
-            style={{ width: `${(completedCount / sections.length) * 100}%` }}
-          />
+
+        {/* Sections */}
+        <div className="space-y-4 mb-8">
+          {sections.map((section, i) => {
+            const state         = sectionState[section.key];
+            const isAccepted    = state.decision === "accepted";
+            const isCorrections = state.decision === "corrections";
+            const isPending     = state.decision === null;
+
+            return (
+              <div
+                key={section.key}
+                className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+                  isAccepted    ? "border-emerald-200" :
+                  isCorrections ? "border-orange-200" :
+                                  "border-slate-100"
+                }`}
+              >
+                {/* Section header */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-4 mb-1">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isAccepted    ? "bg-emerald-100 text-emerald-700" :
+                        isCorrections ? "bg-orange-100 text-[#CC5200]" :
+                                        "bg-slate-100 text-slate-500"
+                      }`}>
+                        {i + 1}
+                      </span>
+                      <h3 className="font-bold text-[#1A1A1A] text-sm">{section.label}</h3>
+                    </div>
+                    {!isPending && (
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                        isAccepted
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-orange-50 text-[#CC5200]"
+                      }`}>
+                        {isAccepted ? "✓ Aceptada" : "✏ Correcciones"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Section content guide */}
+                  <div className="ml-10 mt-2.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Contenido evaluado</p>
+                    <p className="text-xs text-slate-600 leading-relaxed">{section.description}</p>
+                  </div>
+
+                  {/* Decision buttons */}
+                  <div className="flex gap-2 mt-4 ml-10">
+                    <button
+                      onClick={() => setDecision(section.key, "accepted")}
+                      className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
+                        isAccepted
+                          ? "bg-emerald-500 text-white shadow-sm"
+                          : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                      }`}
+                    >
+                      <CheckCircle className="w-4 h-4" /> Aceptar
+                    </button>
+                    <button
+                      onClick={() => setDecision(section.key, "corrections")}
+                      className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
+                        isCorrections
+                          ? "bg-[#CC5200] text-white shadow-sm"
+                          : "bg-orange-50 text-[#CC5200] hover:bg-orange-100 border border-orange-200"
+                      }`}
+                    >
+                      <AlertCircle className="w-4 h-4" /> Solicitar correcciones
+                    </button>
+                    {isCorrections && (
+                      <button
+                        onClick={() => toggleExpanded(section.key)}
+                        className="ml-auto text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {state.expanded
+                          ? <ChevronUp className="w-4 h-4" />
+                          : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Corrections panel */}
+                {isCorrections && state.expanded && (
+                  <div className="border-t border-orange-100 bg-orange-50/50 p-5">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">
+                      Correcciones estándar (selecciona las que apliquen):
+                    </p>
+                    <div className="space-y-2 mb-4">
+                      {section.standardCorrections.map((correction) => {
+                        const checked = state.selectedCorrections.includes(correction);
+                        return (
+                          <label key={correction} className="flex items-start gap-2.5 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCorrection(section.key, correction)}
+                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#CC5200] focus:ring-[#CC5200] shrink-0 cursor-pointer"
+                            />
+                            <span className={`text-sm leading-snug transition-colors ${
+                              checked ? "text-[#1A1A1A] font-medium" : "text-slate-500 group-hover:text-slate-700"
+                            }`}>
+                              {correction}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                        Comentario adicional (opcional):
+                      </label>
+                      <textarea
+                        value={state.customComment}
+                        onChange={(e) =>
+                          setSectionState((prev) => ({
+                            ...prev,
+                            [section.key]: { ...prev[section.key], customComment: e.target.value },
+                          }))
+                        }
+                        rows={3}
+                        placeholder="Escribe observaciones adicionales específicas para esta sección..."
+                        className="w-full border border-orange-200 bg-white rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#CC5200] resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Submit */}
+        {submitError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
+            {submitError}
+          </div>
+        )}
+        {!allDone && (
+          <p className="text-center text-sm text-slate-400 mb-4">
+            Debes revisar todas las secciones antes de enviar (
+            {sections.length - completedCount} pendiente{sections.length - completedCount !== 1 ? "s" : ""}).
+          </p>
+        )}
+        <button
+          onClick={handlePlatformSubmit}
+          disabled={!allDone || submitting}
+          className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-colors shadow-sm text-sm"
+        >
+          {submitting
+            ? <><Loader2 className="w-5 h-5 animate-spin" /> Enviando revisión...</>
+            : <><Send className="w-5 h-5" /> Enviar revisión completa</>}
+        </button>
+
+        {viewerModal}
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DOWNLOAD MODE — download docs + simplified overall review
+  // ══════════════════════════════════════════════════════════════════════════
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-10">
+      {nav}
+      {projectHeader}
+      {modeBadge}
+
+      {/* Documents list */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2.5">
+          <FolderDown className="w-4 h-4 text-slate-500" />
+          <span className="font-semibold text-slate-700 text-sm">Documentos del proyecto</span>
+          <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full ml-auto">
+            {documents.length}
+          </span>
+        </div>
+        <div className="divide-y divide-slate-50">
+          {documents.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-slate-400 text-center">Sin documentos adjuntos.</p>
+          ) : documents.map((doc) => (
+            <div key={doc.id} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50/50">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5 text-slate-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-700 truncate">
+                    {docLabels[doc.doc_type] ?? doc.doc_type}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
+                </div>
+              </div>
+              <a
+                href={doc.url}
+                download={doc.file_name}
+                className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 px-4 py-2 rounded-xl transition-colors shrink-0 ml-4"
+              >
+                <Download className="w-3.5 h-3.5" /> Descargar
+              </a>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-4 mb-8">
-        {sections.map((section, i) => {
-          const state = sectionState[section.key];
-          const isAccepted    = state.decision === "accepted";
-          const isCorrections = state.decision === "corrections";
-          const isPending     = state.decision === null;
+      {/* Simplified decision form */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+        <h3 className="font-bold text-[#1A1A1A] text-sm mb-1">Evaluación general del proyecto</h3>
+        <p className="text-xs text-slate-400 mb-5">
+          Tras revisar los documentos descargados, ingresa tu evaluación general.
+        </p>
 
-          return (
-            <div
-              key={section.key}
-              className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
-                isAccepted    ? "border-emerald-200" :
-                isCorrections ? "border-orange-200" :
-                                "border-slate-100"
-              }`}
-            >
-              {/* Section header */}
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4 mb-1">
-                  <div className="flex items-center gap-3">
-                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                      isAccepted    ? "bg-emerald-100 text-emerald-700" :
-                      isCorrections ? "bg-orange-100 text-[#CC5200]" :
-                                      "bg-slate-100 text-slate-500"
-                    }`}>
-                      {i + 1}
-                    </span>
-                    <h3 className="font-bold text-[#1A1A1A] text-sm">{section.label}</h3>
-                  </div>
-                  {!isPending && (
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
-                      isAccepted
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-orange-50 text-[#CC5200]"
-                    }`}>
-                      {isAccepted ? "✓ Aceptada" : "✏ Correcciones"}
-                    </span>
-                  )}
-                </div>
-                <p className="text-slate-400 text-xs ml-10">{section.description}</p>
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <button
+            onClick={() => setDownloadDecision("accepted")}
+            className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all ${
+              downloadDecision === "accepted"
+                ? "border-emerald-400 bg-emerald-50"
+                : "border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50"
+            }`}
+          >
+            <CheckCircle className={`w-7 h-7 ${
+              downloadDecision === "accepted" ? "text-emerald-500" : "text-slate-300"
+            }`} />
+            <span className={`text-sm font-bold ${
+              downloadDecision === "accepted" ? "text-emerald-700" : "text-slate-500"
+            }`}>
+              Aprobar proyecto
+            </span>
+            <span className="text-xs text-slate-400 text-center leading-snug">
+              El proyecto cumple los criterios éticos
+            </span>
+          </button>
 
-                {/* Decision buttons */}
-                <div className="flex gap-2 mt-4 ml-10">
-                  <button
-                    onClick={() => setDecision(section.key, "accepted")}
-                    className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
-                      isAccepted
-                        ? "bg-emerald-500 text-white shadow-sm"
-                        : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                    }`}
-                  >
-                    <CheckCircle className="w-4 h-4" /> Aceptar
-                  </button>
-                  <button
-                    onClick={() => setDecision(section.key, "corrections")}
-                    className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
-                      isCorrections
-                        ? "bg-[#CC5200] text-white shadow-sm"
-                        : "bg-orange-50 text-[#CC5200] hover:bg-orange-100 border border-orange-200"
-                    }`}
-                  >
-                    <AlertCircle className="w-4 h-4" /> Solicitar correcciones
-                  </button>
-                  {isCorrections && (
-                    <button
-                      onClick={() => toggleExpanded(section.key)}
-                      className="ml-auto text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      {state.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-                  )}
-                </div>
-              </div>
+          <button
+            onClick={() => setDownloadDecision("corrections")}
+            className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all ${
+              downloadDecision === "corrections"
+                ? "border-orange-400 bg-orange-50"
+                : "border-slate-100 hover:border-orange-200 hover:bg-orange-50/50"
+            }`}
+          >
+            <AlertCircle className={`w-7 h-7 ${
+              downloadDecision === "corrections" ? "text-[#CC5200]" : "text-slate-300"
+            }`} />
+            <span className={`text-sm font-bold ${
+              downloadDecision === "corrections" ? "text-[#CC5200]" : "text-slate-500"
+            }`}>
+              Solicitar correcciones
+            </span>
+            <span className="text-xs text-slate-400 text-center leading-snug">
+              El proyecto requiere ajustes
+            </span>
+          </button>
+        </div>
 
-              {/* Corrections panel */}
-              {isCorrections && state.expanded && (
-                <div className="border-t border-orange-100 bg-orange-50/50 p-5">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">
-                    Correcciones estándar (selecciona las que apliquen):
-                  </p>
-                  <div className="space-y-2 mb-4">
-                    {section.standardCorrections.map((correction) => {
-                      const checked = state.selectedCorrections.includes(correction);
-                      return (
-                        <label key={correction} className="flex items-start gap-2.5 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleCorrection(section.key, correction)}
-                            className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#CC5200] focus:ring-[#CC5200] shrink-0 cursor-pointer"
-                          />
-                          <span className={`text-sm leading-snug transition-colors ${checked ? "text-[#1A1A1A] font-medium" : "text-slate-500 group-hover:text-slate-700"}`}>
-                            {correction}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                      Comentario adicional (opcional):
-                    </label>
-                    <textarea
-                      value={state.customComment}
-                      onChange={(e) =>
-                        setSectionState((prev) => ({
-                          ...prev,
-                          [section.key]: { ...prev[section.key], customComment: e.target.value },
-                        }))
-                      }
-                      rows={3}
-                      placeholder="Escribe observaciones adicionales específicas para esta sección..."
-                      className="w-full border border-orange-200 bg-white rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#CC5200] resize-none"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {downloadDecision === "corrections" && (
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+              Observaciones y correcciones solicitadas <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={downloadComment}
+              onChange={(e) => setDownloadComment(e.target.value)}
+              rows={5}
+              placeholder="Describe las correcciones requeridas, indicando las secciones del formulario UAI que deben modificarse..."
+              className="w-full border border-orange-200 bg-orange-50/30 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#CC5200] resize-none"
+            />
+          </div>
+        )}
       </div>
 
       {/* Submit */}
@@ -422,68 +736,24 @@ export default function ReviewPage() {
           {submitError}
         </div>
       )}
-
-      {!allDone && (
-        <p className="text-center text-sm text-slate-400 mb-4">
-          Debes revisar todas las secciones antes de enviar ({sections.length - completedCount} pendiente{sections.length - completedCount !== 1 ? "s" : ""}).
+      {downloadDecision === "corrections" && !downloadComment.trim() && (
+        <p className="text-center text-sm text-orange-500 mb-4">
+          Debes escribir las observaciones antes de enviar.
         </p>
       )}
 
       <button
-        onClick={handleSubmit}
-        disabled={!allDone || submitting}
+        onClick={handleDownloadSubmit}
+        disabled={
+          !downloadDecision || submitting ||
+          (downloadDecision === "corrections" && !downloadComment.trim())
+        }
         className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-colors shadow-sm text-sm"
       >
         {submitting
-          ? <><Loader2 className="w-5 h-5 animate-spin" /> Enviando revisión...</>
-          : <><Send className="w-5 h-5" /> Enviar revisión completa</>}
+          ? <><Loader2 className="w-5 h-5 animate-spin" /> Enviando evaluación...</>
+          : <><Send className="w-5 h-5" /> Enviar evaluación</>}
       </button>
-
-      {/* Document viewer modal */}
-      {viewer && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-black/80"
-          onClick={closeViewer}
-        >
-          <div className="flex items-center justify-between px-5 py-3 bg-[#1A1A1A] shrink-0" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <FileText className="w-4 h-4 text-[#CC5200]" />
-              <span className="text-white text-sm font-semibold truncate max-w-[60vw]">{viewer.name}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <a
-                href={viewer.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors"
-              >
-                <ExternalLink className="w-4 h-4" /> Abrir en nueva pestaña
-              </a>
-              <button
-                onClick={closeViewer}
-                className="text-slate-400 hover:text-white transition-colors ml-2"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {viewer.name.toLowerCase().endsWith(".pdf") ? (
-              <iframe
-                src={viewer.url}
-                className="w-full h-full border-0"
-                title={viewer.name}
-              />
-            ) : (
-              <iframe
-                src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewer.url)}&embedded=true`}
-                className="w-full h-full border-0 bg-white"
-                title={viewer.name}
-              />
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

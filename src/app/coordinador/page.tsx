@@ -509,45 +509,73 @@ function FundingCard({
   );
 }
 
-// ─── Chart helpers ─────────────────────────────────────────────────────────
+// ─── Design system constants ────────────────────────────────────────────────
 
-function ChartCard({ title, icon: Icon, accent, children }: {
-  title: string; icon?: React.ElementType; accent: string; children: React.ReactNode;
+const CH = 260; // uniform chart height (px) across ALL charts
+const AXIS_STYLE = { fontSize: 11, fill: "#94a3b8", fontFamily: "inherit" };
+const STATUS_COLORS_CHART = {
+  Aprobado:     "#10b981",
+  Revisión:     "#3b82f6",
+  Observaciones:"#f59e0b",
+  Rechazado:    "#ef4444",
+  Enviado:      "#94a3b8",
+};
+
+// ─── Chart card ─────────────────────────────────────────────────────────────
+
+function ChartCard({ title, tag, icon: Icon, children, className }: {
+  title: string; tag?: string; icon?: React.ElementType;
+  children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-2.5">
-        <span className="w-1 h-5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-        {Icon && <Icon className="w-4 h-4 text-slate-400" />}
-        <h2 className="font-bold text-slate-700 text-sm">{title}</h2>
+    <div className={`bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden ${className ?? ""}`}>
+      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+        {Icon && (
+          <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-slate-400" />
+          </div>
+        )}
+        <div className="min-w-0">
+          {tag && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-none mb-1">{tag}</p>}
+          <h3 className="font-bold text-slate-800 text-sm leading-tight">{title}</h3>
+        </div>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="px-5 pb-5">{children}</div>
     </div>
   );
 }
+
+// ─── Shared legend ───────────────────────────────────────────────────────────
+
+function ChartLegend({ items }: { items: { label: string; color: string }[] }) {
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4 pt-3 border-t border-slate-50">
+      {items.map(i => (
+        <div key={i.label} className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: i.color }} />
+          <span className="text-[11px] text-slate-400 font-medium">{i.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Unified tooltip ────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DarkTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
-  const n = Number(payload[0]?.value ?? 0);
   return (
-    <div className="bg-[#0A1628] text-white text-xs rounded-xl px-3.5 py-2.5 shadow-2xl border border-white/[0.1]">
-      {label && <p className="text-white/45 text-[10px] font-semibold uppercase tracking-wide mb-1">{label}</p>}
-      <p className="font-bold text-sm tabular-nums">
-        {n} <span className="text-white/55 font-normal text-xs">proyecto{n !== 1 ? "s" : ""}</span>
-      </p>
-    </div>
-  );
-}
-
-function CustomLegend({ payload }: { payload?: { value: string; color: string }[] }) {
-  if (!payload) return null;
-  return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-2">
-      {payload.map((p) => (
-        <div key={p.value} className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-          <span className="text-[11px] text-slate-500 font-medium">{p.value}</span>
+    <div className="bg-slate-900 text-white rounded-xl px-3.5 py-2.5 shadow-2xl border border-white/[0.08] text-xs">
+      {label && <p className="text-white/40 font-semibold uppercase tracking-wide text-[10px] mb-1.5">{label}</p>}
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2">
+          {payload.length > 1 && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />}
+          <span className="font-bold tabular-nums">{p.value}</span>
+          {payload.length > 1
+            ? <span className="text-white/40 text-[10px]">{p.name}</span>
+            : <span className="text-white/40 text-[10px]">proyecto{Number(p.value) !== 1 ? "s" : ""}</span>
+          }
         </div>
       ))}
     </div>
@@ -858,224 +886,152 @@ export default function CoordinadorStats() {
           </div>
         </div>
 
-        {/* ── Insight Strip ────────────────────────────────────────────── */}
+        {/* ── Insight strip ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            {
-              label: "Promedio mensual",
-              value: avgPerMonth,
-              unit: "proyectos / mes",
-              color: "#60a5fa",
-              bg: "from-blue-50 to-sky-50",
-              border: "border-blue-100",
-              icon: TrendingUp,
-            },
-            {
-              label: "Tasa de correcciones",
-              value: `${correctionRate}%`,
-              unit: "necesitaron ajustes",
-              color: "#f97316",
-              bg: "from-orange-50 to-amber-50",
-              border: "border-orange-100",
-              icon: AlertCircle,
-            },
-            {
-              label: "Mes más activo",
-              value: peakMonth?.name ?? "—",
-              unit: peakMonth ? `${peakMonth.value} proyectos` : "sin datos",
-              color: "#22c55e",
-              bg: "from-emerald-50 to-green-50",
-              border: "border-emerald-100",
-              icon: Calendar,
-            },
-            {
-              label: "Tipo predominante",
-              value: topTypeEntry ? TYPE_LABELS[topTypeEntry[0]] : "—",
-              unit: topTypeEntry ? `${topTypeEntry[1]} proyectos` : "sin datos",
-              color: "#c084fc",
-              bg: "from-violet-50 to-purple-50",
-              border: "border-violet-100",
-              icon: Layers,
-            },
+            { tag: "Actividad", label: "Promedio mensual",   value: avgPerMonth,   unit: "proyectos / mes",                           color: "#3b82f6", icon: TrendingUp },
+            { tag: "Calidad",   label: "Correcciones",       value: `${correctionRate}%`, unit: "de proyectos requirieron ajustes",   color: "#f59e0b", icon: AlertCircle },
+            { tag: "Tendencia", label: "Mes más activo",     value: peakMonth?.name ?? "—", unit: `${peakMonth?.value ?? 0} envíos`, color: "#10b981", icon: Calendar },
+            { tag: "Tipo",      label: "Tipo predominante",  value: topTypeEntry ? TYPE_LABELS[topTypeEntry[0]] : "—", unit: topTypeEntry ? `${topTypeEntry[1]} proyectos` : "sin datos", color: "#8b5cf6", icon: Layers },
           ].map((ins) => (
-            <div key={ins.label}
-              className={`relative overflow-hidden rounded-2xl border ${ins.border} bg-gradient-to-br ${ins.bg} p-5 shadow-sm hover:shadow-md transition-shadow group`}>
-              <div className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full opacity-10 pointer-events-none transition-opacity group-hover:opacity-20"
-                style={{ backgroundColor: ins.color }} />
+            <div key={ins.label} className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-5"
+              style={{ borderLeftWidth: 3, borderLeftColor: ins.color }}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: `${ins.color}20`, color: ins.color }}>
-                  <ins.icon className="w-3.5 h-3.5" />
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${ins.color}14`, color: ins.color }}>
+                  <ins.icon className="w-3 h-3" />
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">{ins.label}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em]">{ins.tag}</span>
               </div>
-              <div className="text-2xl font-black text-slate-800 leading-none mb-1 tabular-nums">{ins.value}</div>
-              <div className="text-[11px] text-slate-400 font-medium">{ins.unit}</div>
+              <div className="text-2xl font-black text-slate-800 leading-none tabular-nums mb-1">{ins.value}</div>
+              <div className="text-[11px] text-slate-400">{ins.label} · {ins.unit}</div>
             </div>
           ))}
         </div>
 
-        {/* ── Monthly stacked bar ───────────────────────────────────────── */}
+        {/* ── Row 1: Monthly stacked (full-width) ───────────────────────── */}
         {monthlyStackedData.length > 1 && (
-          <ChartCard title="Evolución mensual por resultado" icon={TrendingUp} accent="#22c55e">
-            <div className="flex items-center gap-4 mb-4 flex-wrap">
-              {[
-                { key: "Aprobado", color: "#22c55e" },
-                { key: "Revisión", color: "#3b82f6" },
-                { key: "Observaciones", color: "#f97316" },
-                { key: "Rechazado", color: "#ef4444" },
-                { key: "Enviado", color: "#94a3b8" },
-              ].map(l => (
-                <div key={l.key} className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: l.color }} />
-                  <span className="text-[11px] text-slate-500 font-medium">{l.key}</span>
-                </div>
-              ))}
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={monthlyStackedData} margin={{ left: 0, right: 16, top: 4 }}>
+          <ChartCard title="Evolución mensual por resultado" tag="Tendencia" icon={TrendingUp}>
+            <ResponsiveContainer width="100%" height={CH}>
+              <BarChart data={monthlyStackedData} margin={{ left: 0, right: 8, top: 4 }} barCategoryGap="30%">
                 <defs>
-                  {[
-                    ["gradAprobado","#16a34a","#4ade80"],
-                    ["gradRevision","#1d4ed8","#60a5fa"],
-                    ["gradObserv",  "#c2410c","#fb923c"],
-                    ["gradRechaz",  "#b91c1c","#f87171"],
-                    ["gradEnviado", "#64748b","#cbd5e1"],
-                  ].map(([id,c1,c2]) => (
-                    <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={c1} stopOpacity={0.9} />
-                      <stop offset="100%" stopColor={c2} stopOpacity={0.7} />
+                  {(Object.entries(STATUS_COLORS_CHART) as [string, string][]).map(([key, color]) => (
+                    <linearGradient key={`sg-${key}`} id={`sg-${key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={color} stopOpacity={0.9} />
+                      <stop offset="100%" stopColor={color} stopOpacity={0.65} />
                     </linearGradient>
                   ))}
                 </defs>
-                <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#0A1628", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 12 }}
-                  cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                />
-                <Bar dataKey="Aprobado"     stackId="a" fill="url(#gradAprobado)" />
-                <Bar dataKey="Revisión"     stackId="a" fill="url(#gradRevision)" />
-                <Bar dataKey="Observaciones" stackId="a" fill="url(#gradObserv)" />
-                <Bar dataKey="Rechazado"    stackId="a" fill="url(#gradRechaz)" />
-                <Bar dataKey="Enviado"      stackId="a" fill="url(#gradEnviado)" radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="name" tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={AXIS_STYLE} axisLine={false} tickLine={false} width={28} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.03)" }} />
+                <Bar dataKey="Aprobado"      stackId="s" fill={`url(#sg-Aprobado)`} />
+                <Bar dataKey="Revisión"      stackId="s" fill={`url(#sg-Revisión)`} />
+                <Bar dataKey="Observaciones" stackId="s" fill={`url(#sg-Observaciones)`} />
+                <Bar dataKey="Rechazado"     stackId="s" fill={`url(#sg-Rechazado)`} />
+                <Bar dataKey="Enviado"       stackId="s" fill={`url(#sg-Enviado)`} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            <ChartLegend items={Object.entries(STATUS_COLORS_CHART).map(([label, color]) => ({ label, color }))} />
           </ChartCard>
         )}
 
-        {/* ── Type × approval rate + Day of week ───────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* ── Row 2: Type approval | Day of week ────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-          {/* Type × approval breakdown */}
           {typeApprovalData.length > 0 && (
-            <ChartCard title="Resultado por tipo de investigación" icon={Zap} accent="#CC5200">
-              <div className="space-y-4 pt-1">
+            <ChartCard title="Resultado por tipo de proyecto" tag="Análisis" icon={Zap}>
+              <div className="space-y-4">
                 {typeApprovalData.map((t) => {
-                  const apPct   = (t.approved    / t.total) * 100;
-                  const corPct  = (t.corrections / t.total) * 100;
-                  const revPct  = (t.reviewing   / t.total) * 100;
-                  const rejPct  = (t.rejected    / t.total) * 100;
+                  const ap  = (t.approved    / t.total) * 100;
+                  const cor = (t.corrections / t.total) * 100;
+                  const rev = (t.reviewing   / t.total) * 100;
+                  const rej = (t.rejected    / t.total) * 100;
                   return (
                     <div key={t.name}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-slate-700">{t.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-black tabular-nums text-emerald-600">{Math.round(apPct)}%</span>
-                          <span className="text-[10px] text-slate-300">({t.total})</span>
+                        <span className="text-xs font-semibold text-slate-700">{t.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black tabular-nums text-emerald-600">{Math.round(ap)}% apr.</span>
+                          <span className="text-[10px] text-slate-300">· n={t.total}</span>
                         </div>
                       </div>
-                      <div className="h-4 rounded-full overflow-hidden flex gap-px bg-slate-100">
-                        {apPct  > 0 && <div className="h-full rounded-l-full transition-all duration-1000" style={{ width: animated ? `${apPct}%`  : "0%", background: "linear-gradient(90deg,#16a34a,#22c55e)", transitionDelay: "400ms" }} />}
-                        {corPct > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${corPct}%` : "0%", background: "linear-gradient(90deg,#ea580c,#fb923c)", transitionDelay: "600ms" }} />}
-                        {revPct > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${revPct}%` : "0%", background: "linear-gradient(90deg,#1d4ed8,#60a5fa)", transitionDelay: "800ms" }} />}
-                        {rejPct > 0 && <div className="h-full rounded-r-full transition-all duration-1000" style={{ width: animated ? `${rejPct}%` : "0%", background: "linear-gradient(90deg,#b91c1c,#f87171)", transitionDelay: "1000ms" }} />}
-                      </div>
-                      <div className="flex gap-3 mt-1.5">
-                        {apPct  > 0 && <span className="text-[10px] text-emerald-600 font-medium">✓ {Math.round(apPct)}% aprobado</span>}
-                        {corPct > 0 && <span className="text-[10px] text-orange-500 font-medium">⚑ {Math.round(corPct)}% obs.</span>}
-                        {rejPct > 0 && <span className="text-[10px] text-red-500 font-medium">✗ {Math.round(rejPct)}% rechazo</span>}
+                      <div className="h-3 rounded-full overflow-hidden flex bg-slate-100">
+                        {ap  > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${ap}%`  : "0%", backgroundColor: STATUS_COLORS_CHART["Aprobado"],      transitionDelay: "400ms" }} />}
+                        {cor > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${cor}%` : "0%", backgroundColor: STATUS_COLORS_CHART["Observaciones"], transitionDelay: "550ms" }} />}
+                        {rev > 0 && <div className="h-full transition-all duration-1000" style={{ width: animated ? `${rev}%` : "0%", backgroundColor: STATUS_COLORS_CHART["Revisión"],      transitionDelay: "700ms" }} />}
+                        {rej > 0 && <div className="h-full rounded-r-full transition-all duration-1000" style={{ width: animated ? `${rej}%` : "0%", backgroundColor: STATUS_COLORS_CHART["Rechazado"],    transitionDelay: "850ms" }} />}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex items-center gap-4 mt-5 pt-4 border-t border-slate-50">
-                {[["#22c55e","Aprobado"],["#f97316","Observaciones"],["#3b82f6","En revisión"],["#ef4444","Rechazado"]].map(([c,l]) => (
-                  <div key={l} className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: c }} />
-                    <span className="text-[10px] text-slate-400">{l}</span>
-                  </div>
-                ))}
-              </div>
+              <ChartLegend items={[
+                { label: "Aprobado",     color: STATUS_COLORS_CHART["Aprobado"] },
+                { label: "Observaciones",color: STATUS_COLORS_CHART["Observaciones"] },
+                { label: "En revisión",  color: STATUS_COLORS_CHART["Revisión"] },
+                { label: "Rechazado",    color: STATUS_COLORS_CHART["Rechazado"] },
+              ]} />
             </ChartCard>
           )}
 
-          {/* Day of week */}
-          <ChartCard title="Envíos por día de la semana" icon={Calendar} accent="#8b5cf6">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={dayOfWeekData} margin={{ left: 0, right: 8, top: 8, bottom: 4 }}>
+          <ChartCard title="Envíos por día de la semana" tag="Comportamiento" icon={Calendar}>
+            <ResponsiveContainer width="100%" height={CH}>
+              <BarChart data={dayOfWeekData} margin={{ left: 0, right: 8, top: 4 }} barCategoryGap="30%">
                 <defs>
-                  <linearGradient id="barDay" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#c084fc" stopOpacity={0.5} />
+                  <linearGradient id="gradDay" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.85} />
+                    <stop offset="100%" stopColor="#c084fc" stopOpacity={0.4} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(139,92,246,0.06)" }} />
-                <Bar dataKey="value" fill="url(#barDay)" radius={[6, 6, 0, 0]} />
+                <XAxis dataKey="name" tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={AXIS_STYLE} axisLine={false} tickLine={false} width={28} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(139,92,246,0.05)" }} />
+                <Bar dataKey="value" fill="url(#gradDay)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-[11px] text-slate-400 text-center mt-1">
-              Patrón de envíos por día de la semana
-            </p>
           </ChartCard>
         </div>
 
         {/* ── Funding spotlight ─────────────────────────────────────────── */}
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-violet-300/40" />
+            <div className="flex-1 h-px bg-slate-200/60" />
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 bg-white shadow-sm">
               <DollarSign className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Proyectos con Financiamiento Externo</span>
-              <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black flex items-center justify-center">
-                {fundedTotal}
-              </span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.14em]">Financiamiento externo</span>
+              <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black flex items-center justify-center">{fundedTotal}</span>
             </div>
-            <div className="flex-1 h-px bg-gradient-to-l from-transparent via-amber-300/40 to-violet-300/40" />
+            <div className="flex-1 h-px bg-slate-200/60" />
           </div>
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid md:grid-cols-2 gap-4">
             <FundingCard type="fondecyt" projects={fondecytProjects} total={total} active={animated} />
             <FundingCard type="grant_uai" projects={grantProjects}    total={total} active={animated} />
           </div>
         </div>
 
-        {/* ── Status + Type radar 2-col ─────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* ── Row 3: Status bars | Type radar/bars ─────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-          {/* Status distribution */}
-          <ChartCard title="Distribución por estado" accent="#CC5200">
-            <div className="space-y-3.5 pt-1">
+          <ChartCard title="Distribución por estado" tag="Estado actual" icon={Activity}>
+            <div className="space-y-3.5">
               {statusData.filter(d => d.value > 0).map((s) => {
                 const p = total > 0 ? (s.value / total) * 100 : 0;
                 return (
                   <div key={s.name}>
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
                         <span className="text-xs font-semibold text-slate-600">{s.name}</span>
                       </div>
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2">
                         <span className="text-sm font-black tabular-nums" style={{ color: s.color }}>{s.value}</span>
-                        <span className="text-[10px] text-slate-300 tabular-nums w-9 text-right">{Math.round(p)}%</span>
+                        <span className="text-[10px] text-slate-300 w-8 text-right tabular-nums">{Math.round(p)}%</span>
                       </div>
                     </div>
-                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-1000"
-                        style={{ width: animated ? `${p}%` : "0%", backgroundColor: s.color,
-                          boxShadow: `0 0 10px ${s.color}66`, transitionDelay: "300ms" }} />
+                        style={{ width: animated ? `${p}%` : "0%", backgroundColor: s.color, transitionDelay: "300ms" }} />
                     </div>
                   </div>
                 );
@@ -1083,40 +1039,36 @@ export default function CoordinadorStats() {
             </div>
           </ChartCard>
 
-          {/* Type radar chart */}
           {radarData.length >= 3 ? (
-            <ChartCard title="Tipo de investigación (radar)" icon={Layers} accent="#3b82f6">
-              <ResponsiveContainer width="100%" height={260}>
-                <RadarChart data={radarData} margin={{ top: 16, right: 32, bottom: 0, left: 32 }}>
-                  <PolarGrid stroke="rgba(0,0,0,0.06)" />
+            <ChartCard title="Distribución por tipo" tag="Composición" icon={Layers}>
+              <ResponsiveContainer width="100%" height={CH}>
+                <RadarChart data={radarData} margin={{ top: 10, right: 28, bottom: 0, left: 28 }}>
+                  <PolarGrid stroke="rgba(0,0,0,0.06)" radialLines={false} />
                   <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }} />
                   <PolarRadiusAxis tick={false} axisLine={false} />
-                  <Radar dataKey="value" stroke="#3b82f6" strokeWidth={2}
-                    fill="#3b82f6" fillOpacity={0.2}
-                    dot={{ fill: "#3b82f6", r: 3 }} />
-                  <Tooltip
-                    contentStyle={{ background: "#0A1628", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 12 }}
-                  />
+                  <Radar dataKey="value" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={{ fill: "#3b82f6", r: 3, strokeWidth: 0 }} />
+                  <Tooltip content={<ChartTooltip />} />
                 </RadarChart>
               </ResponsiveContainer>
             </ChartCard>
           ) : (
-            <ChartCard title="Tipo de investigación" icon={BookOpen} accent="#3b82f6">
+            <ChartCard title="Proyectos por tipo" tag="Composición" icon={Layers}>
               {typeData.length === 0
-                ? <p className="text-slate-400 text-sm py-10 text-center">Sin datos aún.</p>
+                ? <p className="text-slate-400 text-sm py-16 text-center">Sin datos aún.</p>
                 : (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={typeData} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+                  <ResponsiveContainer width="100%" height={CH}>
+                    <BarChart data={typeData} layout="vertical" margin={{ left: 4, right: 40, top: 4 }}>
                       <defs>
-                        <linearGradient id="barBlue" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.65} />
+                        <linearGradient id="gradBlue" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.7} />
                           <stop offset="100%" stopColor="#60a5fa" />
                         </linearGradient>
                       </defs>
-                      <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={145} tick={axisStyle} axisLine={false} tickLine={false} />
-                      <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(59,130,246,0.05)" }} />
-                      <Bar dataKey="value" fill="url(#barBlue)" radius={[0, 6, 6, 0]} />
+                      <XAxis type="number" allowDecimals={false} tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={140} tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(59,130,246,0.04)" }} />
+                      <Bar dataKey="value" fill="url(#gradBlue)" radius={[0, 4, 4, 0]}
+                        label={{ position: "right", fontSize: 11, fill: "#94a3b8", fontWeight: 700 }} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1124,42 +1076,42 @@ export default function CoordinadorStats() {
           )}
         </div>
 
-        {/* ── Theme full-width ──────────────────────────────────────────── */}
+        {/* ── Row 4: Theme (full-width) ─────────────────────────────────── */}
         {themeData.length > 0 && (
-          <ChartCard title="Distribución por área temática" icon={BookOpen} accent="#CC5200">
-            <ResponsiveContainer width="100%" height={Math.max(240, themeData.length * 40)}>
-              <BarChart data={themeData} layout="vertical" margin={{ left: 8, right: 48, top: 4 }}>
+          <ChartCard title="Proyectos por área temática" tag="Temática" icon={BookOpen}>
+            <ResponsiveContainer width="100%" height={Math.max(CH, themeData.length * 38)}>
+              <BarChart data={themeData} layout="vertical" margin={{ left: 4, right: 48, top: 4 }}>
                 <defs>
-                  <linearGradient id="barOrange" x1="0" y1="0" x2="1" y2="0">
+                  <linearGradient id="gradOrange" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#CC5200" stopOpacity={0.75} />
                     <stop offset="100%" stopColor="#f97316" />
                   </linearGradient>
                 </defs>
-                <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={185} tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(204,82,0,0.05)" }} />
-                <Bar dataKey="value" fill="url(#barOrange)" radius={[0, 6, 6, 0]}
+                <XAxis type="number" allowDecimals={false} tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={190} tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(204,82,0,0.04)" }} />
+                <Bar dataKey="value" fill="url(#gradOrange)" radius={[0, 4, 4, 0]}
                   label={{ position: "right", fontSize: 11, fill: "#94a3b8", fontWeight: 700 }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
 
-        {/* ── Advisor full-width ────────────────────────────────────────── */}
+        {/* ── Row 5: Advisor (full-width) ───────────────────────────────── */}
         {advisorData.length > 0 && (
-          <ChartCard title="Proyectos por profesor/a guía" icon={Users2} accent="#8b5cf6">
-            <ResponsiveContainer width="100%" height={Math.max(200, advisorData.length * 36)}>
-              <BarChart data={advisorData} layout="vertical" margin={{ left: 8, right: 48, top: 4 }}>
+          <ChartCard title="Proyectos por profesor/a guía" tag="Docentes" icon={Users2}>
+            <ResponsiveContainer width="100%" height={Math.max(CH, advisorData.length * 36)}>
+              <BarChart data={advisorData} layout="vertical" margin={{ left: 4, right: 48, top: 4 }}>
                 <defs>
-                  <linearGradient id="barViolet" x1="0" y1="0" x2="1" y2="0">
+                  <linearGradient id="gradViolet" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.7} />
-                    <stop offset="100%" stopColor="#c084fc" />
+                    <stop offset="100%" stopColor="#a78bfa" />
                   </linearGradient>
                 </defs>
-                <XAxis type="number" allowDecimals={false} tick={axisStyle} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={200} tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(139,92,246,0.05)" }} />
-                <Bar dataKey="value" fill="url(#barViolet)" radius={[0, 6, 6, 0]}
+                <XAxis type="number" allowDecimals={false} tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={200} tick={AXIS_STYLE} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(124,58,237,0.04)" }} />
+                <Bar dataKey="value" fill="url(#gradViolet)" radius={[0, 4, 4, 0]}
                   label={{ position: "right", fontSize: 11, fill: "#94a3b8", fontWeight: 700 }} />
               </BarChart>
             </ResponsiveContainer>

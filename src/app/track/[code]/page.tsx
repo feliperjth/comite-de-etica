@@ -2,14 +2,14 @@ import { getSupabase, isConfigured } from "@/lib/supabase";
 import { sections as allSections } from "@/lib/sections";
 import StatusBadge from "@/components/StatusBadge";
 import ResubmitForm from "@/components/ResubmitForm";
-import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award } from "lucide-react";
+import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award, Users } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 
-const statusSteps = [
-  { key: "submitted",   label: "Recibido",           icon: Clock },
-  { key: "reviewing",   label: "En revisión",         icon: FileSearch },
+const statusSteps = (reviewersAssigned: boolean, reviewCount: number, reviewersNeeded: number) => [
+  { key: "submitted",   label: reviewersAssigned ? "Recibido · Revisores asignados" : "Recibido", icon: Clock },
+  { key: "reviewing",   label: reviewCount > 0 && reviewCount < reviewersNeeded ? `En revisión · ${reviewCount}/${reviewersNeeded} evaluaciones` : "En revisión", icon: FileSearch },
   { key: "corrections", label: "Con observaciones",   icon: AlertCircle },
   { key: "approved",    label: "Aprobado",            icon: CheckCircle },
   { key: "certified",   label: "Certificado emitido", icon: Award },
@@ -45,6 +45,19 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   const isRejected    = project.status === "rejected";
   const isCorrections = project.status === "corrections";
   const currentStep   = statusOrder.indexOf(project.status);
+
+  const reviewersAssigned = !!(project.reviewer || project.reviewer2);
+  const reviewersNeeded   = project.reviewer2 ? 2 : 1;
+  let reviewCount = 0;
+
+  if (reviewersAssigned && !["approved", "certified", "rejected"].includes(project.status)) {
+    const { count } = await supabase
+      .from("reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", project.id)
+      .eq("round", project.current_round ?? 1);
+    reviewCount = count ?? 0;
+  }
 
   // Fetch reviewer corrections if status is 'corrections'
   let correctionsByReviewer: {
@@ -142,10 +155,35 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
               />
             </div>
 
+            {/* Reviewer progress indicator */}
+            {reviewersAssigned && !["approved", "certified", "rejected"].includes(project.status) && (
+              <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
+                <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                  <Users className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-blue-800">
+                    {reviewCount === 0
+                      ? "Revisores asignados"
+                      : reviewCount < reviewersNeeded
+                      ? `Revisión en progreso · ${reviewCount} de ${reviewersNeeded} revisores`
+                      : "Evaluación completada"}
+                  </p>
+                  <p className="text-xs text-blue-500 mt-0.5">
+                    {reviewCount === 0
+                      ? "Los revisores asignados aún no han comenzado su evaluación"
+                      : reviewCount < reviewersNeeded
+                      ? `${reviewersNeeded - reviewCount} revisor${reviewersNeeded - reviewCount !== 1 ? "es" : ""} aún no ha${reviewersNeeded - reviewCount !== 1 ? "n" : ""} completado su evaluación`
+                      : `Los ${reviewersNeeded} revisores han enviado su evaluación`}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Timeline */}
             {!isRejected ? (
               <div className="space-y-3 mb-8">
-                {statusSteps.map((step) => {
+                {statusSteps(reviewersAssigned, reviewCount, reviewersNeeded).map((step) => {
                   const done   = statusOrder.indexOf(step.key) <= currentStep;
                   const active = step.key === project.status;
                   return (

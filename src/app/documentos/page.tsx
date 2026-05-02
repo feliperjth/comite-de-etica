@@ -1,5 +1,7 @@
 import { Download, FileText, FileCheck, Users, ClipboardList, BarChart2, UserCircle } from "lucide-react";
-import { getSupabase, isConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
 
 type DocTemplate = {
   id: string;
@@ -56,20 +58,21 @@ const docDefinitions = [
 ];
 
 async function getDocumentUrls(): Promise<Record<string, string>> {
-  if (!isConfigured) return {};
   try {
-    const supabase = getSupabase();
-    const { data } = await supabase.storage.from("templates").list("", { limit: 50 });
-    if (!data) return {};
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.storage.from("templates").list("", { limit: 100 });
+    if (error) { console.error("[documentos] storage list error:", error.message); return {}; }
+    if (!data || data.length === 0) return {};
 
     const urls: Record<string, string> = {};
-    for (const file of data) {
-      const { data: urlData } = supabase.storage.from("templates").getPublicUrl(file.name);
-      const docId = file.name.replace(/\.[^.]+$/, ""); // strip extension
-      urls[docId] = urlData.publicUrl;
+    for (const f of data) {
+      if (f.name.startsWith(".")) continue;
+      const { data: urlData } = supabase.storage.from("templates").getPublicUrl(f.name);
+      urls[f.name.replace(/\.[^.]+$/, "")] = urlData.publicUrl;
     }
     return urls;
-  } catch {
+  } catch (e) {
+    console.error("[documentos] unexpected error:", e);
     return {};
   }
 }
