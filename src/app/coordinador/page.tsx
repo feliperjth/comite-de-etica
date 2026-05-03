@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, AreaChart, Area,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { getSupabase } from "@/lib/supabase";
@@ -81,140 +80,88 @@ function useCountUp(target: number, active: boolean, delay = 0, duration = 1500)
   return val;
 }
 
-function RingGauge({ pct, color, size = 52, sw = 4.5, delay = 0, active }: {
-  pct: number; color: string; size?: number; sw?: number; delay?: number; active: boolean;
-}) {
-  const r = (size - sw) / 2;
-  const C = 2 * Math.PI * r;
-  return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round"
-        strokeDasharray={`${active ? Math.min(pct,100)/100*C : 0} ${C}`}
-        style={{ transition: active ? `stroke-dasharray 1.8s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms` : "none" }} />
-    </svg>
-  );
-}
+// ─── KPI stat card ─────────────────────────────────────────────────────────
 
-// ─── KPI sub-component ─────────────────────────────────────────────────────
-
-function KPICard({ value, label, icon: Icon, color, ring, delay, active, pct }: {
+function StatCard({ value, label, icon: Icon, color, pct, delay, active }: {
   value: number; label: string; icon: React.ElementType;
-  color: string; ring: number; delay: number; active: boolean; pct?: number;
+  color: string; pct: number; delay: number; active: boolean;
 }) {
   const displayed = useCountUp(value, active, delay);
   return (
-    <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.05] p-4 overflow-hidden group hover:bg-white/[0.09] hover:border-white/[0.14] transition-all duration-300 cursor-default">
-      <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl opacity-25 group-hover:opacity-40 transition-opacity pointer-events-none" style={{ backgroundColor: color }} />
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}22`, color }}>
-          <Icon className="w-4 h-4" />
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-4">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${color}15` }}>
+          <Icon className="w-4 h-4" style={{ color }} />
         </div>
-        <RingGauge pct={ring} color={color} active={active} delay={delay} />
+        <span className="text-xs font-bold tabular-nums" style={{ color: `${color}99` }}>{pct}%</span>
       </div>
-      <div className="text-2xl font-bold text-white tabular-nums leading-none mb-1">{displayed}</div>
-      <div className="text-[11px] text-white/50 font-medium leading-snug">{label}</div>
-      {pct !== undefined && (
-        <div className="mt-2.5 h-1 rounded-full bg-white/[0.07] overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-1000"
-            style={{ width: active ? `${pct}%` : "0%", backgroundColor: color, transitionDelay: `${delay + 600}ms` }} />
-        </div>
-      )}
+      <div className="text-3xl font-bold text-slate-800 tabular-nums leading-none mb-1">{displayed}</div>
+      <div className="text-xs text-slate-400 mb-3 leading-snug">{label}</div>
+      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-1000"
+          style={{
+            width: active ? `${pct > 0 ? Math.max(pct, 4) : 0}%` : "0%",
+            backgroundColor: color,
+            transitionDelay: `${delay}ms`,
+          }} />
+      </div>
     </div>
   );
 }
 
-// ─── Approval Rate Hero Gauge ──────────────────────────────────────────────
+// ─── Approval rate card ────────────────────────────────────────────────────
 
-function ApprovalGauge({ pct, active }: { pct: number; active: boolean }) {
-  const size = 200; const sw = 14; const r = (size - sw) / 2;
-  const C = 2 * Math.PI * r;
-  // Only draw 270° arc (from 135° to 405°)
-  const arcRatio = 0.75;
-  const bgLen = C * arcRatio;
-  const fillLen = active ? (pct / 100) * bgLen : 0;
-  // rotate so arc starts at bottom-left (135°)
-  const rotation = 135;
-
+function ApprovalRateCard({ approvalPct, approved, total, active }: {
+  approvalPct: number; approved: number; total: number; active: boolean;
+}) {
+  const pct = useCountUp(approvalPct, active, 0, 1800);
   return (
-    <div className="relative flex flex-col items-center">
-      <svg width={size} height={size} style={{ transform: `rotate(${rotation}deg)` }}>
-        <defs>
-          <linearGradient id="approvalArc" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f97316" />
-            <stop offset="50%" stopColor="#22c55e" />
-            <stop offset="100%" stopColor="#10b981" />
-          </linearGradient>
-          <filter id="arcGlow">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
-        {/* Track */}
-        <circle cx={size/2} cy={size/2} r={r} fill="none"
-          stroke="rgba(255,255,255,0.07)" strokeWidth={sw} strokeLinecap="round"
-          strokeDasharray={`${bgLen} ${C}`} strokeDashoffset={0} />
-        {/* Fill arc */}
-        <circle cx={size/2} cy={size/2} r={r} fill="none"
-          stroke="url(#approvalArc)" strokeWidth={sw} strokeLinecap="round"
-          strokeDasharray={`${fillLen} ${C}`} strokeDashoffset={0}
-          style={{ transition: active ? "stroke-dasharray 2.2s cubic-bezier(0.34,1.2,0.64,1) 300ms" : "none",
-            filter: "drop-shadow(0 0 6px rgba(34,197,94,0.5))" }} />
-      </svg>
-      {/* Center label – counter-rotate to stay upright */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ transform: `rotate(-${rotation}deg)` }}>
-        <div className="text-5xl font-black text-white tabular-nums leading-none">{active ? pct : 0}%</div>
-        <div className="text-[11px] text-white/40 font-bold uppercase tracking-widest mt-1.5">Aprobación</div>
-        <div className="text-[10px] text-white/25 mt-0.5">tasa histórica</div>
+    <div className="bg-gradient-to-br from-emerald-50 to-teal-50/50 border border-emerald-100 rounded-2xl p-5 flex flex-col justify-center h-full">
+      <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2">Tasa de aprobación</p>
+      <div className="text-4xl font-black text-emerald-700 tabular-nums leading-none mb-1">{pct}%</div>
+      <div className="text-xs text-emerald-500 mb-3">{approved} aprobados de {total}</div>
+      <div className="h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full bg-emerald-500 transition-all duration-[1800ms]"
+          style={{ width: active ? `${approvalPct}%` : "0%" }} />
       </div>
     </div>
   );
 }
 
-// ─── Pipeline funnel ───────────────────────────────────────────────────────
+// ─── Pipeline ──────────────────────────────────────────────────────────────
 
 const PIPELINE_STAGES = [
-  { key: "submitted",   label: "Enviados",      short: "Recibido",    color: "#f59e0b", bg: "#f59e0b18" },
-  { key: "reviewing",   label: "En revisión",   short: "Revisión",    color: "#3b82f6", bg: "#3b82f618" },
-  { key: "corrections", label: "Observaciones", short: "Corrección",  color: "#f97316", bg: "#f9731618" },
-  { key: "approved",    label: "Aprobados",     short: "Aprobado",    color: "#22c55e", bg: "#22c55e18" },
-  { key: "certified",   label: "Certificados",  short: "Certificado", color: "#a78bfa", bg: "#a78bfa18" },
-  { key: "rejected",    label: "Rechazados",    short: "Rechazado",   color: "#ef4444", bg: "#ef444418" },
+  { key: "submitted",   label: "Enviados",      color: "#f59e0b" },
+  { key: "reviewing",   label: "En revisión",   color: "#3b82f6" },
+  { key: "corrections", label: "Observaciones", color: "#f97316" },
+  { key: "approved",    label: "Aprobados",     color: "#22c55e" },
+  { key: "certified",   label: "Certificados",  color: "#a78bfa" },
+  { key: "rejected",    label: "Rechazados",    color: "#ef4444" },
 ];
 
-function PipelineFunnel({ counts, total, active }: {
+function Pipeline({ counts, total, active }: {
   counts: Record<string, number>; total: number; active: boolean;
 }) {
   return (
-    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+    <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
       {PIPELINE_STAGES.map((s, i) => {
         const n   = counts[s.key] ?? 0;
         const pct = total > 0 ? Math.round((n / total) * 100) : 0;
         return (
-          <div key={s.key} className="relative flex flex-col items-center gap-1.5">
-            {/* Arrow connector (hidden on last) */}
-            {i < PIPELINE_STAGES.length - 1 && (
-              <div className="hidden md:block absolute top-5 -right-1 z-10">
-                <svg width={10} height={12} viewBox="0 0 10 12">
-                  <path d="M1 1 L9 6 L1 11" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-            )}
-            <div className="w-full rounded-xl border border-white/[0.08] p-3 text-center"
-              style={{ backgroundColor: s.bg, borderColor: `${s.color}30` }}>
-              <div className="text-2xl font-black tabular-nums leading-none mb-0.5"
-                style={{ color: s.color }}>{n}</div>
-              <div className="text-[10px] text-white/45 font-semibold">{s.short}</div>
-              <div className="mt-2 h-1 rounded-full bg-white/[0.08] overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-1000"
-                  style={{
-                    width: active ? `${pct}%` : "0%",
-                    backgroundColor: s.color,
-                    transitionDelay: `${i * 120 + 400}ms`,
-                  }} />
-              </div>
-              <div className="text-[9px] mt-1 font-bold tabular-nums" style={{ color: `${s.color}99` }}>{pct}%</div>
+          <div key={s.key} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center hover:shadow-md transition-shadow">
+            <div className="text-2xl font-bold tabular-nums leading-none mb-1"
+              style={{ color: n > 0 ? s.color : "#cbd5e1" }}>{n}</div>
+            <div className="text-[11px] font-semibold text-slate-400 mb-2.5">{s.label}</div>
+            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-1000"
+                style={{
+                  width: active ? `${pct > 0 ? Math.max(pct, 4) : 0}%` : "0%",
+                  backgroundColor: s.color,
+                  transitionDelay: `${i * 80 + 300}ms`,
+                }} />
             </div>
+            <div className="text-[10px] text-slate-300 mt-1 tabular-nums font-semibold">{pct}%</div>
           </div>
         );
       })}
@@ -222,170 +169,7 @@ function PipelineFunnel({ counts, total, active }: {
   );
 }
 
-// ─── Fondecyt SVG Seal ─────────────────────────────────────────────────────
-
-function FondecytSeal({ size = 140 }: { size?: number }) {
-  const C = size / 2;
-  const OR = size * 0.44;
-  const IR = size * 0.36;
-
-  const ticks = Array.from({ length: 48 }, (_, i) => {
-    const angle = (i / 48) * 2 * Math.PI;
-    const major = i % 6 === 0;
-    const inner = C + (major ? OR - size * 0.07 : OR - size * 0.045) * Math.cos(angle);
-    const y1i   = C + (major ? OR - size * 0.07 : OR - size * 0.045) * Math.sin(angle);
-    const x2o   = C + OR * Math.cos(angle);
-    const y2o   = C + OR * Math.sin(angle);
-    return { x1: inner, y1: y1i, x2: x2o, y2: y2o, major };
-  });
-
-  // 5-pointed star
-  const starPts = Array.from({ length: 10 }, (_, i) => {
-    const angle = (i / 10) * 2 * Math.PI - Math.PI / 2;
-    const r = i % 2 === 0 ? size * 0.095 : size * 0.042;
-    return `${C + r * Math.cos(angle)},${C - size * 0.13 + r * Math.sin(angle)}`;
-  }).join(" ");
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <defs>
-        <radialGradient id="fGrad" cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#FCD34D" />
-          <stop offset="60%" stopColor="#F59E0B" />
-          <stop offset="100%" stopColor="#92400E" />
-        </radialGradient>
-        <radialGradient id="fGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FCD34D" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* Outer glow */}
-      <circle cx={C} cy={C} r={OR + size * 0.09} fill="url(#fGlow)" />
-
-      {/* Tick marks */}
-      {ticks.map((t, i) => (
-        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-          stroke="#F59E0B" strokeWidth={t.major ? 2 : 1} strokeOpacity={t.major ? 0.7 : 0.4} />
-      ))}
-
-      {/* Outer ring */}
-      <circle cx={C} cy={C} r={OR} fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeOpacity="0.5" />
-
-      {/* Main filled circle */}
-      <circle cx={C} cy={C} r={IR} fill="url(#fGrad)" />
-
-      {/* Inner decorative ring */}
-      <circle cx={C} cy={C} r={IR * 0.92} fill="none" stroke="#FDE68A" strokeWidth="1" strokeOpacity="0.45" strokeDasharray="3 3" />
-
-      {/* 5-pointed star */}
-      <polygon points={starPts} fill="#FFFBEB" fillOpacity="0.95" />
-
-      {/* FONDECYT text */}
-      <text x={C} y={C + size * 0.07} textAnchor="middle"
-        fontSize={size * 0.092} fontWeight="800" fill="#FFFBEB" letterSpacing="1.2"
-        style={{ fontFamily: "system-ui, sans-serif" }}>
-        FONDECYT
-      </text>
-
-      {/* ANID subtext */}
-      <text x={C} y={C + size * 0.18} textAnchor="middle"
-        fontSize={size * 0.065} fill="#FDE68A" letterSpacing="1.5"
-        style={{ fontFamily: "system-ui, sans-serif" }}>
-        ANID · CHILE
-      </text>
-    </svg>
-  );
-}
-
-// ─── Grant / UAI Shield Seal ───────────────────────────────────────────────
-
-function GrantSeal({ size = 140 }: { size?: number }) {
-  const C = size / 2;
-  const s = size;
-
-  const shield = `
-    M ${C} ${s * 0.05}
-    L ${s * 0.88} ${s * 0.24}
-    L ${s * 0.88} ${s * 0.58}
-    Q ${s * 0.88} ${s * 0.90} ${C} ${s * 0.97}
-    Q ${s * 0.12} ${s * 0.90} ${s * 0.12} ${s * 0.58}
-    L ${s * 0.12} ${s * 0.24}
-    Z
-  `;
-  const shieldInner = `
-    M ${C} ${s * 0.12}
-    L ${s * 0.80} ${s * 0.28}
-    L ${s * 0.80} ${s * 0.57}
-    Q ${s * 0.80} ${s * 0.84} ${C} ${s * 0.90}
-    Q ${s * 0.20} ${s * 0.84} ${s * 0.20} ${s * 0.57}
-    L ${s * 0.20} ${s * 0.28}
-    Z
-  `;
-
-  // Column x positions
-  const cols = [C - s * 0.17, C, C + s * 0.17];
-  const colTop = s * 0.46, colH = s * 0.22, colW = s * 0.06;
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <defs>
-        <linearGradient id="gGrad" x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0%" stopColor="#7C3AED" />
-          <stop offset="100%" stopColor="#1E1B4B" />
-        </linearGradient>
-        <radialGradient id="gGlow" cx="50%" cy="20%" r="60%">
-          <stop offset="0%" stopColor="#A78BFA" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#7C3AED" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* Outer glow */}
-      <path d={shield} fill="url(#gGlow)" transform={`scale(1.08) translate(${-C * 0.08}, ${-s * 0.04})`} />
-
-      {/* Shield body */}
-      <path d={shield} fill="url(#gGrad)" />
-
-      {/* Inner shield outline */}
-      <path d={shieldInner} fill="none" stroke="#C4B5FD" strokeWidth="1" strokeOpacity="0.35" />
-
-      {/* Horizontal divider line */}
-      <line x1={s * 0.22} y1={s * 0.42} x2={s * 0.78} y2={s * 0.42} stroke="#A78BFA" strokeWidth="0.8" strokeOpacity="0.5" />
-
-      {/* Pediment / triangle roof */}
-      <polygon
-        points={`${C},${s * 0.30} ${C - s * 0.24},${s * 0.43} ${C + s * 0.24},${s * 0.43}`}
-        fill="#C4B5FD" fillOpacity="0.25" stroke="#DDD6FE" strokeWidth="0.8" strokeOpacity="0.5"
-      />
-
-      {/* Columns */}
-      {cols.map((cx, i) => (
-        <rect key={i} x={cx - colW / 2} y={colTop} width={colW} height={colH} rx={colW * 0.25}
-          fill="#EDE9FE" fillOpacity="0.3" />
-      ))}
-
-      {/* Column base */}
-      <rect x={C - s * 0.25} y={colTop + colH} width={s * 0.5} height={s * 0.03}
-        rx={s * 0.01} fill="#DDD6FE" fillOpacity="0.35" />
-
-      {/* UAI text */}
-      <text x={C} y={s * 0.77} textAnchor="middle"
-        fontSize={s * 0.15} fontWeight="900" fill="#FFFFFF" letterSpacing="3"
-        style={{ fontFamily: "system-ui, sans-serif" }}>
-        UAI
-      </text>
-
-      {/* GRANT subtext */}
-      <text x={C} y={s * 0.86} textAnchor="middle"
-        fontSize={s * 0.065} fill="#DDD6FE" letterSpacing="1.5"
-        style={{ fontFamily: "system-ui, sans-serif" }}>
-        GRANT · DOCENTE
-      </text>
-    </svg>
-  );
-}
-
-// ─── Funding card (sub-component, has own hook) ────────────────────────────
+// ─── Funding card ──────────────────────────────────────────────────────────
 
 function FundingCard({
   type, projects, total, active,
@@ -396,114 +180,82 @@ function FundingCard({
   active: boolean;
 }) {
   const count_ = useCountUp(projects.length, active, type === "fondecyt" ? 200 : 350, 1200);
-  const pct = total > 0 ? Math.round((projects.length / total) * 100) : 0;
+  const pct    = total > 0 ? Math.round((projects.length / total) * 100) : 0;
+  const isF    = type === "fondecyt";
 
-  const isFondecyt = type === "fondecyt";
+  const accent   = isF ? "#f59e0b"       : "#7c3aed";
+  const bgStripe = isF ? "#fef3c7"       : "#ede9fe";
+  const bgRow    = isF ? "bg-amber-50"   : "bg-violet-50";
+  const bdRow    = isF ? "border-amber-100" : "border-violet-100";
+  const txtBadge = isF ? "text-amber-700" : "text-violet-700";
+  const bgBadge  = isF ? "bg-amber-100"  : "bg-violet-100";
+  const barGrad  = isF
+    ? "from-amber-400 to-orange-400"
+    : "from-violet-400 to-purple-400";
 
   return (
-    <div className={`relative rounded-3xl overflow-hidden border shadow-xl ${
-      isFondecyt
-        ? "border-amber-200/60 shadow-amber-100"
-        : "border-violet-200/60 shadow-violet-100"
-    }`}>
-      {/* Background */}
-      <div className={`absolute inset-0 ${
-        isFondecyt
-          ? "bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50"
-          : "bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50"
-      }`} />
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+      {/* Color accent strip */}
+      <div className="h-1" style={{ background: `linear-gradient(90deg, ${accent}, ${bgStripe})` }} />
 
-      {/* Decorative glow */}
-      <div className={`absolute -top-10 -left-10 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-40 ${
-        isFondecyt ? "bg-amber-300" : "bg-violet-300"
-      }`} />
-      <div className={`absolute -bottom-8 -right-8 w-36 h-36 rounded-full blur-2xl pointer-events-none opacity-25 ${
-        isFondecyt ? "bg-orange-400" : "bg-purple-400"
-      }`} />
-
-      <div className="relative p-7 flex gap-7 items-start">
-        {/* Badge */}
-        <div className="shrink-0 flex flex-col items-center gap-2">
-          {isFondecyt ? <FondecytSeal size={132} /> : <GrantSeal size={132} />}
-          <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${
-            isFondecyt ? "bg-amber-200 text-amber-800" : "bg-violet-200 text-violet-800"
-          }`}>
-            {isFondecyt ? "ANID · Chile" : "Univ. Adolfo Ibáñez"}
-          </span>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 pt-1">
-          <div className="flex items-start justify-between mb-1">
+      <div className="p-6">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${accent}18` }}>
+              <DollarSign className="w-4.5 h-4.5" style={{ color: accent }} />
+            </div>
             <div>
-              <h3 className={`text-xl font-black tracking-tight ${isFondecyt ? "text-amber-900" : "text-violet-900"}`}>
-                {isFondecyt ? "Fondecyt" : "Grant / Proyecto UAI"}
-              </h3>
-              <p className={`text-xs font-medium mt-0.5 ${isFondecyt ? "text-amber-700/70" : "text-violet-700/70"}`}>
-                {isFondecyt
-                  ? "Fondo Nacional de Desarrollo Científico y Tecnológico"
-                  : "Proyectos docentes y de investigación UAI"}
+              <p className="font-bold text-slate-800 text-sm leading-tight">
+                {isF ? "Fondecyt" : "Grant UAI"}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {isF ? "ANID · Chile" : "Univ. Adolfo Ibáñez"}
               </p>
             </div>
-            <div className="text-right shrink-0 ml-4">
-              <div className={`text-5xl font-black tabular-nums leading-none ${isFondecyt ? "text-amber-600" : "text-violet-600"}`}>
-                {count_}
-              </div>
-              <div className={`text-xs font-semibold mt-0.5 ${isFondecyt ? "text-amber-500" : "text-violet-500"}`}>
-                proyecto{projects.length !== 1 ? "s" : ""}
-              </div>
+          </div>
+          <div className="text-right">
+            <div className="text-4xl font-black tabular-nums leading-none" style={{ color: accent }}>
+              {count_}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              proyecto{projects.length !== 1 ? "s" : ""}
             </div>
           </div>
-
-          {/* Progress bar */}
-          <div className="mt-4 mb-4">
-            <div className={`h-2 rounded-full overflow-hidden ${isFondecyt ? "bg-amber-200/50" : "bg-violet-200/50"}`}>
-              <div
-                className={`h-full rounded-full transition-all duration-1000 delay-500 ${
-                  isFondecyt
-                    ? "bg-gradient-to-r from-amber-400 to-orange-500"
-                    : "bg-gradient-to-r from-violet-400 to-purple-500"
-                }`}
-                style={{ width: active ? `${pct}%` : "0%" }}
-              />
-            </div>
-            <p className={`text-[11px] mt-1.5 ${isFondecyt ? "text-amber-600/60" : "text-violet-600/60"}`}>
-              {pct}% del total de proyectos del comité
-            </p>
-          </div>
-
-          {/* Projects grid */}
-          {projects.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pr-1">
-              {projects.map((p) => (
-                <div key={p.id} className={`flex items-center justify-between rounded-xl px-3 py-2 border ${
-                  isFondecyt
-                    ? "bg-white/60 border-amber-100 hover:border-amber-300"
-                    : "bg-white/60 border-violet-100 hover:border-violet-300"
-                } transition-colors`}>
-                  <span className={`text-xs font-semibold truncate max-w-[58%] ${
-                    isFondecyt ? "text-amber-900" : "text-violet-900"
-                  }`}>
-                    {p.researcher_name}
-                  </span>
-                  {p.funding_folio && (
-                    <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${
-                      isFondecyt
-                        ? "bg-amber-200 text-amber-800"
-                        : "bg-violet-200 text-violet-800"
-                    }`}>
-                      {p.funding_folio}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={`text-xs italic ${isFondecyt ? "text-amber-500/60" : "text-violet-500/60"}`}>
-              Sin proyectos con este financiamiento actualmente.
-            </p>
-          )}
         </div>
+
+        {/* Progress bar */}
+        <div className="mb-4">
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full bg-gradient-to-r ${barGrad} transition-all duration-1000 delay-300`}
+              style={{ width: active ? `${pct > 0 ? Math.max(pct, 2) : 0}%` : "0%" }} />
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1.5">{pct}% del total de proyectos</p>
+        </div>
+
+        {/* Researcher list */}
+        {projects.length > 0 ? (
+          <div className="space-y-1.5 max-h-44 overflow-y-auto">
+            {projects.map((p) => (
+              <div key={p.id}
+                className={`flex items-center justify-between px-3 py-2 rounded-xl border ${bgRow} ${bdRow}`}>
+                <span className="text-xs font-semibold text-slate-700 truncate max-w-[60%]">
+                  {p.researcher_name}
+                </span>
+                {p.funding_folio && (
+                  <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${bgBadge} ${txtBadge}`}>
+                    {p.funding_folio}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`flex items-center justify-center py-5 rounded-xl border ${bgRow} ${bdRow}`}>
+            <p className="text-xs text-slate-400 italic">Sin proyectos con este financiamiento</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -666,10 +418,10 @@ export default function CoordinadorStats() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#040E1C] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-white/10 border-t-[#CC5200] rounded-full animate-spin" />
-          <p className="text-white/40 text-sm font-medium">Cargando estadísticas...</p>
+          <div className="w-10 h-10 border-4 border-slate-200 border-t-[#CC5200] rounded-full animate-spin" />
+          <p className="text-slate-400 text-sm font-medium">Cargando estadísticas...</p>
         </div>
       </div>
     );
@@ -772,7 +524,6 @@ export default function CoordinadorStats() {
 
   const pctOf = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
-  const axisStyle = { fontSize: 11, fill: "#94a3b8" };
   const approvalPct = total > 0
     ? Math.round(((statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)) / total * 100)
     : 0;
@@ -789,75 +540,50 @@ export default function CoordinadorStats() {
   return (
     <div className="min-h-screen bg-slate-50/70">
 
-      {/* ── Dark animated header ─────────────────────────────────────────── */}
-      <div className="relative bg-gradient-to-br from-[#020A16] via-[#060F1E] to-[#0A1828] px-4 pt-10 pb-12 overflow-hidden">
-        {/* Background decorations */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-700/8 rounded-full blur-3xl pointer-events-none -translate-y-1/3 translate-x-1/4" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-700/8 rounded-full blur-3xl pointer-events-none translate-y-1/3 -translate-x-1/4" />
-        <div className="absolute top-1/2 left-1/2 w-[800px] h-[400px] bg-[#CC5200]/5 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto">
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-slate-100 px-4 pt-8 pb-10">
+        <div className="max-w-7xl mx-auto">
 
           {/* Title row */}
-          <div className="flex items-center gap-3 mb-1.5">
-            <div className="w-9 h-9 rounded-xl bg-[#CC5200]/20 border border-[#CC5200]/30 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-9 h-9 rounded-xl bg-[#CC5200]/10 border border-[#CC5200]/20 flex items-center justify-center shrink-0">
               <BarChart2 className="w-4 h-4 text-[#CC5200]" />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Panel de Estadísticas</h1>
-            <div className="hidden sm:flex items-center gap-1.5 ml-2 bg-white/[0.06] border border-white/[0.08] px-3 py-1 rounded-full">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Comité de Ética · UAI</p>
+              <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">Panel de Estadísticas</h1>
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 ml-2 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">En vivo</span>
+              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">En vivo</span>
             </div>
           </div>
-          <p className="text-white/30 text-sm ml-12 mb-8 font-medium">
-            Comité de Ética · Escuela de Psicología · Universidad Adolfo Ibáñez
+          <p className="text-slate-400 text-sm ml-12 mb-8">
+            Escuela de Psicología · Universidad Adolfo Ibáñez
           </p>
 
-          {/* Hero layout: KPI grid + Approval Gauge */}
-          <div className="flex flex-col lg:flex-row items-start gap-6">
-
-            {/* KPI cards */}
+          {/* KPI grid + Approval rate */}
+          <div className="flex flex-col lg:flex-row items-stretch gap-4 mb-6">
             <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {statCards.map((s, i) => (
-                <KPICard key={s.label} value={s.value} label={s.label}
-                  icon={s.icon} color={s.color} ring={s.ring} delay={i * 90} active={animated} pct={s.pct} />
+                <StatCard key={s.label} value={s.value} label={s.label}
+                  icon={s.icon} color={s.color} pct={s.pct} delay={i * 90} active={animated} />
               ))}
             </div>
-
-            {/* Approval rate hero gauge */}
-            <div className="lg:shrink-0 flex flex-col items-center gap-3 w-full lg:w-auto">
-              <div className="relative rounded-3xl border border-white/[0.08] bg-white/[0.04] p-6 flex flex-col items-center backdrop-blur-sm">
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.18em] mb-3">Rendimiento global</p>
-                <ApprovalGauge pct={approvalPct} active={animated} />
-                <div className="mt-3 flex items-center gap-4 text-center">
-                  <div>
-                    <div className="text-xl font-black text-emerald-400 tabular-nums">{(statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)}</div>
-                    <div className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">Aprobados</div>
-                  </div>
-                  <div className="w-px h-8 bg-white/[0.08]" />
-                  <div>
-                    <div className="text-xl font-black text-slate-300 tabular-nums">{total}</div>
-                    <div className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">Total</div>
-                  </div>
-                  <div className="w-px h-8 bg-white/[0.08]" />
-                  <div>
-                    <div className="text-xl font-black text-red-400 tabular-nums">{statusCounts["rejected"] ?? 0}</div>
-                    <div className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">Rechazados</div>
-                  </div>
-                </div>
-              </div>
+            <div className="lg:w-56 shrink-0">
+              <ApprovalRateCard
+                approvalPct={approvalPct}
+                approved={(statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)}
+                total={total}
+                active={animated}
+              />
             </div>
           </div>
 
-          {/* Pipeline funnel */}
-          <div className="mt-7">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] font-bold text-white/25 uppercase tracking-[0.2em]">Flujo del proceso</span>
-              <div className="flex-1 h-px bg-white/[0.05]" />
-            </div>
-            <PipelineFunnel counts={statusCounts} total={total} active={animated} />
+          {/* Pipeline */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-3">Flujo del proceso</p>
+            <Pipeline counts={statusCounts} total={total} active={animated} />
           </div>
         </div>
       </div>
