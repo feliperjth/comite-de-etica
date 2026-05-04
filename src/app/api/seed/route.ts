@@ -51,6 +51,8 @@ const REVIEWERS = [
   { name: "Carla Muñoz Herrera",      email: "cmunoz@uai.cl",        expertise: ["neurociencias","cognitiva","clinica"] },
   { name: "Martín Opazo Vidal",       email: "mopazo@uai.cl",        expertise: ["neurociencias","metodologia","desarrollo"] },
   { name: "Verónica Salas Pino",      email: "vsalas@uai.cl",        expertise: ["neurociencias","cognitiva","social"] },
+  // Coordinador
+  { name: "Felipe Rojas",             email: "felipe.rojast@uai.cl", expertise: ["clinica","cognitiva","metodologia","neurociencias"] },
 ];
 
 const PROJECTS = [
@@ -439,6 +441,30 @@ const PROJECTS = [
     abstract: "Estudio transversal que evalúa perfiles neuropsicológicos en adultos mayores sanos y con deterioro cognitivo leve, analizando el rol de la reserva cognitiva.",
     funding_type: null, funding_folio: null,
   },
+  // ── Proyectos asignados al coordinador (Felipe Rojas) para pruebas ─────────
+  {
+    title: "Efectos del mindfulness en la regulación emocional de estudiantes universitarios bajo estrés académico",
+    researcher_name: "Valentina Ossandón Fuentes",
+    researcher_email: "vossandon@investigador.cl",
+    rut: "17.890.123-4",
+    project_type: "magister", theme: "clinica",
+    abstract: "Estudio cuasi-experimental que evalúa un programa de mindfulness de 8 semanas en universitarios de primer año con altos niveles de estrés académico percibido.",
+    funding_type: null, funding_folio: null,
+    reviewer: "Felipe Rojas",
+    reviewer2: "Ana María Torres",
+    status: "reviewing",
+  },
+  {
+    title: "Sesgos cognitivos en la toma de decisiones bajo incertidumbre: un enfoque conductual",
+    researcher_name: "Martín Carvajal Soto",
+    researcher_email: "mcarvajal@investigador.cl",
+    rut: "18.234.567-8",
+    project_type: "doctorado", theme: "cognitiva",
+    abstract: "Investigación experimental que examina la influencia de sesgos cognitivos como el efecto de encuadre y la aversión a la pérdida en decisiones bajo incertidumbre.",
+    funding_type: "fondecyt", funding_folio: "3240789",
+    reviewer: "Felipe Rojas",
+    status: "corrections",
+  },
 ];
 
 // Researcher accounts para los proyectos seed
@@ -492,8 +518,10 @@ export async function POST() {
         project_type: p.project_type,
         theme: p.theme,
         abstract: p.abstract,
-        status: "submitted",
-        progress: 10,
+        status: (p as { status?: string }).status ?? "submitted",
+        progress: (p as { status?: string }).status === "reviewing" ? 60
+                : (p as { status?: string }).status === "corrections" ? 40
+                : (p as { status?: string }).status === "approved" ? 100 : 10,
         tracking_code: trackingCode(),
         current_round: 1,
         advisor_name: null,
@@ -501,6 +529,8 @@ export async function POST() {
         funding_folio: p.funding_folio ?? null,
         funding_detail: null,
         researcher_rut: (p as { rut?: string }).rut ?? null,
+        reviewer: (p as { reviewer?: string }).reviewer ?? null,
+        reviewer2: (p as { reviewer2?: string }).reviewer2 ?? null,
         review_mode: null,
       });
     if (error) results.projects.errors.push(`${p.title.slice(0, 40)}: ${error.message}`);
