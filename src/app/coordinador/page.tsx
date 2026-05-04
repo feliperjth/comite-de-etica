@@ -350,6 +350,8 @@ export default function CoordinadorStats() {
   const [syncMsg, setSyncMsg]             = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [seeding, setSeeding]     = useState(false);
+  const [seedMsg, setSeedMsg]     = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -393,6 +395,40 @@ export default function CoordinadorStats() {
     await fetch(`/api/projects/${confirmDelete.id}`, { method: "DELETE" });
     setProjects((prev) => prev.filter((p) => p.id !== confirmDelete.id));
     setConfirmDelete(null); setDeletingProject(false);
+  }
+
+  async function reloadProjects() {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("projects")
+      .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,created_at")
+      .order("created_at", { ascending: false });
+    setProjects(data ?? []);
+  }
+
+  async function handleSeed() {
+    setSeeding(true); setSeedMsg(null);
+    const res  = await fetch("/api/seed", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      setSeedMsg({ ok: true, text: `✓ ${data.projects?.ok ?? 0} proyectos · ${data.reviewers?.ok ?? 0} revisores · ${data.researchers?.ok ?? 0} cuentas cargadas` });
+      await reloadProjects();
+    } else {
+      setSeedMsg({ ok: false, text: "Error al cargar datos de prueba" });
+    }
+    setSeeding(false);
+    setTimeout(() => setSeedMsg(null), 6000);
+  }
+
+  async function handleDeleteSeed() {
+    setSeeding(true); setSeedMsg(null);
+    const res = await fetch("/api/seed", { method: "DELETE" });
+    if (res.ok) {
+      setSeedMsg({ ok: true, text: "✓ Datos de prueba eliminados" });
+      await reloadProjects();
+    }
+    setSeeding(false);
+    setTimeout(() => setSeedMsg(null), 4000);
   }
 
   async function handleTemplateDelete(docId: string) {
@@ -600,6 +636,57 @@ export default function CoordinadorStats() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+
+        {/* ── Seed / datos de prueba ───────────────────────────────────── */}
+        {projects.length === 0 ? (
+          <div className="bg-amber-50 border-2 border-amber-200 border-dashed rounded-2xl p-8 text-center">
+            <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <HardDrive className="w-7 h-7 text-amber-500" />
+            </div>
+            <h3 className="font-bold text-amber-900 text-base mb-1">Base de datos vacía</h3>
+            <p className="text-amber-700 text-sm mb-5 max-w-sm mx-auto">
+              No hay proyectos en el sistema. Carga los datos de prueba para poblar la base de datos con 45 proyectos y 40 revisores.
+            </p>
+            {seedMsg && (
+              <p className={`text-sm font-semibold mb-4 ${seedMsg.ok ? "text-emerald-600" : "text-red-500"}`}>
+                {seedMsg.text}
+              </p>
+            )}
+            <button onClick={handleSeed} disabled={seeding}
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm">
+              {seeding
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Cargando...</>
+                : <><Upload className="w-4 h-4" /> Cargar datos de prueba</>}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-slate-50 rounded-lg flex items-center justify-center shrink-0">
+                <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Datos de prueba · {projects.length} proyectos en BD
+              </p>
+              {seedMsg && (
+                <span className={`text-xs font-semibold ${seedMsg.ok ? "text-emerald-600" : "text-red-500"}`}>
+                  {seedMsg.text}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={handleSeed} disabled={seeding}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-50 transition-colors">
+                {seeding ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                Agregar datos
+              </button>
+              <button onClick={handleDeleteSeed} disabled={seeding}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 disabled:opacity-50 transition-colors">
+                <Trash2 className="w-3 h-3" /> Limpiar prueba
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Google Drive banner ───────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5">
