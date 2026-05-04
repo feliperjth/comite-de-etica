@@ -36,22 +36,24 @@ export async function POST(
     if (p.reviewer2) activeCount[p.reviewer2] = (activeCount[p.reviewer2] ?? 0) + 1;
   }
 
-  // 4. Filter eligible reviewers: expertise matches theme AND active < 3
+  const MAX_ACTIVE = 5;
+
+  // 4. Filter eligible reviewers: expertise matches theme AND active < MAX_ACTIVE
   const eligible = reviewers.filter((r) =>
     r.expertise?.includes(project.theme) &&
-    (activeCount[r.name] ?? 0) < 3
+    (activeCount[r.name] ?? 0) < MAX_ACTIVE
   );
 
-  // 5. Fallback: any reviewer with < 3 active if not enough eligible
+  // 5. Fallback: any reviewer with capacity if not enough expertise match
   const fallback = reviewers.filter(
-    (r) => (activeCount[r.name] ?? 0) < 3 && !eligible.find((e) => e.email === r.email)
+    (r) => (activeCount[r.name] ?? 0) < MAX_ACTIVE && !eligible.find((e) => e.email === r.email)
   );
 
   const pool = [...eligible, ...fallback];
 
   if (pool.length < numReviewers) {
     return NextResponse.json(
-      { error: `Solo hay ${pool.length} revisor(es) disponible(s) con carga < 3. Se necesitan ${numReviewers}.` },
+      { error: `Solo hay ${pool.length} revisor(es) disponible(s) con carga < ${MAX_ACTIVE}. Se necesitan ${numReviewers}.` },
       { status: 400 }
     );
   }
