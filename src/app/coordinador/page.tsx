@@ -55,6 +55,7 @@ type Project = {
   theme: string; advisor_name: string | null; funding_type: string | null;
   funding_folio: string | null; researcher_name: string;
   researcher_email: string; created_at: string;
+  reviewer: string | null; reviewer2: string | null;
 };
 
 function count<T extends string>(arr: T[]): Record<string, number> {
@@ -352,6 +353,12 @@ export default function CoordinadorStats() {
   const [deletingProject, setDeletingProject] = useState(false);
   const [seeding, setSeeding]     = useState(false);
   const [seedMsg, setSeedMsg]     = useState<{ ok: boolean; text: string } | null>(null);
+  const [filterSearch, setFilterSearch]   = useState("");
+  const [filterStatus, setFilterStatus]   = useState("");
+  const [filterType,   setFilterType]     = useState("");
+  const [filterAssign, setFilterAssign]   = useState("");
+  const [filterFunding, setFilterFunding] = useState("");
+  const [filterTheme,  setFilterTheme]    = useState("");
 
   useEffect(() => {
     if (!loading) {
@@ -401,7 +408,7 @@ export default function CoordinadorStats() {
     const supabase = getSupabase();
     const { data } = await supabase
       .from("projects")
-      .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,created_at")
+      .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at")
       .order("created_at", { ascending: false });
     setProjects(data ?? []);
   }
@@ -446,7 +453,7 @@ export default function CoordinadorStats() {
       const supabase = getSupabase();
       supabase
         .from("projects")
-        .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,created_at")
+        .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at")
         .order("created_at", { ascending: false })
         .then(({ data }) => { setProjects(data ?? []); setLoading(false); });
       loadTemplates();
@@ -943,46 +950,163 @@ export default function CoordinadorStats() {
         )}
 
         {/* ── Projects list ─────────────────────────────────────────────── */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="w-1 h-5 rounded-full bg-[#CC5200]" />
-              <FolderOpen className="w-4 h-4 text-slate-400" />
-              <h2 className="font-bold text-slate-700 text-sm">Todos los proyectos</h2>
-            </div>
-            <span className="text-[11px] text-slate-400 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full font-medium">
-              {projects.length} proyectos
-            </span>
-          </div>
-          <div className="divide-y divide-slate-50">
-            {projects.map((p) => (
-              <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/60 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-800 text-sm leading-snug truncate">{p.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{p.researcher_name} · {p.researcher_email}</p>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <StatusBadge status={p.status} />
-                    {p.funding_type && p.funding_type !== "none" && p.funding_folio && (
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg ${
-                        p.funding_type === "fondecyt"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-violet-100 text-violet-800"
-                      }`}>
-                        {p.funding_type === "fondecyt" ? "Fondecyt" : "Grant"} {p.funding_folio}
-                      </span>
+        {(() => {
+          const filtered = projects.filter(p => {
+            if (filterSearch && !p.title.toLowerCase().includes(filterSearch.toLowerCase()) &&
+              !p.researcher_name.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+            if (filterStatus  && p.status       !== filterStatus)  return false;
+            if (filterType    && p.project_type !== filterType)    return false;
+            if (filterTheme   && p.theme        !== filterTheme)   return false;
+            if (filterFunding === "fondecyt"  && p.funding_type !== "fondecyt")  return false;
+            if (filterFunding === "grant_uai" && p.funding_type !== "grant_uai") return false;
+            if (filterFunding === "none"      && p.funding_type && p.funding_type !== "none") return false;
+            if (filterAssign  === "assigned"   && !p.reviewer)  return false;
+            if (filterAssign  === "unassigned" &&  p.reviewer)  return false;
+            return true;
+          });
+
+          const hasFilters = filterSearch || filterStatus || filterType || filterTheme || filterFunding || filterAssign;
+
+          return (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-1 h-5 rounded-full bg-[#CC5200]" />
+                    <FolderOpen className="w-4 h-4 text-slate-400" />
+                    <h2 className="font-bold text-slate-700 text-sm">Todos los proyectos</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasFilters && (
+                      <button onClick={() => { setFilterSearch(""); setFilterStatus(""); setFilterType(""); setFilterTheme(""); setFilterFunding(""); setFilterAssign(""); }}
+                        className="text-[11px] font-semibold text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+                        Limpiar filtros
+                      </button>
                     )}
-                    <span className="text-xs text-slate-300">{new Date(p.created_at).toLocaleDateString("es-CL")}</span>
+                    <span className="text-[11px] text-slate-400 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full font-medium tabular-nums">
+                      {filtered.length}{hasFilters ? ` de ${projects.length}` : ""} proyectos
+                    </span>
                   </div>
                 </div>
-                <button onClick={() => setConfirmDelete(p)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                  title="Eliminar proyecto">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+
+                {/* Filter bar */}
+                <div className="flex flex-wrap gap-2">
+                  {/* Search */}
+                  <div className="relative">
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <input value={filterSearch} onChange={e => setFilterSearch(e.target.value)}
+                      placeholder="Buscar título o investigador…"
+                      className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 w-52" />
+                  </div>
+
+                  {/* Assignment */}
+                  <select value={filterAssign} onChange={e => setFilterAssign(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
+                    <option value="">Asignación: Todos</option>
+                    <option value="assigned">Con revisor asignado</option>
+                    <option value="unassigned">Sin asignar</option>
+                  </select>
+
+                  {/* Status */}
+                  <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
+                    <option value="">Estado: Todos</option>
+                    <option value="submitted">Enviado</option>
+                    <option value="reviewing">En revisión</option>
+                    <option value="corrections">Con observaciones</option>
+                    <option value="approved">Aprobado</option>
+                    <option value="certified">Certificado</option>
+                    <option value="rejected">Rechazado</option>
+                  </select>
+
+                  {/* Type */}
+                  <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
+                    <option value="">Tipo: Todos</option>
+                    <option value="pregrado">Pregrado</option>
+                    <option value="magister">Magíster</option>
+                    <option value="doctorado">Doctorado</option>
+                    <option value="docente">Docente/Investigador</option>
+                    <option value="fondecyt">Fondecyt</option>
+                    <option value="externo">Externo</option>
+                  </select>
+
+                  {/* Funding */}
+                  <select value={filterFunding} onChange={e => setFilterFunding(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
+                    <option value="">Financiamiento: Todos</option>
+                    <option value="fondecyt">Fondecyt / ANID</option>
+                    <option value="grant_uai">Grant UAI</option>
+                    <option value="none">Sin financiamiento</option>
+                  </select>
+
+                  {/* Theme */}
+                  <select value={filterTheme} onChange={e => setFilterTheme(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
+                    <option value="">Área: Todas</option>
+                    <option value="clinica">Clínica</option>
+                    <option value="social">Social</option>
+                    <option value="desarrollo">Desarrollo</option>
+                    <option value="cognitiva">Cognitiva</option>
+                    <option value="organizacional">Organizacional</option>
+                    <option value="educacional">Educacional</option>
+                    <option value="forense">Forense</option>
+                    <option value="metodologia">Metodología</option>
+                  </select>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+
+              {/* List */}
+              <div className="divide-y divide-slate-50">
+                {filtered.length === 0 ? (
+                  <div className="py-14 text-center text-slate-400 text-sm">
+                    Sin proyectos que coincidan con los filtros seleccionados.
+                  </div>
+                ) : (
+                  filtered.map((p) => (
+                    <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/60 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-800 text-sm leading-snug truncate">{p.title}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{p.researcher_name} · {p.researcher_email}</p>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <StatusBadge status={p.status} />
+                          {TYPE_LABELS[p.project_type] && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">
+                              {TYPE_LABELS[p.project_type]}
+                            </span>
+                          )}
+                          {p.reviewer ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700">
+                              ✓ {p.reviewer}{p.reviewer2 ? ` · ${p.reviewer2}` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-orange-50 text-orange-500">
+                              Sin asignar
+                            </span>
+                          )}
+                          {p.funding_type && p.funding_type !== "none" && p.funding_folio && (
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg ${
+                              p.funding_type === "fondecyt" ? "bg-amber-100 text-amber-800" : "bg-violet-100 text-violet-800"
+                            }`}>
+                              {p.funding_type === "fondecyt" ? "Fondecyt" : "Grant"} {p.funding_folio}
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-300">{new Date(p.created_at).toLocaleDateString("es-CL")}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => setConfirmDelete(p)}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                        title="Eliminar proyecto">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Template management ───────────────────────────────────────── */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
