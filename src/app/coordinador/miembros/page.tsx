@@ -47,8 +47,8 @@ type ProjectBrief = {
 };
 
 type Researcher = {
-  id: string; name: string; email: string; created_at: string;
-  projects: ProjectBrief[];
+  id: string; name: string; email: string; created_at: string | null;
+  hasAccount: boolean; projects: ProjectBrief[];
 };
 
 type Reviewer = {
@@ -79,7 +79,13 @@ function ResearcherCard({ r }: { r: Researcher }) {
         <div className="flex items-start gap-3 mb-3">
           <AvatarCircle name={r.name} color={color} />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-800 text-sm leading-tight truncate">{r.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-slate-800 text-sm leading-tight truncate">{r.name}</p>
+              {r.hasAccount
+                ? <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full shrink-0">cuenta</span>
+                : <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">sin cuenta</span>
+              }
+            </div>
             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
               <Mail className="w-3 h-3 shrink-0" />{r.email}
             </p>

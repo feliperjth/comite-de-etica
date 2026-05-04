@@ -35,18 +35,50 @@ export async function GET(req: NextRequest) {
       .select("reviewer_name, reviewer_email, project_id, round, overall_decision, submitted_at"),
   ]);
 
-  // Group projects by researcher email
-  const projectsByEmail: Record<string, typeof allProjects> = {};
+  // Build researcher map from PROJECTS (all researchers, with or without account)
+  const researcherMap: Record<string, {
+    id: string; name: string; email: string; created_at: string | null; hasAccount: boolean;
+    projects: { id: string; title: string; status: string; project_type: string; theme: string; created_at: string }[];
+  }> = {};
+
   for (const p of allProjects ?? []) {
-    if (!projectsByEmail[p.researcher_email]) projectsByEmail[p.researcher_email] = [];
-    projectsByEmail[p.researcher_email]!.push(p);
+    if (!researcherMap[p.researcher_email]) {
+      researcherMap[p.researcher_email] = {
+        id: p.researcher_email,
+        name: p.researcher_name,
+        email: p.researcher_email,
+        created_at: p.created_at,
+        hasAccount: false,
+        projects: [],
+      };
+    }
+    researcherMap[p.researcher_email].projects.push({
+      id: p.id, title: p.title, status: p.status,
+      project_type: p.project_type, theme: p.theme, created_at: p.created_at,
+    });
   }
 
+  // Overlay with account data where available
+  for (const a of accounts ?? []) {
+    if (researcherMap[a.email]) {
+      researcherMap[a.email].id         = a.id;
+      researcherMap[a.email].created_at = a.created_at;
+      researcherMap[a.email].hasAccount = true;
+    } else {
+      // Account exists but no projects submitted yet
+      researcherMap[a.email] = {
+        id: a.id, name: a.name, email: a.email,
+        created_at: a.created_at, hasAccount: true, projects: [],
+      };
+    }
+  }
+
+  const researchers = Object.values(researcherMap).sort((a, b) => a.name.localeCompare(b.name));
+
   // Group reviews by reviewer name
-  const reviewsByName: Record<string, typeof reviews> = {};
+  const reviewsByName: Record<string, number> = {};
   for (const r of reviews ?? []) {
-    if (!reviewsByName[r.reviewer_name]) reviewsByName[r.reviewer_name] = [];
-    reviewsByName[r.reviewer_name]!.push(r);
+    reviewsByName[r.reviewer_name] = (reviewsByName[r.reviewer_name] ?? 0) + 1;
   }
 
   // Group assigned projects by reviewer name
@@ -58,17 +90,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const researchers = (accounts ?? []).map(a => ({
-    id: a.id,
-    name: a.name,
-    email: a.email,
-    created_at: a.created_at,
-    projects: (projectsByEmail[a.email] ?? []).map(p => ({
-      id: p.id, title: p.title, status: p.status,
-      project_type: p.project_type, theme: p.theme, created_at: p.created_at,
-    })),
-  }));
-
   const reviewerList = (reviewers ?? []).map(r => ({
     id: r.id,
     name: r.name,
@@ -79,7 +100,7 @@ export async function GET(req: NextRequest) {
       id: p.id, title: p.title, status: p.status,
       project_type: p.project_type, theme: p.theme,
     })),
-    reviews_submitted: (reviewsByName[r.name] ?? []).length,
+    reviews_submitted: reviewsByName[r.name] ?? 0,
   }));
 
   return NextResponse.json({ researchers, reviewers: reviewerList });
