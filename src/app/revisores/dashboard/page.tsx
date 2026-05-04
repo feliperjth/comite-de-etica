@@ -115,14 +115,22 @@ export default function ReviewerDashboard() {
   const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 
   useEffect(() => {
-    const name  = decodeURIComponent(getCookie("reviewer_name"));
-    const email = decodeURIComponent(getCookie("reviewer_email"));
-    if (!name && !email) { router.push("/revisores"); return; }
-    const admin = email.toLowerCase() === ADMIN_EMAIL;
-    setReviewerName(name);
-    setIsAdmin(admin);
-    loadProjects();
-    if (admin) fetch("/api/reviewers").then((r) => r.json()).then(setReviewers);
+    fetch("/api/me").then(r => r.json()).then(me => {
+      const reviewerEmail = decodeURIComponent(getCookie("reviewer_email"));
+      const reviewerName  = decodeURIComponent(getCookie("reviewer_name"));
+
+      // Accept either reviewer session or coordinator/admin session
+      const email = reviewerEmail || (me.email ?? "");
+      const name  = reviewerName  || (me.name  ?? "");
+
+      if (!email && !name) { router.push("/revisores"); return; }
+
+      const admin = me.type === "admin" || email.toLowerCase() === ADMIN_EMAIL;
+      setReviewerName(name);
+      setIsAdmin(admin);
+      loadProjects();
+      if (admin) fetch("/api/reviewers").then((r) => r.json()).then(setReviewers);
+    });
   }, [loadProjects, router]);
 
   function isAssigned(p: Project): boolean {
