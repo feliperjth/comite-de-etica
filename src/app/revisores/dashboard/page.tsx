@@ -82,6 +82,7 @@ export default function ReviewerDashboard() {
   const [bulkResult, setBulkResult] = useState<{ ok: number; errors: string[] } | null>(null);
   const [bulkNumReviewers, setBulkNumReviewers] = useState<1|2>(2);
   const [bulkMode, setBulkMode] = useState<"individual"|"group">("individual");
+  const [viewMode, setViewMode] = useState<"all"|"mine">("all");
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
@@ -217,10 +218,12 @@ export default function ReviewerDashboard() {
     router.refresh();
   }
 
-  // Non-admins only see their assigned projects
-  const visibleProjects = isAdmin
-    ? projects
-    : projects.filter(isAssigned);
+  // Non-admins always see only their assigned projects; admin can toggle
+  const visibleProjects = !isAdmin
+    ? projects.filter(isAssigned)
+    : viewMode === "mine"
+      ? projects.filter(isAssigned)
+      : projects;
 
   const stats = isAdmin ? [
     { label: "Total",       value: projects.length,                                                       icon: ClipboardList, color: "text-[#1A1A1A]", bg: "bg-slate-100" },
@@ -402,12 +405,31 @@ export default function ReviewerDashboard() {
 
       {/* Table */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-700">
-            {isAdmin ? "Todos los proyectos" : "Proyectos asignados a mí"}
-          </h2>
-          <span className="text-xs text-slate-400 bg-slate-50 px-3 py-1 rounded-full">
-            {visibleProjects.length} proyectos
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+          {isAdmin ? (
+            <div className="flex bg-slate-100 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode("all")}
+                className={`flex items-center gap-2 px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                  viewMode === "all" ? "bg-white text-uai-navy shadow-sm" : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" /> Todos
+              </button>
+              <button
+                onClick={() => setViewMode("mine")}
+                className={`flex items-center gap-2 px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                  viewMode === "mine" ? "bg-white text-uai-navy shadow-sm" : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <User className="w-3.5 h-3.5" /> Mis asignados
+              </button>
+            </div>
+          ) : (
+            <h2 className="font-semibold text-slate-700">Proyectos asignados a mí</h2>
+          )}
+          <span className="text-xs text-slate-400 bg-slate-50 px-3 py-1 rounded-full shrink-0">
+            {visibleProjects.length} proyecto{visibleProjects.length !== 1 ? "s" : ""}
           </span>
         </div>
 
