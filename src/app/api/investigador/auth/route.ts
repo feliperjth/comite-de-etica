@@ -40,6 +40,6 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.delete("investigador_email");
+  res.cookies.set("investigador_email", "", { maxAge: 0, path: "/", sameSite: "lax" as const });
   return res;
 }

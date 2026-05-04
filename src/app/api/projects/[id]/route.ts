@@ -4,7 +4,11 @@ import {
   sendEmail,
   buildRejectedEmail,
   buildReviewerAssignedEmail,
+  buildApprovalEmail,
+  buildMacarenaEmail,
+  buildCoordinatorApprovalEmail,
 } from "@/lib/email";
+import { generateCertToken } from "@/app/api/certify/route";
 
 export async function PATCH(
   request: NextRequest,
@@ -38,6 +42,35 @@ export async function PATCH(
       const m   = ref.match(/^(https?:\/\/[^/]+)/);
       return m ? m[1] : "";
     })();
+
+  // ── Trigger: proyecto aprobado ───────────────────────────────────
+  if (prev && body.status === "approved" && prev.status !== "approved" && prev.researcher_email) {
+    sendEmail(
+      prev.researcher_email,
+      `¡Tu proyecto fue aprobado! · ${prev.title}`,
+      buildApprovalEmail(prev, origin),
+    ).catch(() => {});
+
+    const coordinatorEmail = process.env.COORDINATOR_EMAIL;
+    if (coordinatorEmail) {
+      sendEmail(
+        coordinatorEmail,
+        `Proyecto aprobado · ${prev.title}`,
+        buildCoordinatorApprovalEmail(prev),
+      ).catch(() => {});
+    }
+
+    const macarenaEmail = process.env.MACARENA_EMAIL;
+    if (macarenaEmail) {
+      const certToken = generateCertToken(prev.id);
+      sendEmail(
+        macarenaEmail,
+        `Solicitud certificado de ética · ${prev.title}`,
+        buildMacarenaEmail(prev, origin, certToken),
+        prev.researcher_email,
+      ).catch(() => {});
+    }
+  }
 
   // ── Trigger: proyecto rechazado ──────────────────────────────────
   if (prev && body.status === "rejected" && prev.status !== "rejected" && prev.researcher_email) {

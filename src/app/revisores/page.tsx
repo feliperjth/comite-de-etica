@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 function getCookie(name: string): string {
@@ -12,7 +12,6 @@ function getCookie(name: string): string {
 
 export default function RevisoresLogin() {
   const [password, setPassword]     = useState("");
-  const [name, setName]             = useState("");
   const [email, setEmail]           = useState("");
   const [error, setError]           = useState("");
   const [loading, setLoading]       = useState(false);
@@ -23,8 +22,7 @@ export default function RevisoresLogin() {
   // If already logged in, skip login page
   useEffect(() => {
     const savedEmail = decodeURIComponent(getCookie("reviewer_email"));
-    const savedName  = decodeURIComponent(getCookie("reviewer_name"));
-    if (savedEmail && savedName) {
+    if (savedEmail) {
       router.replace("/revisores/dashboard");
     } else {
       setChecking(false);
@@ -41,7 +39,7 @@ export default function RevisoresLogin() {
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, name: name.trim(), email: email.trim() }),
+      body: JSON.stringify({ password, email: email.trim() }),
     });
 
     if (res.ok) {
@@ -61,7 +59,7 @@ export default function RevisoresLogin() {
     }
   }
 
-  const canSubmit = password && name.trim() && email.trim();
+  const canSubmit = password && email.trim();
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -77,24 +75,13 @@ export default function RevisoresLogin() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Tu nombre completo</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Dra. Ana Ríos"
-                autoFocus
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Tu correo institucional</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Correo institucional</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="revisora@uai.cl"
+                autoFocus
                 className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
               />
             </div>
@@ -130,7 +117,7 @@ export default function RevisoresLogin() {
               disabled={loading || !canSubmit}
               className="w-full bg-uai-navy hover:bg-uai-navy-dark disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors shadow-sm"
             >
-              {loading ? "Verificando..." : "Ingresar al panel"}
+              {loading ? "Verificando..." : <><span>Ingresar al panel</span><ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
         </div>

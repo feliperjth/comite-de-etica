@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.delete("comite_email");
-  res.cookies.delete("reviewer_session");
-  res.cookies.delete("reviewer_name");
-  res.cookies.delete("reviewer_email");
+  const clear = { maxAge: 0, path: "/", sameSite: "lax" as const };
+  res.cookies.set("comite_email",      "", clear);
+  res.cookies.set("reviewer_session",  "", clear);
+  res.cookies.set("reviewer_name",     "", clear);
+  res.cookies.set("reviewer_email",    "", clear);
   return res;
 }

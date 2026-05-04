@@ -11,10 +11,9 @@ import { themes } from "@/lib/themes";
 import {
   BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle,
   TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw,
-  HardDrive, AlertTriangle, Activity, Layers, Calendar, Users2, Zap, Shield,
+  HardDrive, Activity, Layers, Calendar, Users2, Zap, Shield, ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import StatusBadge from "@/components/StatusBadge";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -349,16 +348,9 @@ export default function CoordinadorStats() {
   const [templateMsg, setTemplateMsg]     = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing]             = useState(false);
   const [syncMsg, setSyncMsg]             = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
-  const [deletingProject, setDeletingProject] = useState(false);
+  const [meUser, setMeUser]       = useState<{ name?: string; email: string } | null>(null);
   const [seeding, setSeeding]     = useState(false);
   const [seedMsg, setSeedMsg]     = useState<{ ok: boolean; text: string } | null>(null);
-  const [filterSearch, setFilterSearch]   = useState("");
-  const [filterStatus, setFilterStatus]   = useState("");
-  const [filterType,   setFilterType]     = useState("");
-  const [filterAssign, setFilterAssign]   = useState("");
-  const [filterFunding, setFilterFunding] = useState("");
-  const [filterTheme,  setFilterTheme]    = useState("");
 
   useEffect(() => {
     if (!loading) {
@@ -394,14 +386,6 @@ export default function CoordinadorStats() {
     if (res.ok) await loadTemplates();
     setUploading(null);
     setTimeout(() => setTemplateMsg(null), 3000);
-  }
-
-  async function handleDeleteProject() {
-    if (!confirmDelete) return;
-    setDeletingProject(true);
-    await fetch(`/api/projects/${confirmDelete.id}`, { method: "DELETE" });
-    setProjects((prev) => prev.filter((p) => p.id !== confirmDelete.id));
-    setConfirmDelete(null); setDeletingProject(false);
   }
 
   async function reloadProjects() {
@@ -450,6 +434,7 @@ export default function CoordinadorStats() {
   useEffect(() => {
     fetch("/api/me").then(r => r.json()).then(me => {
       if (me.email !== ADMIN_EMAIL) { router.push("/"); return; }
+      setMeUser(me);
       const supabase = getSupabase();
       supabase
         .from("projects")
@@ -484,7 +469,7 @@ export default function CoordinadorStats() {
 
   const themeCounts = count(projects.map(p => p.theme).filter(Boolean));
   const themeData   = themes
-    .map(t => ({ name: t.emoji + " " + t.label.split(" ").slice(0, 3).join(" "), value: themeCounts[t.id] ?? 0 }))
+    .map(t => ({ name: t.emoji + " " + t.short, value: themeCounts[t.id] ?? 0 }))
     .filter(d => d.value > 0)
     .sort((a, b) => b.value - a.value);
 
@@ -589,18 +574,41 @@ export default function CoordinadorStats() {
         <div className="max-w-7xl mx-auto">
 
           {/* Title row */}
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-[#CC5200]/10 border border-[#CC5200]/20 flex items-center justify-center shrink-0">
-              <BarChart2 className="w-4 h-4 text-[#CC5200]" />
+          <div className="flex items-start justify-between gap-4 mb-1">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#CC5200]/10 border border-[#CC5200]/20 flex items-center justify-center shrink-0">
+                <BarChart2 className="w-4 h-4 text-[#CC5200]" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Comité de Ética · UAI</p>
+                <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">Panel de Estadísticas</h1>
+              </div>
+              <div className="hidden sm:flex items-center gap-1.5 ml-2 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">En vivo</span>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Comité de Ética · UAI</p>
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">Panel de Estadísticas</h1>
-            </div>
-            <div className="hidden sm:flex items-center gap-1.5 ml-2 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">En vivo</span>
-            </div>
+
+            {/* Coordinator profile chip */}
+            {meUser && (
+              <div className="flex items-center gap-2.5 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-[#CC5200] flex items-center justify-center shrink-0">
+                  <span className="text-white text-xs font-black">
+                    {(meUser.name ?? meUser.email).split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[160px]">
+                    {meUser.name ?? "Coordinador"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 leading-tight truncate max-w-[160px]">{meUser.email}</p>
+                </div>
+                <div className="ml-1 flex items-center gap-1 bg-[#CC5200]/10 px-2 py-0.5 rounded-lg">
+                  <Shield className="w-2.5 h-2.5 text-[#CC5200]" />
+                  <span className="text-[9px] font-bold text-[#CC5200] uppercase tracking-wide">Admin</span>
+                </div>
+              </div>
+            )}
           </div>
           <p className="text-slate-400 text-sm ml-12 mb-8">
             Escuela de Psicología · Universidad Adolfo Ibáñez
@@ -949,164 +957,22 @@ export default function CoordinadorStats() {
           </ChartCard>
         )}
 
-        {/* ── Projects list ─────────────────────────────────────────────── */}
-        {(() => {
-          const filtered = projects.filter(p => {
-            if (filterSearch && !p.title.toLowerCase().includes(filterSearch.toLowerCase()) &&
-              !p.researcher_name.toLowerCase().includes(filterSearch.toLowerCase())) return false;
-            if (filterStatus  && p.status       !== filterStatus)  return false;
-            if (filterType    && p.project_type !== filterType)    return false;
-            if (filterTheme   && p.theme        !== filterTheme)   return false;
-            if (filterFunding === "fondecyt"  && p.funding_type !== "fondecyt")  return false;
-            if (filterFunding === "grant_uai" && p.funding_type !== "grant_uai") return false;
-            if (filterFunding === "none"      && p.funding_type && p.funding_type !== "none") return false;
-            if (filterAssign  === "assigned"   && !p.reviewer)  return false;
-            if (filterAssign  === "unassigned" &&  p.reviewer)  return false;
-            return true;
-          });
-
-          const hasFilters = filterSearch || filterStatus || filterType || filterTheme || filterFunding || filterAssign;
-
-          return (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-1 h-5 rounded-full bg-[#CC5200]" />
-                    <FolderOpen className="w-4 h-4 text-slate-400" />
-                    <h2 className="font-bold text-slate-700 text-sm">Todos los proyectos</h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {hasFilters && (
-                      <button onClick={() => { setFilterSearch(""); setFilterStatus(""); setFilterType(""); setFilterTheme(""); setFilterFunding(""); setFilterAssign(""); }}
-                        className="text-[11px] font-semibold text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
-                        Limpiar filtros
-                      </button>
-                    )}
-                    <span className="text-[11px] text-slate-400 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full font-medium tabular-nums">
-                      {filtered.length}{hasFilters ? ` de ${projects.length}` : ""} proyectos
-                    </span>
-                  </div>
-                </div>
-
-                {/* Filter bar */}
-                <div className="flex flex-wrap gap-2">
-                  {/* Search */}
-                  <div className="relative">
-                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                    <input value={filterSearch} onChange={e => setFilterSearch(e.target.value)}
-                      placeholder="Buscar título o investigador…"
-                      className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 w-52" />
-                  </div>
-
-                  {/* Assignment */}
-                  <select value={filterAssign} onChange={e => setFilterAssign(e.target.value)}
-                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
-                    <option value="">Asignación: Todos</option>
-                    <option value="assigned">Con revisor asignado</option>
-                    <option value="unassigned">Sin asignar</option>
-                  </select>
-
-                  {/* Status */}
-                  <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
-                    <option value="">Estado: Todos</option>
-                    <option value="submitted">Enviado</option>
-                    <option value="reviewing">En revisión</option>
-                    <option value="corrections">Con observaciones</option>
-                    <option value="approved">Aprobado</option>
-                    <option value="certified">Certificado</option>
-                    <option value="rejected">Rechazado</option>
-                  </select>
-
-                  {/* Type */}
-                  <select value={filterType} onChange={e => setFilterType(e.target.value)}
-                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
-                    <option value="">Tipo: Todos</option>
-                    <option value="pregrado">Pregrado</option>
-                    <option value="magister">Magíster</option>
-                    <option value="doctorado">Doctorado</option>
-                    <option value="docente">Docente/Investigador</option>
-                    <option value="fondecyt">Fondecyt</option>
-                    <option value="externo">Externo</option>
-                  </select>
-
-                  {/* Funding */}
-                  <select value={filterFunding} onChange={e => setFilterFunding(e.target.value)}
-                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
-                    <option value="">Financiamiento: Todos</option>
-                    <option value="fondecyt">Fondecyt / ANID</option>
-                    <option value="grant_uai">Grant UAI</option>
-                    <option value="none">Sin financiamiento</option>
-                  </select>
-
-                  {/* Theme */}
-                  <select value={filterTheme} onChange={e => setFilterTheme(e.target.value)}
-                    className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 appearance-none cursor-pointer">
-                    <option value="">Área: Todas</option>
-                    <option value="clinica">Clínica</option>
-                    <option value="social">Social</option>
-                    <option value="desarrollo">Desarrollo</option>
-                    <option value="cognitiva">Cognitiva</option>
-                    <option value="organizacional">Organizacional</option>
-                    <option value="educacional">Educacional</option>
-                    <option value="forense">Forense</option>
-                    <option value="metodologia">Metodología</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* List */}
-              <div className="divide-y divide-slate-50">
-                {filtered.length === 0 ? (
-                  <div className="py-14 text-center text-slate-400 text-sm">
-                    Sin proyectos que coincidan con los filtros seleccionados.
-                  </div>
-                ) : (
-                  filtered.map((p) => (
-                    <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/60 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-800 text-sm leading-snug truncate">{p.title}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{p.researcher_name} · {p.researcher_email}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <StatusBadge status={p.status} />
-                          {TYPE_LABELS[p.project_type] && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">
-                              {TYPE_LABELS[p.project_type]}
-                            </span>
-                          )}
-                          {p.reviewer ? (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700">
-                              ✓ {p.reviewer}{p.reviewer2 ? ` · ${p.reviewer2}` : ""}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-orange-50 text-orange-500">
-                              Sin asignar
-                            </span>
-                          )}
-                          {p.funding_type && p.funding_type !== "none" && p.funding_folio && (
-                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg ${
-                              p.funding_type === "fondecyt" ? "bg-amber-100 text-amber-800" : "bg-violet-100 text-violet-800"
-                            }`}>
-                              {p.funding_type === "fondecyt" ? "Fondecyt" : "Grant"} {p.funding_folio}
-                            </span>
-                          )}
-                          <span className="text-xs text-slate-300">{new Date(p.created_at).toLocaleDateString("es-CL")}</span>
-                        </div>
-                      </div>
-                      <button onClick={() => setConfirmDelete(p)}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                        title="Eliminar proyecto">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+        {/* ── Projects shortcut ─────────────────────────────────────────── */}
+        <Link href="/projects"
+          className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-4 hover:bg-slate-50 hover:shadow-md transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-[#CC5200]/10 rounded-xl flex items-center justify-center shrink-0">
+              <FolderOpen className="w-4 h-4 text-[#CC5200]" />
             </div>
-          );
-        })()}
+            <div>
+              <p className="font-bold text-slate-800 text-sm">Ver todos los proyectos</p>
+              <p className="text-xs text-slate-400">
+                {projects.length} proyecto{projects.length !== 1 ? "s" : ""} · busca, filtra y gestiona
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#CC5200] transition-colors" />
+        </Link>
 
         {/* ── Template management ───────────────────────────────────────── */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
@@ -1173,37 +1039,6 @@ export default function CoordinadorStats() {
         </div>
       </div>
 
-      {/* ── Confirm delete modal ─────────────────────────────────────────── */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 max-w-md w-full">
-            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <AlertTriangle className="w-7 h-7 text-red-500" />
-            </div>
-            <h2 className="text-xl font-bold text-slate-800 text-center mb-2">¿Eliminar proyecto?</h2>
-            <p className="text-slate-500 text-sm text-center mb-1">Esta acción es <strong>irreversible</strong>.</p>
-            <div className="bg-slate-50 rounded-xl px-4 py-3 my-4 text-sm text-slate-700 text-center leading-snug">
-              <strong>{confirmDelete.title}</strong><br />
-              <span className="text-slate-400 text-xs">{confirmDelete.researcher_name}</span>
-            </div>
-            <p className="text-xs text-slate-400 text-center mb-6">
-              Se eliminarán también todas las revisiones, documentos y borradores asociados.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} disabled={deletingProject}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">
-                Cancelar
-              </button>
-              <button onClick={handleDeleteProject} disabled={deletingProject}
-                className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
-                {deletingProject
-                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Eliminando...</>
-                  : <><Trash2 className="w-4 h-4" /> Sí, eliminar</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -71,6 +71,7 @@ export default function ReviewerDashboard() {
   const [edits, setEdits]         = useState<Record<string, EditState>>({});
   const [savedId, setSavedId]     = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
+  const [isAdmin, setIsAdmin]           = useState(false);
   const [myReviews, setMyReviews] = useState<{ project_id: string; round: number }[]>([]);
   const [autoAssign, setAutoAssign] = useState<Record<string, AutoAssignState>>({});
   const [reviewers, setReviewers]   = useState<Reviewer[]>([]);
@@ -110,14 +111,17 @@ export default function ReviewerDashboard() {
     setLoading(false);
   }, []);
 
+  const ADMIN_EMAIL = "felipe.rojast@uai.cl";
+
   useEffect(() => {
     const name  = decodeURIComponent(getCookie("reviewer_name"));
     const email = decodeURIComponent(getCookie("reviewer_email"));
-    // Require at least one auth cookie (comite users have reviewer_email but not reviewer_name)
     if (!name && !email) { router.push("/revisores"); return; }
+    const admin = email.toLowerCase() === ADMIN_EMAIL;
     setReviewerName(name);
+    setIsAdmin(admin);
     loadProjects();
-    fetch("/api/reviewers").then((r) => r.json()).then(setReviewers);
+    if (admin) fetch("/api/reviewers").then((r) => r.json()).then(setReviewers);
   }, [loadProjects, router]);
 
   function isAssigned(p: Project): boolean {
@@ -207,16 +211,27 @@ export default function ReviewerDashboard() {
   }
 
   async function handleLogout() {
-    await fetch("/api/auth", { method: "DELETE" });
+    await fetch("/api/auth",        { method: "DELETE" });
+    await fetch("/api/comite/auth", { method: "DELETE" });
     router.push("/revisores");
+    router.refresh();
   }
 
-  const stats = [
+  // Non-admins only see their assigned projects
+  const visibleProjects = isAdmin
+    ? projects
+    : projects.filter(isAssigned);
+
+  const stats = isAdmin ? [
     { label: "Total",       value: projects.length,                                                       icon: ClipboardList, color: "text-[#1A1A1A]", bg: "bg-slate-100" },
     { label: "Pendientes",  value: projects.filter((p) => p.status === "submitted").length,               icon: Clock,         color: "text-amber-600",  bg: "bg-amber-50"  },
     { label: "En revisión", value: projects.filter((p) => p.status === "reviewing").length,               icon: AlertCircle,   color: "text-violet-600", bg: "bg-violet-50" },
     { label: "Aprobados",   value: projects.filter((p) => p.status === "approved").length,                icon: CheckCircle,   color: "text-emerald-600",bg: "bg-emerald-50"},
     { label: "Rechazados",  value: projects.filter((p) => p.status === "rejected").length,                icon: XCircle,       color: "text-red-500",    bg: "bg-red-50"    },
+  ] : [
+    { label: "Asignados",   value: visibleProjects.length,                                                icon: ClipboardList, color: "text-[#1A1A1A]", bg: "bg-slate-100" },
+    { label: "Pendientes",  value: visibleProjects.filter((p) => p.status === "submitted" || p.status === "reviewing").length, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Revisados",   value: visibleProjects.filter((p) => hasReviewed(p)).length,                  icon: CheckCircle,   color: "text-emerald-600",bg: "bg-emerald-50"},
   ];
 
   return (
@@ -270,7 +285,8 @@ export default function ReviewerDashboard() {
         ))}
       </div>
 
-      {/* ── Acciones globales ── */}
+      {/* ── Acciones globales (solo admin) ── */}
+      {isAdmin && (
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <Zap className="w-4 h-4 text-[#CC5200]" />
@@ -280,7 +296,6 @@ export default function ReviewerDashboard() {
           </span>
         </div>
         <div className="px-6 py-4 flex flex-wrap items-center gap-3">
-          {/* Asignar todos */}
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Asignar todos los no asignados:</span>
           <select value={bulkNumReviewers} onChange={e => setBulkNumReviewers(Number(e.target.value) as 1|2)}
             className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
@@ -312,8 +327,10 @@ export default function ReviewerDashboard() {
           )}
         </div>
       </div>
+      )}
 
-      {/* Reviewers panel */}
+      {/* Reviewers panel (solo admin) */}
+      {isAdmin && (
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
         <button
           onClick={() => setShowReviewers((v) => !v)}
@@ -381,12 +398,16 @@ export default function ReviewerDashboard() {
         )}
       </div>
 
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-700">Todos los proyectos</h2>
+          <h2 className="font-semibold text-slate-700">
+            {isAdmin ? "Todos los proyectos" : "Proyectos asignados a mí"}
+          </h2>
           <span className="text-xs text-slate-400 bg-slate-50 px-3 py-1 rounded-full">
-            {projects.length} proyectos
+            {visibleProjects.length} proyectos
           </span>
         </div>
 
@@ -395,14 +416,14 @@ export default function ReviewerDashboard() {
             <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-slate-300" />
             Cargando proyectos...
           </div>
-        ) : projects.length === 0 ? (
+        ) : visibleProjects.length === 0 ? (
           <div className="py-20 text-center text-slate-400">
             <ClipboardList className="w-10 h-10 mx-auto mb-3 text-slate-200" />
-            <p>No hay proyectos enviados aún.</p>
+            <p>{isAdmin ? "No hay proyectos enviados aún." : "No tienes proyectos asignados."}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-50">
-            {projects.map((p, i) => {
+            {visibleProjects.map((p, i) => {
               const edit = edits[p.id] ?? { status: p.status, reviewer: p.reviewer ?? "", reviewer2: p.reviewer2 ?? "", saving: false };
               const changed =
                 edit.status    !== p.status           ||
@@ -453,8 +474,8 @@ export default function ReviewerDashboard() {
                     </div>
                   </div>
 
-                  {/* ── Fila 2: controles de edición (flex-wrap, alineados con el texto) ── */}
-                  {(() => {
+                  {/* ── Fila 2: controles de edición (solo admin) ── */}
+                  {isAdmin && (() => {
                     const aa = autoAssign[p.id];
                     return (
                       <div className="ml-12 mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">

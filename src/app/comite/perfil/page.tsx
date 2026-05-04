@@ -36,6 +36,7 @@ export default function ComitePerfil() {
   const [assignedProjects, setAssignedProjects] = useState<ProjectInfo[]>([]);
   const [name, setName]                         = useState("");
   const [email, setEmail]                       = useState("");
+  const [isAdmin, setIsAdmin]                   = useState(false);
   const [loading, setLoading]                   = useState(true);
   const [ready, setReady]                       = useState(false);
 
@@ -48,9 +49,19 @@ export default function ComitePerfil() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+
+    // Auth check: accept comite or admin
+    const me = await fetch("/api/me").then(r => r.json());
+    if (me.type !== "comite" && me.type !== "admin") {
+      router.push("/revisores");
+      setLoading(false);
+      return;
+    }
+    setIsAdmin(me.type === "admin");
+
     const res = await fetch("/api/comite/reviews");
     if (!res.ok) {
-      router.push("/comite");
+      router.push("/revisores");
       setLoading(false);
       return;
     }
@@ -83,7 +94,9 @@ export default function ComitePerfil() {
 
   async function handleLogout() {
     await fetch("/api/comite/auth", { method: "DELETE" });
-    router.push("/comite");
+    await fetch("/api/auth",        { method: "DELETE" });
+    router.push("/revisores");
+    router.refresh();
   }
 
   function toggleExpertise(id: string) {
@@ -136,13 +149,19 @@ export default function ComitePerfil() {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-3xl font-bold text-uai-navy">Mi perfil</h1>
-            <span className="bg-orange-100 text-[#CC5200] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-              Comité
-            </span>
+            {isAdmin ? (
+              <span className="bg-[#CC5200]/10 text-[#CC5200] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                Coordinador
+              </span>
+            ) : (
+              <span className="bg-orange-100 text-[#CC5200] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                Comité
+              </span>
+            )}
           </div>
-          {name && (
+          {(name || email) && (
             <p className="text-slate-500 text-sm">
-              <strong className="text-slate-700">{name}</strong> · {email}
+              {name && <strong className="text-slate-700">{name} · </strong>}{email}
             </p>
           )}
         </div>
@@ -187,7 +206,43 @@ export default function ComitePerfil() {
         </div>
       </div>
 
-      {/* Expertise section */}
+      {/* Coordinator: default attributes panel */}
+      {isAdmin ? (
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+            <BookOpen className="w-5 h-5 text-[#CC5200]" />
+            <h2 className="font-semibold text-slate-700">Atributos del coordinador</h2>
+            <span className="text-xs text-slate-400 ml-auto bg-slate-50 border border-slate-100 px-2.5 py-0.5 rounded-full">Por defecto</span>
+          </div>
+          <div className="p-6">
+            <p className="text-xs text-slate-400 mb-4">El coordinador tiene acceso global al sistema. Estas capacidades vienen asignadas por defecto con la cuenta.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { label: "Acceso a todos los proyectos",        icon: "📁", desc: "Ve y gestiona cualquier proyecto sin restricción" },
+                { label: "Asignación de revisores",             icon: "👥", desc: "Asigna y reasigna revisores a cualquier proyecto" },
+                { label: "Eliminar proyectos",                  icon: "🗑️", desc: "Puede eliminar proyectos del sistema" },
+                { label: "Panel de estadísticas",               icon: "📊", desc: "Acceso completo al panel de métricas y reportes" },
+                { label: "Gestión de plantillas",               icon: "📄", desc: "Sube y administra las plantillas oficiales" },
+                { label: "Permisos de coordinador",             icon: "🔐", desc: "Acceso a perfiles de revisores e investigadores" },
+                { label: "Todas las áreas temáticas",           icon: "🧠", desc: "Supervisión de proyectos de cualquier área" },
+                { label: "Control de estados del proceso",      icon: "⚙️", desc: "Cambia el estado de cualquier proyecto manualmente" },
+              ].map((a) => (
+                <div key={a.label} className="flex items-start gap-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
+                  <span className="text-lg shrink-0 mt-0.5">{a.icon}</span>
+                  <div>
+                    <div className="font-semibold text-slate-800 text-sm flex items-center gap-1.5">
+                      {a.label}
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    </div>
+                    <div className="text-xs text-slate-400 mt-0.5">{a.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+      /* Reviewer: expertise selection */
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <BookOpen className="w-5 h-5 text-[#CC5200]" />
@@ -199,25 +254,18 @@ export default function ComitePerfil() {
             ))}
           </div>
         </div>
-
         <div className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
             {themes.map((t) => {
               const selected = expertise.includes(t.id);
               const disabled = !selected && expertise.length >= 3;
               return (
-                <button
-                  key={t.id}
-                  onClick={() => toggleExpertise(t.id)}
-                  disabled={disabled}
+                <button key={t.id} onClick={() => toggleExpertise(t.id)} disabled={disabled}
                   className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-                    selected
-                      ? "border-[#CC5200] bg-orange-50"
-                      : disabled
-                      ? "border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed"
-                      : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                  }`}
-                >
+                    selected ? "border-[#CC5200] bg-orange-50"
+                    : disabled ? "border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed"
+                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  }`}>
                   <span className="text-xl shrink-0">{t.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-slate-800 text-sm">{t.label}</div>
@@ -228,7 +276,6 @@ export default function ComitePerfil() {
               );
             })}
           </div>
-
           {expertiseMsg && (
             <div className={`mb-4 px-4 py-3 rounded-xl text-sm text-center font-medium ${
               expertiseMsg.type === "ok"
@@ -238,16 +285,13 @@ export default function ComitePerfil() {
               {expertiseMsg.text}
             </div>
           )}
-
-          <button
-            onClick={handleSaveExpertise}
-            disabled={expertise.length !== 3 || savingExpertise}
-            className="w-full bg-[#1A1A1A] hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors text-sm"
-          >
+          <button onClick={handleSaveExpertise} disabled={expertise.length !== 3 || savingExpertise}
+            className="w-full bg-[#1A1A1A] hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors text-sm">
             {savingExpertise ? "Guardando..." : "Guardar áreas"}
           </button>
         </div>
       </div>
+      )}
 
       {/* Assigned projects pending review */}
       {assignedProjects.length > 0 && (

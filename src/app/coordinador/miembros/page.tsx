@@ -20,13 +20,14 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const THEME_LABELS: Record<string, string> = {
-  clinica:        "Clínica",
-  social:         "Social",
+  clinica:        "Clínica y Salud",
+  social:         "Social y Comunitaria",
   desarrollo:     "Desarrollo",
   cognitiva:      "Cognitiva",
+  neurociencias:  "Neurociencias",
   organizacional: "Organizacional",
   educacional:    "Educacional",
-  forense:        "Forense",
+  forense:        "Forense y Jurídica",
   metodologia:    "Metodología",
 };
 
@@ -35,6 +36,7 @@ const THEME_COLORS: Record<string, string> = {
   social:         "#10b981",
   desarrollo:     "#f59e0b",
   cognitiva:      "#8b5cf6",
+  neurociencias:  "#ec4899",
   organizacional: "#f97316",
   educacional:    "#06b6d4",
   forense:        "#ef4444",

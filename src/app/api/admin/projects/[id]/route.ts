@@ -7,7 +7,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = req.cookies.get("comite_email")?.value;
+  const email = req.cookies.get("comite_email")?.value
+             ?? req.cookies.get("reviewer_email")?.value;
 
   if (!email || email.toLowerCase() !== ADMIN_EMAIL) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });

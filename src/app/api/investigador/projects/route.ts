@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = getSupabase();
-  const select = "id, title, status, progress, tracking_code, current_round, created_at, project_type, theme, researcher_name, reviewer, reviewer2, advisor_name, funding_type, funding_folio, funding_detail";
+  const select = "id, title, status, progress, tracking_code, current_round, created_at, project_type, theme, researcher_name, reviewer, reviewer2, advisor_name, funding_type, funding_folio, funding_detail, certificate_url";
 
   let query = supabase.from("projects").select(select).order("created_at", { ascending: false });
 

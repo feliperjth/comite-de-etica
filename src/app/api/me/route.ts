@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 
+const ADMIN_EMAIL = "felipe.rojast@uai.cl";
+const ADMIN_NAME  = "Felipe Rojas";
+
 export async function GET(req: NextRequest) {
   // Investigador session
   const investigadorEmail = req.cookies.get("investigador_email")?.value;
@@ -11,7 +14,6 @@ export async function GET(req: NextRequest) {
       .select("name")
       .eq("email", investigadorEmail)
       .maybeSingle();
-
     return NextResponse.json({
       type: "investigador",
       name: data?.name ?? investigadorEmail,
@@ -19,21 +21,35 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Comité session
+  // Comité session (login via /comite)
   const comiteEmail = req.cookies.get("comite_email")?.value;
   if (comiteEmail) {
+    if (comiteEmail.toLowerCase() === ADMIN_EMAIL) {
+      return NextResponse.json({ type: "admin", name: ADMIN_NAME, email: comiteEmail });
+    }
     const supabase = getSupabase();
-    const { data: anyReview } = await supabase
-      .from("reviews")
-      .select("reviewer_name")
-      .eq("reviewer_email", comiteEmail)
-      .limit(1)
-      .maybeSingle();
-
+    const { data: reviewer } = await supabase
+      .from("reviewers").select("name").eq("email", comiteEmail).maybeSingle();
     return NextResponse.json({
       type: "comite",
-      name: anyReview?.reviewer_name ?? comiteEmail,
+      name: reviewer?.name ?? comiteEmail,
       email: comiteEmail,
+    });
+  }
+
+  // Reviewer session (login via /revisores)
+  const reviewerEmail = req.cookies.get("reviewer_email")?.value;
+  if (reviewerEmail) {
+    if (reviewerEmail.toLowerCase() === ADMIN_EMAIL) {
+      return NextResponse.json({ type: "admin", name: ADMIN_NAME, email: reviewerEmail });
+    }
+    const supabase = getSupabase();
+    const { data: reviewer } = await supabase
+      .from("reviewers").select("name").eq("email", reviewerEmail).maybeSingle();
+    return NextResponse.json({
+      type: "comite",
+      name: reviewer?.name ?? reviewerEmail,
+      email: reviewerEmail,
     });
   }
 

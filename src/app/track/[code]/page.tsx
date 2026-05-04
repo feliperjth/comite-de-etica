@@ -2,7 +2,7 @@ import { getSupabase, isConfigured } from "@/lib/supabase";
 import { sections as allSections } from "@/lib/sections";
 import StatusBadge from "@/components/StatusBadge";
 import ResubmitForm from "@/components/ResubmitForm";
-import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award, Users } from "lucide-react";
+import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award, Users, Download } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
@@ -270,6 +270,25 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
               <ClipboardList className="w-4 h-4" />
               Revisar este proyecto
             </Link>
+          </div>
+        )}
+
+        {/* Certificate download — shown when certified and URL available */}
+        {project.status === "certified" && project.certificate_url && (
+          <div className="bg-violet-50 border border-violet-200 rounded-3xl p-6 mb-6 text-center">
+            <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Award className="w-6 h-6 text-violet-600" />
+            </div>
+            <p className="font-bold text-violet-800 text-sm mb-1">Certificado de ética disponible</p>
+            <p className="text-violet-500 text-xs mb-4">Tu proyecto ha sido certificado. Puedes descargar el documento oficial.</p>
+            <a
+              href={project.certificate_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Descargar certificado
+            </a>
           </div>
         )}
 

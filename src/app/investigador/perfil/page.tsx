@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LogOut, RefreshCw, ClipboardList, CheckCircle,
-  AlertCircle, FileSearch, PlusCircle,
+  AlertCircle, FileSearch, PlusCircle, Award, Download,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { getThemeLabel } from "@/lib/themes";
@@ -27,6 +27,7 @@ type ProjectSummary = {
   funding_type: string | null;
   funding_folio: string | null;
   funding_detail: string | null;
+  certificate_url: string | null;
 };
 
 export default function InvestigadorPerfil() {
@@ -53,6 +54,7 @@ export default function InvestigadorPerfil() {
   async function handleLogout() {
     await fetch("/api/investigador/auth", { method: "DELETE" });
     router.push("/investigador");
+    router.refresh();
   }
 
   const stats = [
@@ -198,12 +200,24 @@ export default function InvestigadorPerfil() {
                       </span>
                     </div>
                   </div>
-                  <Link
-                    href={`/track/${p.tracking_code}`}
-                    className="flex items-center gap-1.5 text-xs bg-uai-navy hover:bg-uai-navy-dark text-white font-semibold px-4 py-2 rounded-xl transition-colors shrink-0"
-                  >
-                    <FileSearch className="w-3.5 h-3.5" /> Ver seguimiento
-                  </Link>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {p.certificate_url && (
+                      <a
+                        href={p.certificate_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-xl transition-colors"
+                      >
+                        <Award className="w-3.5 h-3.5" /> Certificado
+                      </a>
+                    )}
+                    <Link
+                      href={`/track/${p.tracking_code}`}
+                      className="flex items-center gap-1.5 text-xs bg-uai-navy hover:bg-uai-navy-dark text-white font-semibold px-4 py-2 rounded-xl transition-colors"
+                    >
+                      <FileSearch className="w-3.5 h-3.5" /> Ver seguimiento
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Progress bar */}

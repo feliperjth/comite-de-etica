@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value;
+  // Accept both comite_email (login via /comite) and reviewer_email (login via /revisores)
+  const email = req.cookies.get("comite_email")?.value
+             ?? req.cookies.get("reviewer_email")?.value;
   const name  = req.cookies.get("comite_name")?.value;
 
   if (!email) {
@@ -33,8 +35,16 @@ export async function GET(req: NextRequest) {
     projects = data ?? [];
   }
 
-  // Derive reviewer name from past reviews if comite_name cookie is missing
+  // Resolve name: cookie → reviewers table → reviews table
   let resolvedName = name ?? "";
+  if (!resolvedName) {
+    const { data: reviewer } = await supabase
+      .from("reviewers")
+      .select("name")
+      .eq("email", email)
+      .maybeSingle();
+    resolvedName = reviewer?.name ?? "";
+  }
   if (!resolvedName && (reviews ?? []).length > 0) {
     const { data: anyReview } = await supabase
       .from("reviews")
@@ -61,6 +71,6 @@ export async function GET(req: NextRequest) {
     projects,
     assignedProjects,
     email,
-    name: name ?? "",
+    name: resolvedName,
   });
 }

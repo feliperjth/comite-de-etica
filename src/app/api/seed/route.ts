@@ -47,6 +47,10 @@ const REVIEWERS = [
   { name: "Gonzalo Álvarez Gana",     email: "galvarez@uai.cl",      expertise: ["organizacional","cognitiva"] },
   { name: "Beatriz Tapia Aguilar",    email: "btapia@uai.cl",        expertise: ["clinica","social"] },
   { name: "Rodrigo Fuenzalida Vera",  email: "rfuenzalida@uai.cl",   expertise: ["cognitiva","forense","metodologia"] },
+  // Neurociencias
+  { name: "Carla Muñoz Herrera",      email: "cmunoz@uai.cl",        expertise: ["neurociencias","cognitiva","clinica"] },
+  { name: "Martín Opazo Vidal",       email: "mopazo@uai.cl",        expertise: ["neurociencias","metodologia","desarrollo"] },
+  { name: "Verónica Salas Pino",      email: "vsalas@uai.cl",        expertise: ["neurociencias","cognitiva","social"] },
 ];
 
 const PROJECTS = [
@@ -55,6 +59,7 @@ const PROJECTS = [
     title: "Efectividad de la terapia cognitivo-conductual en adolescentes con ansiedad social",
     researcher_name: "Laura Castillo Bravo",
     researcher_email: "lcastillo@investigador.cl",
+    rut: "12.345.678-9",
     project_type: "doctorado", theme: "clinica",
     abstract: "Este estudio evalúa la eficacia de un protocolo TCC de 12 sesiones en adolescentes entre 14 y 18 años diagnosticados con trastorno de ansiedad social.",
     funding_type: "fondecyt", funding_folio: "11240123",
@@ -63,6 +68,7 @@ const PROJECTS = [
     title: "Identidad colectiva y bienestar en comunidades migrantes venezolanas en Santiago",
     researcher_name: "Roberto Paredes Leal",
     researcher_email: "rparedes@investigador.cl",
+    rut: "13.456.789-0",
     project_type: "magister", theme: "social",
     abstract: "Investigación cualitativa que explora los procesos de construcción identitaria en adultos migrantes venezolanos residentes en Santiago.",
     funding_type: null, funding_folio: null,
@@ -71,6 +77,7 @@ const PROJECTS = [
     title: "Desarrollo de funciones ejecutivas en niños de 4 a 6 años: rol del juego simbólico",
     researcher_name: "Sofía Naranjo Pinto",
     researcher_email: "snaranjo@investigador.cl",
+    rut: "14.567.890-1",
     project_type: "doctorado", theme: "desarrollo",
     abstract: "Estudio longitudinal que examina la contribución del juego simbólico al desarrollo de funciones ejecutivas en preescolares de 4 a 6 años.",
     funding_type: "fondecyt", funding_folio: "1230456",
@@ -79,7 +86,7 @@ const PROJECTS = [
     title: "Neurobiología del aprendizaje por refuerzo en adultos mayores: un estudio de fMRI",
     researcher_name: "Andrés Moreno Valdivia",
     researcher_email: "amoreno@investigador.cl",
-    project_type: "fondecyt", theme: "cognitiva",
+    project_type: "fondecyt", theme: "neurociencias",
     abstract: "Mediante resonancia magnética funcional se examinan los correlatos neuronales del aprendizaje por refuerzo en adultos mayores sanos.",
     funding_type: "fondecyt", funding_folio: "1240789",
   },
@@ -143,7 +150,7 @@ const PROJECTS = [
     title: "Efectos del sueño sobre la consolidación de memoria emocional en adultos jóvenes",
     researcher_name: "Nicolás Ramos Fernández",
     researcher_email: "nramos@investigador.cl",
-    project_type: "docente", theme: "cognitiva",
+    project_type: "docente", theme: "neurociencias",
     abstract: "Diseño experimental que examina el rol del sueño REM y NREM en la consolidación de memorias con contenido emocional negativo.",
     funding_type: "fondecyt", funding_folio: "1240890",
   },
@@ -271,7 +278,7 @@ const PROJECTS = [
     title: "Correlatos cognitivos de la creatividad en adultos: un estudio de divergencia neuronal",
     researcher_name: "Felipe Arredondo Vargas",
     researcher_email: "farredondo@investigador.cl",
-    project_type: "docente", theme: "cognitiva",
+    project_type: "docente", theme: "neurociencias",
     abstract: "Estudio EEG de alta densidad que examina los correlatos electrofisiológicos del pensamiento divergente en adultos con alta y baja creatividad.",
     funding_type: "fondecyt", funding_folio: "1240456",
   },
@@ -399,6 +406,39 @@ const PROJECTS = [
     abstract: "Estudio correlacional que examina cómo las actitudes hacia el envejecimiento propio y social se relacionan con la calidad de vida percibida en adultos mayores residentes.",
     funding_type: null, funding_folio: null,
   },
+  // ── Proyectos de Neurociencias ─────────────────────────────────────────────
+  {
+    title: "Conectividad funcional en redes de modo por defecto durante el estado de reposo: estudio de fMRI en jóvenes adultos",
+    researcher_name: "Javiera Soto Ríos",
+    researcher_email: "jsoto@investigador.cl",
+    project_type: "doctorado", theme: "neurociencias",
+    abstract: "Análisis de conectividad funcional mediante fMRI en estado de reposo para caracterizar la red de modo por defecto en adultos jóvenes sanos y su relación con la introspección.",
+    funding_type: "fondecyt", funding_folio: "1240901",
+  },
+  {
+    title: "Potenciales evocados y control inhibitorio en niños con TDAH: un estudio EEG de alta densidad",
+    researcher_name: "Camilo Reyes Bravo",
+    researcher_email: "creyes@investigador.cl",
+    project_type: "fondecyt", theme: "neurociencias",
+    abstract: "Estudio neurofisiológico que caracteriza los déficits de control inhibitorio en niños con TDAH mediante la tarea Go/No-Go y registro EEG de 128 canales.",
+    funding_type: "fondecyt", funding_folio: "11240456",
+  },
+  {
+    title: "Bases neurales de la regulación emocional en pacientes con depresión mayor: evidencia de neuroimagen",
+    researcher_name: "Ignacia Montoya Peña",
+    researcher_email: "imontoya@investigador.cl",
+    project_type: "magister", theme: "neurociencias",
+    abstract: "Revisión sistemática y meta-análisis de estudios de neuroimagen que examinan los correlatos neurales de estrategias de regulación emocional en depresión mayor.",
+    funding_type: null, funding_folio: null,
+  },
+  {
+    title: "Neuropsicología del envejecimiento cognitivo: perfiles de deterioro y reserva cognitiva",
+    researcher_name: "Roberto Espinoza Fuentes",
+    researcher_email: "respinoza@investigador.cl",
+    project_type: "docente", theme: "neurociencias",
+    abstract: "Estudio transversal que evalúa perfiles neuropsicológicos en adultos mayores sanos y con deterioro cognitivo leve, analizando el rol de la reserva cognitiva.",
+    funding_type: null, funding_folio: null,
+  },
 ];
 
 // Researcher accounts para los proyectos seed
@@ -460,7 +500,7 @@ export async function POST() {
         funding_type: p.funding_type ?? null,
         funding_folio: p.funding_folio ?? null,
         funding_detail: null,
-        researcher_rut: null,
+        researcher_rut: (p as { rut?: string }).rut ?? null,
         review_mode: null,
       });
     if (error) results.projects.errors.push(`${p.title.slice(0, 40)}: ${error.message}`);

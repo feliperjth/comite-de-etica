@@ -217,25 +217,37 @@ export function buildMacarenaEmail(project: {
   researcher_email: string;
 }, origin: string, certToken: string) {
   const firstName  = project.researcher_name.split(" ")[0];
-  const rutText    = project.researcher_rut ? ` (${project.researcher_rut})` : "";
   const confirmUrl = `${origin}/api/certify?id=${project.id}&token=${certToken}`;
   const body = `
     <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 20px;">
       Estimada Macarena,
     </p>
-    <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 20px;">
-      Junto con saludarte y esperando que te encuentres muy bien, te escribo como miembro del Comité de Ética de nuestra Escuela, para solicitar un certificado de aprobación de ética para el proyecto <strong>"${project.title}"</strong>, a cargo de la investigadora/or <strong>${project.researcher_name}</strong>${rutText}.
+    <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 16px;">
+      Junto con saludarte y esperando que te encuentres muy bien, te escribo como miembro del Comité de Ética de nuestra Escuela, para solicitar un certificado de aprobación de ética para el siguiente proyecto:
     </p>
+    <div style="background:#f9f9f9;border-radius:10px;padding:18px 20px;border-left:4px solid #22c55e;margin-bottom:20px;">
+      <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;letter-spacing:1px;">Datos del proyecto</p>
+      <p style="margin:0 0 6px;font-size:15px;color:#1a1a1a;font-weight:700;">${project.title}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Investigador/a:</strong> ${project.researcher_name}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>RUT:</strong> ${project.researcher_rut ?? "—"}</p>
+      <p style="margin:0;font-size:13px;color:#555;"><strong>Correo:</strong> ${project.researcher_email}</p>
+    </div>
     <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 20px;">
       El proyecto fue revisado por el comité ético científico de la Escuela de Psicología y no presenta riesgos para los participantes, además de tomar todos los resguardos éticos necesarios.
     </p>
     <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 24px;">
-      ¿Podrían, por favor, emitir el certificado para ${firstName}? Copio a ${firstName} en este correo con el fin de agilizar los tiempos dado que tiene que tramitarlo para avanzar en su campo.
+      ¿Podrían, por favor, emitir el certificado para <strong>${firstName}</strong>? Lo/la copio en este correo para agilizar los tiempos, dado que necesita tramitarlo para avanzar en su proyecto.
     </p>
     <div style="background:#f5f0ff;border-radius:10px;padding:20px;border-left:4px solid #7c3aed;margin-bottom:24px;">
-      <p style="margin:0 0 12px;font-size:13px;color:#555;line-height:1.6;">Una vez que hayas enviado el certificado, por favor confirma haciendo clic en el botón:</p>
+      <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#7c3aed;">Instrucciones:</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#555;line-height:1.6;">
+        <strong>Paso 1:</strong> Responde a este mismo correo adjuntando el certificado de ética emitido — así le llegará directamente a ${firstName} junto con la copia al comité.
+      </p>
+      <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.6;">
+        <strong>Paso 2:</strong> Una vez realizado el envío, sube el certificado al portal para que quede registrado y disponible para el/la investigador/a:
+      </p>
       <div style="text-align:center;">
-        <a href="${confirmUrl}" style="display:inline-block;background:#7c3aed;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:8px;">✓ Confirmar envío del certificado</a>
+        <a href="${confirmUrl}" style="display:inline-block;background:#7c3aed;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:8px;">✓ Subir certificado al portal</a>
       </div>
     </div>
     <p style="color:#555;font-size:14px;line-height:1.8;margin:0;">

@@ -4,7 +4,9 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 
 function isAdmin(req: NextRequest) {
-  return req.cookies.get("comite_email")?.value?.toLowerCase() === ADMIN_EMAIL;
+  const email = req.cookies.get("comite_email")?.value
+             ?? req.cookies.get("reviewer_email")?.value;
+  return email?.toLowerCase() === ADMIN_EMAIL;
 }
 
 export async function GET(req: NextRequest) {

@@ -7,7 +7,7 @@ import { Plus, ChevronDown, LogOut, FolderOpen, LayoutDashboard, User, Shield, B
 import LogoImage from "./LogoImage";
 
 type SessionUser = {
-  type: "investigador" | "comite" | "none";
+  type: "investigador" | "comite" | "admin" | "none";
   name?: string;
   email?: string;
 };
@@ -50,11 +50,13 @@ export default function Navbar() {
     if (user.type === "investigador") {
       await fetch("/api/investigador/auth", { method: "DELETE" });
       router.push("/investigador");
-    } else if (user.type === "comite") {
+    } else if (user.type === "comite" || user.type === "admin") {
       await fetch("/api/comite/auth", { method: "DELETE" });
+      await fetch("/api/auth", { method: "DELETE" });
       router.push("/comite");
     }
     setUser({ type: "none" });
+    router.refresh();
   }
 
   return (
@@ -105,8 +107,8 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Nuevo proyecto button — hide when logged in as comité */}
-          {user.type !== "comite" && (
+          {/* Nuevo proyecto button — hide for comité/admin */}
+          {user.type !== "comite" && user.type !== "admin" && (
             <Link
               href="/submit"
               className="flex items-center gap-1.5 bg-uai-gold hover:bg-uai-gold-hover text-uai-navy font-bold text-sm px-4 py-2 rounded-lg transition-colors"
@@ -123,9 +125,10 @@ export default function Navbar() {
                 onClick={() => setOpen((o) => !o)}
                 className="flex items-center gap-2.5 bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-xl transition-colors"
               >
-                {/* Avatar */}
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                  user.type === "comite" ? "bg-uai-gold text-uai-navy" : "bg-blue-400 text-white"
+                  user.type === "admin"  ? "bg-[#CC5200] text-white" :
+                  user.type === "comite" ? "bg-uai-gold text-uai-navy" :
+                                          "bg-blue-400 text-white"
                 }`}>
                   {getInitials(user.name)}
                 </div>
@@ -135,18 +138,19 @@ export default function Navbar() {
                 <ChevronDown className={`w-3.5 h-3.5 text-white/60 transition-transform ${open ? "rotate-180" : ""}`} />
               </button>
 
-              {/* Dropdown */}
               {open && (
-                <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
                   {/* User info */}
                   <div className="px-4 py-3 border-b border-slate-100">
                     <div className="flex items-center gap-2 mb-0.5">
-                      {user.type === "comite"
+                      {user.type === "admin"
                         ? <Shield className="w-3.5 h-3.5 text-[#CC5200]" />
+                        : user.type === "comite"
+                        ? <Shield className="w-3.5 h-3.5 text-amber-500" />
                         : <User className="w-3.5 h-3.5 text-blue-500" />
                       }
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                        {user.type === "comite" ? "Miembro del Comité" : "Investigador"}
+                        {user.type === "admin" ? "Coordinador" : user.type === "comite" ? "Miembro del Comité" : "Investigador"}
                       </span>
                     </div>
                     <p className="font-semibold text-slate-800 text-sm truncate">{user.name}</p>
@@ -156,11 +160,8 @@ export default function Navbar() {
                   {/* Menu items */}
                   <div className="py-1.5">
                     {user.type === "investigador" && (
-                      <Link
-                        href="/investigador/perfil"
-                        onClick={() => setOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
+                      <Link href="/investigador/perfil" onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <FolderOpen className="w-4 h-4 text-slate-400" />
                         Mis proyectos
                       </Link>
@@ -168,49 +169,49 @@ export default function Navbar() {
 
                     {user.type === "comite" && (
                       <>
-                        <Link
-                          href="/comite/perfil"
-                          onClick={() => setOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
+                        <Link href="/comite/perfil" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                           <FolderOpen className="w-4 h-4 text-slate-400" />
                           Mi perfil
                         </Link>
-                        <Link
-                          href="/revisores/dashboard"
-                          onClick={() => setOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
+                        <Link href="/revisores/dashboard" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                           <LayoutDashboard className="w-4 h-4 text-slate-400" />
-                          Panel completo
+                          Mis revisiones
                         </Link>
-                        <Link
-                          href="/investigador/perfil"
-                          onClick={() => setOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
-                          <ClipboardList className="w-4 h-4 text-slate-400" />
-                          Ver investigadores
+                      </>
+                    )}
+
+                    {user.type === "admin" && (
+                      <>
+                        <Link href="/comite/perfil" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <User className="w-4 h-4 text-slate-400" />
+                          Mi perfil
                         </Link>
-                        {user.email === "felipe.rojast@uai.cl" && (
-                          <Link
-                            href="/coordinador"
-                            onClick={() => setOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-violet-700 hover:bg-violet-50 transition-colors font-semibold"
-                          >
-                            <BarChart2 className="w-4 h-4 text-violet-500" />
-                            Estadísticas
-                          </Link>
-                        )}
+                        <Link href="/revisores/dashboard" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                          Panel de revisores
+                        </Link>
+                        <div className="my-1 mx-4 h-px bg-slate-100" />
+                        <Link href="/coordinador" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-violet-700 hover:bg-violet-50 transition-colors font-semibold">
+                          <BarChart2 className="w-4 h-4 text-violet-500" />
+                          Estadísticas
+                        </Link>
+                        <Link href="/coordinador/miembros" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-violet-700 hover:bg-violet-50 transition-colors font-semibold">
+                          <Shield className="w-4 h-4 text-violet-500" />
+                          Permisos de Coordinador
+                        </Link>
                       </>
                     )}
                   </div>
 
                   <div className="border-t border-slate-100 py-1.5">
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
+                    <button onClick={handleLogout}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
                       <LogOut className="w-4 h-4" />
                       Cerrar sesión
                     </button>
@@ -219,11 +220,8 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            /* Not logged in — show Revisores link */
-            <Link
-              href="/revisores"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
+            <Link href="/revisores"
+              className="text-sm font-medium text-white/70 hover:text-white transition-colors">
               Revisores
             </Link>
           )}
