@@ -11,8 +11,9 @@ import { themes } from "@/lib/themes";
 import {
   BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle,
   TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw,
-  HardDrive, AlertTriangle, Activity, Layers, Calendar, Users2, Zap,
+  HardDrive, AlertTriangle, Activity, Layers, Calendar, Users2, Zap, Shield,
 } from "lucide-react";
+import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -561,6 +562,16 @@ export default function CoordinadorStats() {
           <p className="text-slate-400 text-sm ml-12 mb-8">
             Escuela de Psicología · Universidad Adolfo Ibáñez
           </p>
+
+          {/* Permisos de Coordinador link */}
+          <div className="mb-7 ml-0">
+            <Link href="/coordinador/miembros"
+              className="inline-flex items-center gap-2.5 bg-violet-50 border border-violet-200 hover:bg-violet-100 hover:border-violet-300 text-violet-700 text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
+              <Shield className="w-3.5 h-3.5" />
+              Permisos de Coordinador
+              <span className="text-[10px] bg-violet-200 text-violet-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Solo coordinador</span>
+            </Link>
+          </div>
 
           {/* KPI grid + Approval rate */}
           <div className="flex flex-col lg:flex-row items-stretch gap-4 mb-6">
