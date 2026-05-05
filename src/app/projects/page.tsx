@@ -185,7 +185,7 @@ export default function ProjectsPage() {
           {[
             { label: "Total",         value: projects.length,                                                                           color: "text-slate-700" },
             { label: "En proceso",    value: projects.filter(p => ["submitted","reviewing","corrections"].includes(p.status)).length,   color: "text-amber-600" },
-            { label: "Aprobados",     value: projects.filter(p => p.status === "approved").length,                                      color: "text-emerald-600" },
+            { label: "Aprobados",     value: projects.filter(p => p.status === "approved" || p.status === "certified").length,          color: "text-emerald-600" },
             { label: "Sin asignar",   value: projects.filter(p => !p.reviewer).length,                                                  color: "text-orange-500" },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
@@ -389,7 +389,7 @@ export default function ProjectsPage() {
   const stats = [
     { label: "Total",         value: projects.length,                                                              color: "text-slate-700" },
     { label: "En proceso",    value: projects.filter((p) => ["submitted","reviewing","corrections"].includes(p.status)).length, color: "text-amber-600" },
-    { label: "Aprobados",     value: projects.filter((p) => p.status === "approved").length,                       color: "text-emerald-600" },
+    { label: "Aprobados",     value: projects.filter((p) => p.status === "approved" || p.status === "certified").length, color: "text-emerald-600" },
     { label: "Observaciones", value: projects.filter((p) => p.status === "corrections").length,                    color: "text-orange-500" },
   ];
 

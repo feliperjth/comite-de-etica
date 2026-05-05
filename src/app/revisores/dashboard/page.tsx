@@ -237,7 +237,7 @@ export default function ReviewerDashboard() {
     { label: "Total",       value: projects.length,                                                       icon: ClipboardList, color: "text-[#1A1A1A]", bg: "bg-slate-100" },
     { label: "Pendientes",  value: projects.filter((p) => p.status === "submitted").length,               icon: Clock,         color: "text-amber-600",  bg: "bg-amber-50"  },
     { label: "En revisión", value: projects.filter((p) => p.status === "reviewing").length,               icon: AlertCircle,   color: "text-violet-600", bg: "bg-violet-50" },
-    { label: "Aprobados",   value: projects.filter((p) => p.status === "approved").length,                icon: CheckCircle,   color: "text-emerald-600",bg: "bg-emerald-50"},
+    { label: "Aprobados",   value: projects.filter((p) => p.status === "approved" || p.status === "certified").length, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Rechazados",  value: projects.filter((p) => p.status === "rejected").length,                icon: XCircle,       color: "text-red-500",    bg: "bg-red-50"    },
   ] : [
     { label: "Asignados",   value: visibleProjects.length,                                                icon: ClipboardList, color: "text-[#1A1A1A]", bg: "bg-slate-100" },

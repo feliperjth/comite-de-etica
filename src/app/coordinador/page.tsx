@@ -12,6 +12,7 @@ import {
   BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle,
   TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw,
   HardDrive, Activity, Layers, Calendar, Users2, Zap, Shield, ChevronRight,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -351,6 +352,7 @@ export default function CoordinadorStats() {
   const [meUser, setMeUser]       = useState<{ name?: string; email: string } | null>(null);
   const [seeding, setSeeding]     = useState(false);
   const [seedMsg, setSeedMsg]     = useState<{ ok: boolean; text: string } | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -409,6 +411,23 @@ export default function CoordinadorStats() {
     }
     setSeeding(false);
     setTimeout(() => setSeedMsg(null), 6000);
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    const res = await fetch("/api/admin/export");
+    if (res.ok) {
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      const cd   = res.headers.get("Content-Disposition") ?? "";
+      const match = cd.match(/filename="(.+)"/);
+      a.href     = url;
+      a.download = match?.[1] ?? "proyectos.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    setExporting(false);
   }
 
   async function handleDeleteSeed() {
@@ -559,7 +578,7 @@ export default function CoordinadorStats() {
 
   const statCards = [
     { label: "Total enviados",     value: total,                              icon: Activity,     color: "#60a5fa", ring: 100,                          pct: 100 },
-    { label: "Aprobados",          value: statusCounts["approved"]   ?? 0,    icon: CheckCircle,  color: "#22c55e", ring: pctOf(statusCounts["approved"]   ?? 0), pct: pctOf(statusCounts["approved"] ?? 0) },
+    { label: "Aprobados",          value: (statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0), icon: CheckCircle, color: "#22c55e", ring: pctOf((statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)), pct: pctOf((statusCounts["approved"] ?? 0) + (statusCounts["certified"] ?? 0)) },
     { label: "En revisión",        value: statusCounts["reviewing"]  ?? 0,    icon: Clock,        color: "#3b82f6", ring: pctOf(statusCounts["reviewing"]  ?? 0), pct: pctOf(statusCounts["reviewing"] ?? 0) },
     { label: "Con observaciones",  value: statusCounts["corrections"]?? 0,    icon: AlertCircle,  color: "#f97316", ring: pctOf(statusCounts["corrections"] ?? 0), pct: pctOf(statusCounts["corrections"] ?? 0) },
     { label: "Rechazados",         value: statusCounts["rejected"]   ?? 0,    icon: XCircle,      color: "#ef4444", ring: pctOf(statusCounts["rejected"]   ?? 0), pct: pctOf(statusCounts["rejected"] ?? 0) },
@@ -589,6 +608,21 @@ export default function CoordinadorStats() {
               </div>
             </div>
 
+            {/* Right controls: export + profile */}
+            <div className="flex items-center gap-3 shrink-0">
+
+              {/* Excel export button */}
+              <button
+                onClick={handleExport}
+                disabled={exporting || projects.length === 0}
+                title="Descargar Excel con todos los proyectos"
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm"
+              >
+                {exporting
+                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Generando...</>
+                  : <><Download className="w-3.5 h-3.5" />Exportar Excel</>}
+              </button>
+
             {/* Coordinator profile chip */}
             {meUser && (
               <div className="flex items-center gap-2.5 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm shrink-0">
@@ -609,6 +643,7 @@ export default function CoordinadorStats() {
                 </div>
               </div>
             )}
+            </div>{/* end right controls */}
           </div>
           <p className="text-slate-400 text-sm ml-12 mb-8">
             Escuela de Psicología · Universidad Adolfo Ibáñez
