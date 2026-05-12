@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { User, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -19,7 +19,17 @@ export default function InvestigadorLogin() {
   const [showPass, setShowPass]     = useState(false);
   const [error, setError]           = useState("");
   const [loading, setLoading]       = useState(false);
+  const [checking, setChecking]     = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/me").then(r => r.json()).then(me => {
+      if (me.type === "investigador") router.replace("/investigador/perfil");
+      else setChecking(false);
+    });
+  }, [router]);
+
+  if (checking) return null;
 
   function switchTab(t: Tab) {
     setTab(t);
