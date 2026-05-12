@@ -123,11 +123,11 @@ export default function Home() {
 
       {/* Profile selector */}
       <section className="bg-white border-b border-slate-100 py-10 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
             Accede a tu perfil
           </p>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             {/* Investigador */}
             <Link
               href="/investigador"
@@ -143,7 +143,7 @@ export default function Home() {
               <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
 
-            {/* Revisor */}
+            {/* Revisor / Miembro del Comité */}
             <Link
               href="/revisores"
               className="group flex items-center gap-5 bg-white hover:bg-emerald-50 border-2 border-slate-200 hover:border-emerald-500 rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg"
@@ -152,25 +152,10 @@ export default function Home() {
                 <ClipboardList className="w-7 h-7 text-emerald-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-uai-navy text-base mb-0.5">Soy Revisor</h3>
+                <h3 className="font-bold text-uai-navy text-base mb-0.5">Soy Revisor / Comité</h3>
                 <p className="text-slate-400 text-sm">Acceder al panel de revisión de proyectos</p>
               </div>
               <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-            </Link>
-
-            {/* Comité */}
-            <Link
-              href="/comite"
-              className="group flex items-center gap-5 bg-white hover:bg-orange-50 border-2 border-slate-200 hover:border-[#CC5200] rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              <div className="w-14 h-14 bg-uai-navy group-hover:bg-uai-navy-dark rounded-2xl flex items-center justify-center shrink-0 transition-colors shadow-sm">
-                <Shield className="w-7 h-7 text-uai-gold" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-uai-navy text-base mb-0.5">Soy Miembro del Comité</h3>
-                <p className="text-slate-400 text-sm">Ver proyectos asignados e historial de revisiones</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-[#CC5200] group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
           </div>
         </div>
