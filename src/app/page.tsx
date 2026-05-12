@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, User } from "lucide-react";
+import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, User, ClipboardList } from "lucide-react";
 
 const features = [
   {
@@ -123,11 +123,11 @@ export default function Home() {
 
       {/* Profile selector */}
       <section className="bg-white border-b border-slate-100 py-10 px-4">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
             Accede a tu perfil
           </p>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
             {/* Investigador */}
             <Link
               href="/investigador"
@@ -141,6 +141,21 @@ export default function Home() {
                 <p className="text-slate-400 text-sm">Ver mis proyectos enviados y su estado</p>
               </div>
               <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </Link>
+
+            {/* Revisor */}
+            <Link
+              href="/revisores"
+              className="group flex items-center gap-5 bg-white hover:bg-emerald-50 border-2 border-slate-200 hover:border-emerald-500 rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <div className="w-14 h-14 bg-emerald-50 group-hover:bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0 transition-colors">
+                <ClipboardList className="w-7 h-7 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-uai-navy text-base mb-0.5">Soy Revisor</h3>
+                <p className="text-slate-400 text-sm">Acceder al panel de revisión de proyectos</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
 
             {/* Comité */}
