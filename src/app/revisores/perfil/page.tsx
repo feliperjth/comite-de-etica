@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { themes } from "@/lib/themes";
-import { CheckCircle, BookOpen } from "lucide-react";
+import { CheckCircle, BookOpen, User } from "lucide-react";
 
 function getCookie(name: string): string {
   if (typeof document === "undefined") return "";
@@ -21,15 +21,15 @@ export default function PerfilRevisor() {
   useEffect(() => {
     const n = decodeURIComponent(getCookie("reviewer_name"));
     const e = decodeURIComponent(getCookie("reviewer_email"));
-    if (!n || !e) { router.push("/revisores"); return; }
-    setName(n);
+    if (!e) { router.push("/revisores"); return; }
     setEmail(e);
 
-    // Load existing expertise
+    // Load name and expertise from DB (authoritative)
     fetch("/api/reviewers")
       .then((r) => r.json())
-      .then((reviewers: { email: string; expertise: string[] }[]) => {
+      .then((reviewers: { email: string; name: string; expertise: string[] }[]) => {
         const mine = reviewers.find((r) => r.email === e);
+        setName(mine?.name ?? n ?? "");
         if (mine?.expertise?.length) setExpertise(mine.expertise);
       });
   }, [router]);
@@ -41,6 +41,7 @@ export default function PerfilRevisor() {
   }
 
   async function handleSave() {
+    if (!name.trim()) { setError("El nombre es obligatorio."); return; }
     if (expertise.length !== 3) { setError("Debes seleccionar exactamente 3 áreas."); return; }
     setSaving(true);
     setError("");
@@ -70,11 +71,27 @@ export default function PerfilRevisor() {
             <p className="text-slate-400 text-sm">Selecciona exactamente <strong>3 temáticas</strong> que representan tu expertise como revisor/a</p>
           </div>
 
-          {name && (
-            <div className="bg-slate-50 rounded-xl px-4 py-3 mb-6 text-sm text-slate-600">
-              <strong>{name}</strong> · {email}
+          {/* Name field (editable) */}
+          <div className="mb-5 space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Nombre completo
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre completo"
+                  className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
+                />
+              </div>
             </div>
-          )}
+            <div className="bg-slate-50 rounded-xl px-4 py-2.5 text-xs text-slate-400">
+              Correo: <span className="font-semibold text-slate-600">{email}</span>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 gap-3 mb-6">
             {themes.map((t) => {
