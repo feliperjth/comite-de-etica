@@ -22,6 +22,15 @@ export default function PerfilRevisor() {
     const n = decodeURIComponent(getCookie("reviewer_name"));
     const e = decodeURIComponent(getCookie("reviewer_email"));
     if (!e) { router.push("/revisores"); return; }
+
+    // Coordinadores y admins van a su propio perfil
+    fetch("/api/me").then(r => r.json()).then(me => {
+      if (me.type === "admin" || me.type === "comite") {
+        router.replace("/comite/perfil");
+        return;
+      }
+    });
+
     setEmail(e);
 
     // Load name and expertise from DB (authoritative)
