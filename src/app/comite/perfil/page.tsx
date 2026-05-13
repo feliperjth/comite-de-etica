@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   LogOut, RefreshCw, ClipboardList, CheckCircle,
   AlertCircle, FileSearch, LayoutDashboard, BookOpen,
+  ChevronRight, Users,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { themes } from "@/lib/themes";
@@ -205,6 +206,41 @@ export default function ComitePerfil() {
           <div className="text-slate-400 text-xs mt-0.5">Con correcciones</div>
         </div>
       </div>
+
+      {/* Panel de revisión — always visible */}
+      <Link
+        href="/revisores/dashboard"
+        className="group flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 mb-6 hover:bg-slate-50 hover:shadow-md transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 bg-[#CC5200]/10 rounded-xl flex items-center justify-center shrink-0">
+            <LayoutDashboard className="w-5 h-5 text-[#CC5200]" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-800 text-sm leading-tight">Panel de revisión de proyectos</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {assignedProjects.length > 0
+                ? `${assignedProjects.length} proyecto${assignedProjects.length !== 1 ? "s" : ""} asignado${assignedProjects.length !== 1 ? "s" : ""} · ver todos los proyectos del sistema`
+                : isAdmin
+                  ? "Sin proyectos asignados actualmente · puedes ver todos los proyectos del sistema"
+                  : "Sin proyectos asignados actualmente"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {assignedProjects.length > 0 && (
+            <span className="bg-[#CC5200] text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              {assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length} pendiente{assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length !== 1 ? "s" : ""}
+            </span>
+          )}
+          {isAdmin && assignedProjects.length === 0 && (
+            <span className="bg-slate-100 text-slate-500 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+              <Users className="w-3 h-3" /> Ver panel completo
+            </span>
+          )}
+          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#CC5200] transition-colors" />
+        </div>
+      </Link>
 
       {/* Coordinator: default attributes panel */}
       {isAdmin ? (
