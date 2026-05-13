@@ -60,31 +60,32 @@ export default function ComitePerfil() {
     }
     setIsAdmin(me.type === "admin");
 
+    let reviewerEmail = me.email ?? "";
+    let reviewerName  = me.name  ?? "";
+
     const res = await fetch("/api/comite/reviews");
-    if (!res.ok) {
-      router.push("/revisores");
-      setLoading(false);
-      return;
+    if (res.ok) {
+      const data = await res.json();
+      setReviews(data.reviews ?? []);
+      setProjects(data.projects ?? []);
+      setAssignedProjects(data.assignedProjects ?? []);
+      reviewerEmail = data.email ?? me.email ?? "";
+      reviewerName  = data.name  ?? me.name  ?? "";
     }
-    const data = await res.json();
-    setReviews(data.reviews ?? []);
-    setProjects(data.projects ?? []);
-    setAssignedProjects(data.assignedProjects ?? []);
-    setName(data.name ?? "");
-    setEmail(data.email ?? "");
+    setName(reviewerName);
+    setEmail(reviewerEmail);
     setReady(true);
 
     // Load existing expertise from reviewers table
     const rvRes = await fetch("/api/reviewers");
     if (rvRes.ok) {
       const allReviewers: { email: string; name: string; expertise: string[] }[] = await rvRes.json();
-      const mine = allReviewers.find((r) => r.email === data.email);
+      const mine = allReviewers.find((r) => r.email === reviewerEmail);
       if (mine) {
         if (mine.expertise?.length) setExpertise(mine.expertise);
         if (mine.name) setExpertiseName(mine.name);
       }
-      // Pre-fill name from reviews if not in reviewers table
-      if (!mine?.name && data.name) setExpertiseName(data.name);
+      if (!mine?.name && reviewerName) setExpertiseName(reviewerName);
     }
 
     setLoading(false);

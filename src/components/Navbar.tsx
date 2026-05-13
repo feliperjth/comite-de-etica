@@ -189,6 +189,11 @@ export default function Navbar() {
                           <User className="w-4 h-4 text-slate-400" />
                           Mi perfil
                         </Link>
+                        <Link href="/revisores/dashboard" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                          Panel de revisores
+                        </Link>
                         <div className="my-1 mx-4 h-px bg-slate-100" />
                         <Link href="/coordinador" onClick={() => setOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-violet-700 hover:bg-violet-50 transition-colors font-semibold">
