@@ -166,21 +166,41 @@ export default function ComitePerfil() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/revisores/dashboard"
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
-          >
-            <LayoutDashboard className="w-4 h-4" /> Panel completo
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-slate-500 hover:text-red-600 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:border-red-200 hover:bg-red-50 transition-colors"
-          >
-            <LogOut className="w-4 h-4" /> Salir
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-slate-500 hover:text-red-600 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:border-red-200 hover:bg-red-50 transition-colors"
+        >
+          <LogOut className="w-4 h-4" /> Salir
+        </button>
       </div>
+
+      {/* Panel de revisión — prominente, siempre visible */}
+      <Link
+        href="/revisores/dashboard"
+        className="group flex items-center justify-between gap-4 bg-gradient-to-r from-[#CC5200]/10 to-orange-50 border-2 border-[#CC5200]/20 hover:border-[#CC5200]/50 rounded-2xl px-6 py-5 mb-6 hover:shadow-md transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-[#CC5200] rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            <LayoutDashboard className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-800 text-base leading-tight">Panel de revisión de proyectos</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {assignedProjects.length > 0
+                ? `${assignedProjects.length} proyecto${assignedProjects.length !== 1 ? "s" : ""} asignado${assignedProjects.length !== 1 ? "s" : ""} · ver todos los proyectos`
+                : "Ver todos los proyectos del sistema"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length > 0 && (
+            <span className="bg-[#CC5200] text-white text-xs font-bold px-3 py-1.5 rounded-full">
+              {assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length} pendiente{assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length !== 1 ? "s" : ""}
+            </span>
+          )}
+          <ChevronRight className="w-6 h-6 text-[#CC5200]/40 group-hover:text-[#CC5200] transition-colors" />
+        </div>
+      </Link>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -206,41 +226,6 @@ export default function ComitePerfil() {
           <div className="text-slate-400 text-xs mt-0.5">Con correcciones</div>
         </div>
       </div>
-
-      {/* Panel de revisión — always visible */}
-      <Link
-        href="/revisores/dashboard"
-        className="group flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 mb-6 hover:bg-slate-50 hover:shadow-md transition-all"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 bg-[#CC5200]/10 rounded-xl flex items-center justify-center shrink-0">
-            <LayoutDashboard className="w-5 h-5 text-[#CC5200]" />
-          </div>
-          <div>
-            <p className="font-bold text-slate-800 text-sm leading-tight">Panel de revisión de proyectos</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {assignedProjects.length > 0
-                ? `${assignedProjects.length} proyecto${assignedProjects.length !== 1 ? "s" : ""} asignado${assignedProjects.length !== 1 ? "s" : ""} · ver todos los proyectos del sistema`
-                : isAdmin
-                  ? "Sin proyectos asignados actualmente · puedes ver todos los proyectos del sistema"
-                  : "Sin proyectos asignados actualmente"}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {assignedProjects.length > 0 && (
-            <span className="bg-[#CC5200] text-white text-xs font-bold px-2.5 py-1 rounded-full">
-              {assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length} pendiente{assignedProjects.filter(p => !reviews.some(r => r.project_id === p.id)).length !== 1 ? "s" : ""}
-            </span>
-          )}
-          {isAdmin && assignedProjects.length === 0 && (
-            <span className="bg-slate-100 text-slate-500 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
-              <Users className="w-3 h-3" /> Ver panel completo
-            </span>
-          )}
-          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#CC5200] transition-colors" />
-        </div>
-      </Link>
 
       {/* Coordinator: default attributes panel */}
       {isAdmin ? (
