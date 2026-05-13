@@ -500,9 +500,24 @@ export default function ReviewPage() {
                   </div>
 
                   {/* Section content guide */}
-                  <div className="ml-10 mt-2.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Contenido evaluado</p>
-                    <p className="text-xs text-slate-600 leading-relaxed">{section.description}</p>
+                  <div className="ml-10 mt-2.5 space-y-2">
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Contenido evaluado</p>
+                      <p className="text-xs text-slate-600 leading-relaxed">{section.description}</p>
+                    </div>
+                    {section.criteria && section.criteria.length > 0 && (
+                      <div className="bg-emerald-50/60 rounded-xl p-3 border border-emerald-100">
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mb-1.5">Criterios de aceptación</p>
+                        <ul className="space-y-1">
+                          {section.criteria.map((c, ci) => (
+                            <li key={ci} className="flex items-start gap-1.5 text-xs text-slate-600">
+                              <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>
+                              {c}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
                   {/* Decision buttons */}
