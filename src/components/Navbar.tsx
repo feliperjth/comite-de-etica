@@ -53,7 +53,7 @@ export default function Navbar() {
     } else if (user.type === "comite" || user.type === "admin") {
       await fetch("/api/comite/auth", { method: "DELETE" });
       await fetch("/api/auth", { method: "DELETE" });
-      router.push("/comite");
+      router.push("/revisores");
     }
     setUser({ type: "none" });
     router.refresh();
