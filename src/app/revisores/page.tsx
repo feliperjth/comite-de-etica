@@ -27,12 +27,20 @@ export default function RevisoresLogin() {
   const router = useRouter();
 
   useEffect(() => {
+    // Check reviewer_email cookie first (fast, no network)
     const savedEmail = decodeURIComponent(getCookie("reviewer_email"));
     if (savedEmail) {
       router.replace("/revisores/dashboard");
-    } else {
-      setChecking(false);
+      return;
     }
+    // Also accept comite_email session (coordinator logged in via /comite)
+    fetch("/api/me").then(r => r.json()).then(me => {
+      if (me.type === "comite" || me.type === "admin") {
+        router.replace("/revisores/dashboard");
+      } else {
+        setChecking(false);
+      }
+    });
   }, [router]);
 
   if (checking) return null;
