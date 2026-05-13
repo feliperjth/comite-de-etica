@@ -269,7 +269,13 @@ export default function ReviewerDashboard() {
             <RefreshCw className="w-4 h-4" /> Actualizar
           </button>
           <button
-            onClick={() => router.push("/revisores/perfil")}
+            onClick={() => router.push("/revisores/pauta")}
+            className="flex items-center gap-2 text-slate-500 hover:text-[#CC5200] border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:border-orange-200 hover:bg-orange-50"
+          >
+            <BookOpen className="w-4 h-4" /> Ver pauta
+          </button>
+          <button
+            onClick={() => router.push(isAdmin ? "/comite/perfil" : "/revisores/perfil")}
             className="flex items-center gap-2 text-slate-500 hover:text-[#CC5200] border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:border-orange-200 hover:bg-orange-50"
           >
             <BookOpen className="w-4 h-4" /> Mi perfil
