@@ -1,5 +1,5 @@
 "use client";
-
+// v2
 import { useState } from "react";
 import { sections } from "@/lib/sections";
 import { CheckCircle, ChevronDown, ChevronUp, AlertCircle, BookOpen } from "lucide-react";
