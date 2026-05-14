@@ -5,6 +5,7 @@ import { Check, Upload, Sparkles, Send, ChevronRight, ChevronLeft, FileText, X, 
 import Link from "next/link";
 import { themes } from "@/lib/themes";
 import { isConfigured, getSupabase } from "@/lib/supabase";
+import AiSectionReviewer from "@/components/AiSectionReviewer";
 
 type ProjectType = "pregrado" | "magister" | "doctorado" | "docente" | "fondecyt" | "externo" | "";
 type FileMap = Record<string, File | null>;
@@ -78,6 +79,7 @@ export default function SubmitPage() {
   const [reviewResult, setReviewResult] = useState("");
   const [isReviewing, setIsReviewing] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [reviewTab, setReviewTab] = useState<"general" | "seccion">("general");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -483,36 +485,64 @@ export default function SubmitPage() {
               </div>
               <h2 className="text-xl font-bold text-uai-navy">Revisión ética con IA</h2>
             </div>
-            <p className="text-slate-400 text-sm mb-6 ml-12">Análisis gratuito basado en los tres pilares éticos antes del envío formal.</p>
-            <div className="flex gap-2 mb-6">
-              {[["👤","Autonomía"],["❤️","Beneficencia"],["⚖️","Justicia"]].map(([icon,name]) => (
-                <span key={name} className="flex items-center gap-1.5 text-xs bg-violet-50 text-violet-700 border border-violet-100 px-3 py-1.5 rounded-full font-semibold">
-                  <span>{icon}</span>{name}
-                </span>
-              ))}
+            <p className="text-slate-400 text-sm mb-5 ml-12">Análisis gratuito antes del envío formal. Este paso es opcional pero recomendado.</p>
+
+            {/* Tabs */}
+            <div className="flex bg-slate-100 rounded-xl p-1 mb-6 gap-1">
+              <button
+                onClick={() => setReviewTab("general")}
+                className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${reviewTab === "general" ? "bg-white text-uai-navy shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Análisis general
+              </button>
+              <button
+                onClick={() => setReviewTab("seccion")}
+                className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${reviewTab === "seccion" ? "bg-white text-uai-navy shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Por sección
+              </button>
             </div>
-            <div className="mb-5">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Texto para analizar <span className="text-slate-400 font-normal">(puedes editar el resumen del paso 1)</span>
-              </label>
-              <textarea value={reviewText || form.abstract} onChange={(e) => setReviewText(e.target.value)} rows={6}
-                placeholder="Incluye resumen, objetivos, participantes y metodología..." className={`${inputClass} resize-none`} />
-            </div>
-            <button onClick={handleAIReview} disabled={isReviewing || !(reviewText || form.abstract)}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm shadow-sm">
-              {isReviewing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analizando...</> : <><Sparkles className="w-4 h-4" /> Analizar con IA gratuita</>}
-            </button>
-            {reviewError && <div className="mt-5 bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700"><strong>Error:</strong> {reviewError}</div>}
-            {reviewResult && (
-              <div className="mt-6 bg-gradient-to-br from-violet-50 to-white border border-violet-200 rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="w-4 h-4 text-violet-600" />
-                  <h3 className="font-bold text-uai-navy text-sm uppercase tracking-wide">Resultado del análisis ético</h3>
+
+            {/* Tab: Análisis general */}
+            {reviewTab === "general" && (
+              <div>
+                <div className="flex gap-2 mb-5">
+                  {[["👤","Autonomía"],["❤️","Beneficencia"],["⚖️","Justicia"]].map(([icon,name]) => (
+                    <span key={name} className="flex items-center gap-1.5 text-xs bg-violet-50 text-violet-700 border border-violet-100 px-3 py-1.5 rounded-full font-semibold">
+                      <span>{icon}</span>{name}
+                    </span>
+                  ))}
                 </div>
-                <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{reviewResult}</div>
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Texto para analizar <span className="text-slate-400 font-normal">(puedes editar el resumen del paso 1)</span>
+                  </label>
+                  <textarea value={reviewText || form.abstract} onChange={(e) => setReviewText(e.target.value)} rows={6}
+                    placeholder="Incluye resumen, objetivos, participantes y metodología..." className={`${inputClass} resize-none`} />
+                </div>
+                <button onClick={handleAIReview} disabled={isReviewing || !(reviewText || form.abstract)}
+                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm shadow-sm">
+                  {isReviewing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analizando...</> : <><Sparkles className="w-4 h-4" /> Analizar con IA gratuita</>}
+                </button>
+                {reviewError && <div className="mt-5 bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700"><strong>Error:</strong> {reviewError}</div>}
+                {reviewResult && (
+                  <div className="mt-6 bg-gradient-to-br from-violet-50 to-white border border-violet-200 rounded-2xl p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles className="w-4 h-4 text-violet-600" />
+                      <h3 className="font-bold text-uai-navy text-sm uppercase tracking-wide">Resultado del análisis ético</h3>
+                    </div>
+                    <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{reviewResult}</div>
+                  </div>
+                )}
               </div>
             )}
-            {!reviewResult && !reviewError && (
+
+            {/* Tab: Por sección */}
+            {reviewTab === "seccion" && (
+              <AiSectionReviewer projectTitle={form.projectTitle} />
+            )}
+
+            {!reviewResult && !reviewError && reviewTab === "general" && (
               <div className="mt-5 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
                 <span className="font-semibold">Este paso es opcional pero recomendado.</span> La revisión IA no reemplaza al comité, pero te ayuda a identificar aspectos éticos a fortalecer.
               </div>
