@@ -2,6 +2,29 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
 const PROMPTS = {
+  seccion: (title: string, text: string, sectionLabel: string, criteria: string[]) => `
+Eres un asesor de ética de la investigación que ayuda a investigadores universitarios en Chile a mejorar su protocolo ANTES de presentarlo al Comité de Ética.
+
+El investigador quiere saber si el texto que escribió para la sección "${sectionLabel}" cumple con los criterios que usará el comité para evaluarla.
+
+**Criterios de aceptación de esta sección:**
+${criteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+
+**Título del proyecto:** ${title || "Sin título"}
+
+**Texto del investigador para esta sección:**
+${text}
+
+Evalúa el texto anterior criterio por criterio. Sé específico, constructivo y breve. Habla directamente al investigador (usa "tu" / "debes").
+
+Responde con este formato exacto:
+
+${criteria.map((c) => `## Criterio: ${c}\n**Estado:** [CUMPLE / MEJORAR / FALTA]\n**Observación:** ...`).join("\n\n")}
+
+## Recomendación principal
+[1-2 oraciones con la acción más importante para mejorar esta sección antes de enviarla al comité]
+`.trim(),
+
   investigador: (title: string, text: string) => `
 Eres un asesor de ética de la investigación que apoya a investigadores universitarios en Chile a mejorar sus propuestas ANTES de presentarlas formalmente al Comité de Ética. El investigador quiere saber qué tan sólida es su documentación ética y qué debe reforzar o completar.
 
@@ -93,27 +116,34 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { text, title, mode = "revisor" } = await request.json() as {
+  const { text, title, mode = "revisor", sectionLabel, criteria } = await request.json() as {
     text: string;
     title?: string;
-    mode?: "investigador" | "revisor";
+    mode?: "investigador" | "revisor" | "seccion";
+    sectionLabel?: string;
+    criteria?: string[];
   };
 
-  if (!text || text.trim().length < 50) {
+  if (!text || text.trim().length < 20) {
     return NextResponse.json(
-      { error: "El texto es demasiado corto. Incluye el resumen y metodología de tu proyecto." },
+      { error: "El texto es demasiado corto para analizarlo." },
       { status: 400 }
     );
   }
 
-  const promptFn = PROMPTS[mode] ?? PROMPTS.revisor;
-  const prompt = promptFn(title ?? "", text);
+  let prompt: string;
+  if (mode === "seccion" && sectionLabel && criteria?.length) {
+    prompt = PROMPTS.seccion(title ?? "", text, sectionLabel, criteria);
+  } else {
+    const promptFn = PROMPTS[mode as "investigador" | "revisor"] ?? PROMPTS.revisor;
+    prompt = promptFn(title ?? "", text);
+  }
 
   const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genai.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const result = await model.generateContent(prompt);
-  const review = result.response.text();
+  const review  = result.response.text();
 
   return NextResponse.json({ review });
 }

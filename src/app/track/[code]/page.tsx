@@ -6,6 +6,7 @@ import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, Clipb
 import Link from "next/link";
 import { cookies } from "next/headers";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
+import AiSectionReviewer from "@/components/AiSectionReviewer";
 
 const statusSteps = (reviewersAssigned: boolean, reviewCount: number, reviewersNeeded: number) => [
   { key: "submitted",   label: reviewersAssigned ? "Recibido · Revisores asignados" : "Recibido", icon: Clock },
@@ -247,6 +248,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
               abstract={project.abstract}
               mode="investigador"
             />
+            <AiSectionReviewer projectTitle={project.title} />
           </div>
         )}
 
