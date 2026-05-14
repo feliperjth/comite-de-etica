@@ -70,9 +70,40 @@ function StepIndicator({ current }: { current: number }) {
 
 const inputClass = "w-full border border-slate-200 bg-white rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
 
+const PROFESSORS = [
+  "Claudia Cruzat",
+  "David Huepe",
+  "David Martínez",
+  "Claudio Araya",
+  "Emilio Compte",
+  "María Josefina Escobar",
+  "Gonzalo Muñoz",
+  "María Teresa Ropert",
+  "Constanza Baquedano",
+  "Carla Ugarte",
+  "Fernanda Díaz",
+  "Vicente Soto",
+  "Felipe Rojas",
+  "Felipe Landaeta",
+  "Lorna Cortés",
+  "Felipe Valdivieso",
+  "Ana Rosenbluth",
+  "Paula Cornejo",
+  "Paulina Ortiz",
+  "Daniela Castillo",
+  "Carla Boattini",
+  "Gonzalo de la Fuente",
+  "Carolina Panesso",
+  "Andrés Salas",
+  "Isidora Paiva",
+  "Agustín Ibáñez",
+  "Claudia Durán-Aniotz",
+];
+
 export default function SubmitPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>({ name: "", rut: "", email: "", role: "", projectTitle: "", projectType: "", abstract: "", advisorName: "", fundingType: "", fundingFolio: "", fundingDetail: "" });
+  const [advisorSelect, setAdvisorSelect] = useState("");
   const [selectedTheme, setSelectedTheme] = useState("");
   const [files, setFiles] = useState<FileMap>({});
   const [reviewText, setReviewText] = useState("");
@@ -332,13 +363,30 @@ export default function SubmitPage() {
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Profesor/a guía UAI <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={form.advisorName}
-                    onChange={(e) => update("advisorName", e.target.value)}
-                    placeholder="Ej: Dr. Juan Pérez"
+                  <select
+                    value={advisorSelect}
+                    onChange={(e) => {
+                      setAdvisorSelect(e.target.value);
+                      if (e.target.value !== "otro") update("advisorName", e.target.value);
+                      else update("advisorName", "");
+                    }}
                     className={inputClass}
-                  />
+                  >
+                    <option value="">Selecciona un/a profesor/a guía…</option>
+                    {PROFESSORS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                    <option value="otro">Otro/a (no está en la lista)</option>
+                  </select>
+                  {advisorSelect === "otro" && (
+                    <input
+                      type="text"
+                      value={form.advisorName}
+                      onChange={(e) => update("advisorName", e.target.value)}
+                      placeholder="Escribe el nombre completo del/la profesor/a guía"
+                      className={`${inputClass} mt-2`}
+                    />
+                  )}
                   <p className="text-xs text-slate-400 mt-1.5">Nombre del profesor/a guía asociado/a a la UAI.</p>
                 </div>
               )}
