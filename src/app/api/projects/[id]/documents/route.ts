@@ -7,6 +7,7 @@ export async function GET(
 ) {
   const email =
     req.cookies.get("comite_email")?.value ||
+    req.cookies.get("reviewer_email")?.value ||
     req.cookies.get("investigador_email")?.value;
 
   if (!email) {
