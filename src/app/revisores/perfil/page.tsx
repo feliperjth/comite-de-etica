@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { themes } from "@/lib/themes";
-import { CheckCircle, User, ArrowLeft, Save, RefreshCw, LogOut } from "lucide-react";
+import { CheckCircle, User, ArrowLeft, Save, RefreshCw, LogOut, ClipboardList, Clock } from "lucide-react";
 
 function getCookie(name: string): string {
   if (typeof document === "undefined") return "";
@@ -21,6 +21,8 @@ export default function PerfilRevisor() {
   const [error, setError]         = useState("");
   const [ready, setReady]         = useState(false);
   const [editing, setEditing]     = useState(false);
+  const [reviewsDone, setReviewsDone]       = useState(0);
+  const [projectsAssigned, setProjectsAssigned] = useState(0);
 
   useEffect(() => {
     const cookieEmail = decodeURIComponent(getCookie("reviewer_email"));
@@ -44,8 +46,17 @@ export default function PerfilRevisor() {
         setName(mine?.name ?? cookieName ?? "");
         const areas = mine?.expertise ?? [];
         setExpertise(areas);
-        if (areas.length === 0) setEditing(true); // new reviewer → go straight to edit
+        if (areas.length === 0) setEditing(true);
         setReady(true);
+      });
+
+    // Stats: reviews done + assigned projects
+    fetch("/api/comite/reviews")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setReviewsDone((data.reviews ?? []).length);
+        setProjectsAssigned((data.assignedProjects ?? []).length);
       });
   }, [router]);
 
@@ -137,6 +148,24 @@ export default function PerfilRevisor() {
         </div>
 
         <div className="px-8 py-6">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center mb-2 shadow-sm border border-slate-100">
+                <ClipboardList className="w-4 h-4 text-slate-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-800">{reviewsDone}</div>
+              <div className="text-xs text-slate-400 mt-0.5">Proyectos revisados</div>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center mb-2 shadow-sm border border-amber-100">
+                <Clock className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="text-2xl font-bold text-amber-600">{projectsAssigned}</div>
+              <div className="text-xs text-slate-400 mt-0.5">Proyectos asignados</div>
+            </div>
+          </div>
+
           {/* Section title */}
           <div className="flex items-center justify-between mb-4">
             <div>
