@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const { data: reviewer } = await supabase
       .from("reviewers").select("name").eq("email", reviewerEmail).maybeSingle();
     return NextResponse.json({
-      type: "comite",
+      type: "revisor",
       name: reviewer?.name ?? reviewerEmail,
       email: reviewerEmail,
     });

@@ -35,7 +35,7 @@ export default function RevisoresLogin() {
     }
     // Also accept comite_email session (coordinator logged in via /comite)
     fetch("/api/me").then(r => r.json()).then(me => {
-      if (me.type === "comite" || me.type === "admin") {
+      if (me.type === "revisor" || me.type === "comite" || me.type === "admin") {
         router.replace("/revisores/dashboard");
       } else {
         setChecking(false);

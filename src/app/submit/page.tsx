@@ -122,7 +122,7 @@ export default function SubmitPage() {
   // Pre-fill name + email from session if logged in
   useEffect(() => {
     fetch("/api/me").then((r) => r.json()).then((me) => {
-      if (me.type === "investigador" || me.type === "comite") {
+      if (me.type === "investigador") {
         setForm((p) => ({
           ...p,
           name:  p.name  || me.name  || "",

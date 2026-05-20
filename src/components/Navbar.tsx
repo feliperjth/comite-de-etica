@@ -7,7 +7,7 @@ import { Plus, ChevronDown, LogOut, FolderOpen, LayoutDashboard, User, Shield, B
 import LogoImage from "./LogoImage";
 
 type SessionUser = {
-  type: "investigador" | "comite" | "admin" | "none";
+  type: "investigador" | "comite" | "revisor" | "admin" | "none";
   name?: string;
   email?: string;
 };
@@ -50,6 +50,9 @@ export default function Navbar() {
     if (user.type === "investigador") {
       await fetch("/api/investigador/auth", { method: "DELETE" });
       router.push("/investigador");
+    } else if (user.type === "revisor") {
+      await fetch("/api/auth", { method: "DELETE" });
+      router.push("/revisores");
     } else if (user.type === "comite" || user.type === "admin") {
       await fetch("/api/comite/auth", { method: "DELETE" });
       await fetch("/api/auth", { method: "DELETE" });
@@ -108,7 +111,7 @@ export default function Navbar() {
           ))}
 
           {/* Nuevo proyecto button — hide for comité/admin */}
-          {user.type !== "comite" && user.type !== "admin" && (
+          {user.type !== "comite" && user.type !== "admin" && user.type !== "revisor" && (
             <Link
               href="/submit"
               className="flex items-center gap-1.5 bg-uai-gold hover:bg-uai-gold-hover text-uai-navy font-bold text-sm px-4 py-2 rounded-lg transition-colors"
@@ -126,9 +129,10 @@ export default function Navbar() {
                 className="flex items-center gap-2.5 bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-xl transition-colors"
               >
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                  user.type === "admin"  ? "bg-[#CC5200] text-white" :
-                  user.type === "comite" ? "bg-uai-gold text-uai-navy" :
-                                          "bg-blue-400 text-white"
+                  user.type === "admin"   ? "bg-[#CC5200] text-white" :
+                  user.type === "comite"  ? "bg-uai-gold text-uai-navy" :
+                  user.type === "revisor" ? "bg-emerald-500 text-white" :
+                                           "bg-blue-400 text-white"
                 }`}>
                   {getInitials(user.name)}
                 </div>
@@ -147,10 +151,12 @@ export default function Navbar() {
                         ? <Shield className="w-3.5 h-3.5 text-[#CC5200]" />
                         : user.type === "comite"
                         ? <Shield className="w-3.5 h-3.5 text-amber-500" />
+                        : user.type === "revisor"
+                        ? <ClipboardList className="w-3.5 h-3.5 text-emerald-500" />
                         : <User className="w-3.5 h-3.5 text-blue-500" />
                       }
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                        {user.type === "admin" ? "Coordinador" : user.type === "comite" ? "Miembro del Comité" : "Investigador"}
+                        {user.type === "admin" ? "Coordinador" : user.type === "comite" ? "Miembro del Comité" : user.type === "revisor" ? "Revisor/a" : "Investigador"}
                       </span>
                     </div>
                     <p className="font-semibold text-slate-800 text-sm truncate">{user.name}</p>
@@ -165,6 +171,21 @@ export default function Navbar() {
                         <FolderOpen className="w-4 h-4 text-slate-400" />
                         Mis proyectos
                       </Link>
+                    )}
+
+                    {user.type === "revisor" && (
+                      <>
+                        <Link href="/revisores/perfil" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <User className="w-4 h-4 text-slate-400" />
+                          Mi perfil
+                        </Link>
+                        <Link href="/revisores/dashboard" onClick={() => setOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                          Panel de revisión
+                        </Link>
+                      </>
                     )}
 
                     {user.type === "comite" && (
