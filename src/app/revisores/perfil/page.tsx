@@ -41,7 +41,9 @@ export default function PerfilRevisor() {
       .then((reviewers: { email: string; name: string; expertise: string[] }[]) => {
         const mine = reviewers.find((r) => r.email === cookieEmail);
         setName(mine?.name ?? cookieName ?? "");
-        setExpertise(mine?.expertise ?? []);
+        const areas = mine?.expertise ?? [];
+        setExpertise(areas);
+        if (areas.length === 0) setEditing(true); // new reviewer → go straight to edit
         setReady(true);
       });
   }, [router]);
