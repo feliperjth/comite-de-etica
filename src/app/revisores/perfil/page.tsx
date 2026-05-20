@@ -28,9 +28,10 @@ export default function PerfilRevisor() {
     if (!cookieEmail) { router.push("/revisores"); return; }
 
     fetch("/api/me").then(r => r.json()).then(me => {
-      if (me.type === "admin" || me.type === "comite") {
+      // Only redirect coordinators (have comite_email cookie) or admin
+      const hasComiteEmail = !!getCookie("comite_email");
+      if (me.type === "admin" || hasComiteEmail) {
         router.replace("/comite/perfil");
-        return;
       }
     });
 
