@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Shield, Users, UserCheck, Mail, ArrowLeft, RefreshCw,
-  BookOpen, ChevronRight, Search, Tag,
+  BookOpen, Search, Tag, Trash2, AlertTriangle, X,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -71,10 +71,23 @@ function AvatarCircle({ name, color }: { name: string; color: string }) {
   );
 }
 
-function ResearcherCard({ r }: { r: Researcher }) {
-  const [open, setOpen] = useState(false);
+function ResearcherCard({ r, onDelete }: { r: Researcher; onDelete: () => void }) {
+  const [open, setOpen]       = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const colors = ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#06b6d4","#f97316"];
   const color  = colors[r.name.charCodeAt(0) % colors.length];
+
+  async function handleDelete() {
+    setDeleting(true);
+    await fetch("/api/admin/members", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "researcher", email: r.email }),
+    });
+    onDelete();
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-5">
@@ -120,25 +133,53 @@ function ResearcherCard({ r }: { r: Researcher }) {
         )}
       </div>
 
-      {r.projects.length > 0 && (
-        <div className="px-5 py-3 border-t border-slate-50 bg-slate-50/50 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400">
-            {r.projects.filter(p => p.status === "approved" || p.status === "certified").length} aprobados
-            · {r.projects.filter(p => p.status === "reviewing").length} en revisión
-          </span>
-          <span className="text-[11px] font-semibold" style={{ color }}>
-            {TYPE_LABELS[r.projects[0]?.project_type] ?? "—"}
-          </span>
-        </div>
-      )}
+      <div className="px-5 py-3 border-t border-slate-50 bg-slate-50/50 flex items-center justify-between">
+        <span className="text-[11px] text-slate-400">
+          {r.projects.filter(p => p.status === "approved" || p.status === "certified").length} aprobados
+          · {r.projects.filter(p => p.status === "reviewing").length} en revisión
+        </span>
+        {confirm ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-red-600 font-semibold flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> ¿Eliminar?
+            </span>
+            <button onClick={handleDelete} disabled={deleting}
+              className="text-[10px] font-bold bg-red-600 text-white px-2 py-1 rounded-lg hover:bg-red-700 disabled:opacity-50">
+              {deleting ? "..." : "Sí"}
+            </button>
+            <button onClick={() => setConfirm(false)}
+              className="text-[10px] font-bold text-slate-500 hover:text-slate-700 px-1.5 py-1 rounded-lg border border-slate-200">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirm(true)}
+            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-red-600 transition-colors font-semibold">
+            <Trash2 className="w-3 h-3" /> Eliminar
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-function ReviewerCard({ r }: { r: Reviewer }) {
-  const [open, setOpen] = useState(false);
+function ReviewerCard({ r, onDelete }: { r: Reviewer; onDelete: () => void }) {
+  const [open, setOpen]       = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const colors = ["#7c3aed","#0891b2","#d97706","#16a34a","#dc2626"];
   const color  = colors[r.name.charCodeAt(0) % colors.length];
+
+  async function handleDelete() {
+    setDeleting(true);
+    await fetch("/api/admin/members", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "reviewer", email: r.email }),
+    });
+    onDelete();
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-5">
@@ -192,10 +233,28 @@ function ReviewerCard({ r }: { r: Reviewer }) {
       <div className="px-5 py-3 border-t border-slate-50 bg-slate-50/50 flex items-center justify-between">
         <span className="text-[11px] text-slate-400">
           {r.reviews_submitted} revisión{r.reviews_submitted !== 1 ? "es" : ""} entregada{r.reviews_submitted !== 1 ? "s" : ""}
+          · {r.assigned.filter(p => p.status === "reviewing").length} activos
         </span>
-        <span className="text-[11px] font-semibold" style={{ color }}>
-          {r.assigned.filter(p => p.status === "reviewing").length} activos
-        </span>
+        {confirm ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-red-600 font-semibold flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> ¿Eliminar?
+            </span>
+            <button onClick={handleDelete} disabled={deleting}
+              className="text-[10px] font-bold bg-red-600 text-white px-2 py-1 rounded-lg hover:bg-red-700 disabled:opacity-50">
+              {deleting ? "..." : "Sí"}
+            </button>
+            <button onClick={() => setConfirm(false)}
+              className="text-[10px] font-bold text-slate-500 hover:text-slate-700 px-1.5 py-1 rounded-lg border border-slate-200">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirm(true)}
+            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-red-600 transition-colors font-semibold">
+            <Trash2 className="w-3 h-3" /> Eliminar
+          </button>
+        )}
       </div>
     </div>
   );
@@ -376,7 +435,7 @@ export default function MiembrosPage() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {researchers.map(r => <ResearcherCard key={r.id} r={r} />)}
+                {researchers.map(r => <ResearcherCard key={r.id} r={r} onDelete={reload} />)}
               </div>
             )}
           </>
@@ -393,7 +452,7 @@ export default function MiembrosPage() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {reviewers.map(r => <ReviewerCard key={r.id} r={r} />)}
+                {reviewers.map(r => <ReviewerCard key={r.id} r={r} onDelete={reload} />)}
               </div>
             )}
           </>

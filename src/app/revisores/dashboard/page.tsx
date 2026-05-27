@@ -527,18 +527,26 @@ export default function ReviewerDashboard() {
                           <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
                         {/* Revisores */}
-                        <input
-                          type="text" value={edit.reviewer}
+                        <select
+                          value={edit.reviewer}
                           onChange={(e) => setEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], reviewer: e.target.value } }))}
-                          placeholder="Revisor 1..."
-                          className="w-36 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-                        />
-                        <input
-                          type="text" value={edit.reviewer2}
+                          className="w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+                        >
+                          <option value="">— Revisor 1 —</option>
+                          {reviewers.map((r) => (
+                            <option key={r.email} value={r.name}>{r.name}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={edit.reviewer2}
                           onChange={(e) => setEdits((prev) => ({ ...prev, [p.id]: { ...prev[p.id], reviewer2: e.target.value } }))}
-                          placeholder="Revisor 2..."
-                          className="w-36 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-                        />
+                          className="w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+                        >
+                          <option value="">— Revisor 2 —</option>
+                          {reviewers.map((r) => (
+                            <option key={r.email} value={r.name}>{r.name}</option>
+                          ))}
+                        </select>
                         {/* Separador visual */}
                         <span className="text-slate-200 select-none">|</span>
                         {/* Auto-asignar */}

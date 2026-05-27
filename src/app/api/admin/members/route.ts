@@ -107,3 +107,18 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ researchers, reviewers: reviewerList });
 }
+
+export async function DELETE(req: NextRequest) {
+  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const { type, email } = await req.json();
+  if (!type || !email) return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
+  const supabase = getSupabaseAdmin();
+  if (type === "researcher") {
+    await supabase.from("researcher_accounts").delete().eq("email", email);
+  } else if (type === "reviewer") {
+    await supabase.from("reviewers").delete().eq("email", email);
+  } else {
+    return NextResponse.json({ error: "Tipo inválido" }, { status: 400 });
+  }
+  return NextResponse.json({ ok: true });
+}
