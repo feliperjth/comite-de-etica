@@ -258,14 +258,24 @@ export default function ReviewPage() {
     project.reviewer === reviewerName  ? project.reviewer2 :
     project.reviewer2 === reviewerName ? project.reviewer  : null;
 
+  const currentRound = project.current_round ?? 1;
+
   const projectHeader = (
     <div className="bg-[#1A1A1A] rounded-2xl p-6 mb-8 text-white">
-      <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest mb-2">
-        Revisando como: {reviewerName}
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest">
+          Revisando como: {reviewerName}
+        </p>
+        {currentRound > 1 && (
+          <span className="bg-violet-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+            Ronda {currentRound}
+          </span>
+        )}
+      </div>
       <h1 className="font-bold text-lg leading-snug mb-2">{project.title}</h1>
       <p className="text-slate-400 text-sm">
-        {project.researcher_name} · {project.project_type} · Ronda {project.current_round ?? 1}
+        {project.researcher_name} · {project.project_type}
+        {currentRound > 1 && <span className="text-violet-400 font-semibold"> · Nueva revisión requerida (Ronda {currentRound})</span>}
       </p>
       {coReviewer && (
         <p className="text-slate-400 text-xs mt-1.5 flex items-center gap-1.5">
@@ -354,7 +364,9 @@ export default function ReviewPage() {
         {projectHeader}
 
         <div className="text-center mb-8">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Modalidad de revisión</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+            Modalidad de revisión{currentRound > 1 ? ` · Ronda ${currentRound}` : ""}
+          </p>
           <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo quieren revisar este proyecto?</h2>
           <p className="text-slate-400 text-sm mt-2">
             Coordínate con tu co-revisor/a <strong className="text-slate-600">{coReviewer}</strong> antes de elegir

@@ -274,12 +274,21 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         {/* Reviewer action button */}
         {isReviewer && (
           <div className="mb-6">
+            {(project.current_round ?? 1) > 1 && (
+              <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-xl px-4 py-2.5 mb-3">
+                <span className="text-xs font-bold text-violet-700 uppercase tracking-wide">
+                  ⚠ Este proyecto está en Ronda {project.current_round} — el investigador corrigió y reenvió
+                </span>
+              </div>
+            )}
             <Link
               href={`/revisores/review/${project.id}`}
               className="flex items-center justify-center gap-2.5 w-full bg-uai-navy hover:bg-uai-navy-dark text-white font-semibold px-6 py-3.5 rounded-2xl transition-colors text-sm shadow-sm"
             >
               <ClipboardList className="w-4 h-4" />
-              Revisar este proyecto
+              {(project.current_round ?? 1) > 1
+                ? `Revisar Ronda ${project.current_round}`
+                : "Revisar este proyecto"}
             </Link>
           </div>
         )}
