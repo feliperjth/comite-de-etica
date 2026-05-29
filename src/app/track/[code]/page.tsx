@@ -7,6 +7,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
+import ProjectMessages from "@/components/ProjectMessages";
 
 const statusSteps = (reviewersAssigned: boolean, reviewCount: number, reviewersNeeded: number) => [
   { key: "submitted",   label: reviewersAssigned ? "Recibido · Revisores asignados" : "Recibido", icon: Clock },
@@ -32,7 +33,10 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   }
 
   const cookieStore = await cookies();
-  const isReviewer = !!cookieStore.get("comite_email")?.value;
+  const isReviewer = !!cookieStore.get("comite_email")?.value || !!cookieStore.get("reviewer_email")?.value;
+  const investigadorEmailCookie = cookieStore.get("investigador_email")?.value ?? null;
+  const messageRole: "investigador" | "reviewer" | null =
+    isReviewer ? "reviewer" : investigadorEmailCookie ? "investigador" : null;
 
   const supabase = getSupabase();
   const { data: project } = await supabase
@@ -238,6 +242,11 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
               ))}
             </div>
           </div>
+        )}
+
+        {/* Messaging with reviewers */}
+        {messageRole && reviewersAssigned && (
+          <ProjectMessages projectId={project.id} role={messageRole} />
         )}
 
         {/* AI self-assessment for investigators */}

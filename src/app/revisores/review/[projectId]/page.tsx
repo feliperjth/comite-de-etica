@@ -10,6 +10,7 @@ import {
   Monitor, FolderDown, ArrowRight,
 } from "lucide-react";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
+import ProjectMessages from "@/components/ProjectMessages";
 
 const docLabels: Record<string, string> = {
   protocol:    "Protocolo de investigación",
@@ -250,6 +251,10 @@ export default function ReviewPage() {
     </button>
   );
 
+  const coReviewer =
+    project.reviewer === reviewerName  ? project.reviewer2 :
+    project.reviewer2 === reviewerName ? project.reviewer  : null;
+
   const projectHeader = (
     <div className="bg-[#1A1A1A] rounded-2xl p-6 mb-8 text-white">
       <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest mb-2">
@@ -259,6 +264,12 @@ export default function ReviewPage() {
       <p className="text-slate-400 text-sm">
         {project.researcher_name} · {project.project_type} · Ronda {project.current_round ?? 1}
       </p>
+      {coReviewer && (
+        <p className="text-slate-400 text-xs mt-1.5 flex items-center gap-1.5">
+          <span className="w-4 h-4 bg-emerald-500 rounded-full inline-flex items-center justify-center text-[9px] font-bold">2</span>
+          Co-revisor/a: <span className="text-white font-medium">{coReviewer}</span>
+        </p>
+      )}
     </div>
   );
 
@@ -328,6 +339,62 @@ export default function ReviewPage() {
         {nav}
         {projectHeader}
 
+        {/* Documents panel — always visible before choosing mode */}
+        <div ref={docsRef} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
+          <button
+            onClick={() => setDocsOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText className="w-4 h-4 text-[#CC5200]" />
+              <span className="font-semibold text-slate-700 text-sm">Documentos del proyecto</span>
+              <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">
+                {documents.length}
+              </span>
+            </div>
+            {docsOpen
+              ? <ChevronUp className="w-4 h-4 text-slate-400" />
+              : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          </button>
+
+          {docsOpen && (
+            <div className="border-t border-slate-100 divide-y divide-slate-50">
+              {documents.length === 0 ? (
+                <p className="px-5 py-4 text-sm text-slate-400">Sin documentos adjuntos.</p>
+              ) : documents.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-[#CC5200]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-700 truncate">
+                        {docLabels[doc.doc_type] ?? doc.doc_type}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-4">
+                    <button
+                      onClick={() => setViewer({ url: doc.url, name: doc.file_name })}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#CC5200] border border-slate-200 hover:border-[#CC5200] px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Ver
+                    </button>
+                    <a
+                      href={doc.url}
+                      download={doc.file_name}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#CC5200] hover:bg-[#B34700] px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Descargar
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="text-center mb-8">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Modo de revisión</p>
           <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo deseas revisar este proyecto?</h2>
@@ -371,6 +438,8 @@ export default function ReviewPage() {
             </div>
           </button>
         </div>
+
+        {viewerModal}
       </div>
     );
   }
@@ -443,6 +512,9 @@ export default function ReviewPage() {
             </div>
           )}
         </div>
+
+        {/* Messages */}
+        <ProjectMessages projectId={project.id} role="reviewer" />
 
         {/* Progress */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-8">
@@ -677,6 +749,9 @@ export default function ReviewPage() {
           ))}
         </div>
       </div>
+
+      {/* Messages */}
+      <ProjectMessages projectId={project.id} role="reviewer" />
 
       {/* Simplified decision form */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
