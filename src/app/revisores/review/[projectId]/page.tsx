@@ -7,7 +7,7 @@ import { sections } from "@/lib/sections";
 import {
   CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft,
   Loader2, FileText, Download, Eye, X, ExternalLink,
-  Monitor, FolderDown, ArrowRight,
+  Monitor, FolderDown, ArrowRight, Users, UserCheck,
 } from "lucide-react";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import ProjectMessages from "@/components/ProjectMessages";
@@ -64,6 +64,9 @@ export default function ReviewPage() {
   const [docsOpen, setDocsOpen]         = useState(true);
   const [viewer, setViewer]             = useState<{ url: string; name: string } | null>(null);
   const docsRef                         = useRef<HTMLDivElement>(null);
+
+  // Step 0: joint vs individual (null = not chosen yet)
+  const [jointChoice, setJointChoice] = useState<"joint" | "individual" | null>(null);
 
   // Mode & download-mode states
   const [mode, setMode]                       = useState<ReviewMode>(null);
@@ -275,7 +278,7 @@ export default function ReviewPage() {
 
   // ── Mode selector badge (shown while in a mode) ───────────────────────────
   const modeBadge = mode && (
-    <div className="flex items-center gap-2 mb-6">
+    <div className="flex items-center gap-2 mb-6 flex-wrap">
       <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
         mode === "platform"
           ? "bg-orange-50 border-orange-200 text-[#CC5200]"
@@ -284,12 +287,23 @@ export default function ReviewPage() {
         {mode === "platform" ? <Monitor className="w-3.5 h-3.5" /> : <FolderDown className="w-3.5 h-3.5" />}
         {mode === "platform" ? "Revisión en plataforma" : "Revisión local"}
       </div>
+      <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
+        <UserCheck className="w-3.5 h-3.5" /> Individual
+      </div>
       <button
         onClick={() => setMode(null)}
         className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
       >
         Cambiar modo
       </button>
+      {coReviewer && (
+        <button
+          onClick={() => { setMode(null); setJointChoice(null); }}
+          className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
+        >
+          Cambiar modalidad
+        </button>
+      )}
     </div>
   );
 
@@ -329,6 +343,68 @@ export default function ReviewPage() {
       </div>
     </div>
   );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // STEP 0: JOINT VS INDIVIDUAL (only when co-reviewer exists)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (coReviewer && jointChoice === null) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        {nav}
+        {projectHeader}
+
+        <div className="text-center mb-8">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Modalidad de revisión</p>
+          <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo quieren revisar este proyecto?</h2>
+          <p className="text-slate-400 text-sm mt-2">
+            Coordínate con tu co-revisor/a <strong className="text-slate-600">{coReviewer}</strong> antes de elegir
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Joint review */}
+          <button
+            onClick={() => router.push(`/revisores/review/${project.id}/group`)}
+            className="group bg-white border-2 border-slate-100 hover:border-emerald-400 rounded-2xl p-6 text-left transition-all hover:shadow-md"
+          >
+            <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
+              <Users className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar juntos</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-5">
+              Ambos revisores evalúan en tiempo real en un espacio compartido. Las decisiones se consensúan sección por sección y la revisión final se envía cuando ambos confirman.
+            </p>
+            <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold">
+              Revisión conjunta <ArrowRight className="w-4 h-4" />
+            </div>
+          </button>
+
+          {/* Individual review */}
+          <button
+            onClick={() => setJointChoice("individual")}
+            className="group bg-white border-2 border-slate-100 hover:border-[#CC5200] rounded-2xl p-6 text-left transition-all hover:shadow-md"
+          >
+            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+              <UserCheck className="w-6 h-6 text-[#CC5200]" />
+            </div>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar por separado</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-5">
+              Cada revisor evalúa de forma independiente. El resultado solo se notifica al investigador/a cuando <strong>ambos revisores</strong> hayan completado su evaluación.
+            </p>
+            <div className="flex items-center gap-1.5 text-[#CC5200] text-sm font-semibold">
+              Revisión individual <ArrowRight className="w-4 h-4" />
+            </div>
+          </button>
+        </div>
+
+        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4">
+          <p className="text-xs text-blue-600 leading-relaxed">
+            <strong>Modo separado:</strong> el investigador/a no recibirá ninguna notificación hasta que tanto tú como <strong>{coReviewer}</strong> hayan enviado sus evaluaciones individuales.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // MODE SELECTION SCREEN
@@ -394,6 +470,20 @@ export default function ReviewPage() {
             </div>
           )}
         </div>
+
+        {coReviewer && (
+          <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
+              <UserCheck className="w-3.5 h-3.5" /> Revisión individual
+            </div>
+            <button
+              onClick={() => setJointChoice(null)}
+              className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
+            >
+              Cambiar modalidad
+            </button>
+          </div>
+        )}
 
         <div className="text-center mb-8">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Modo de revisión</p>
@@ -677,6 +767,16 @@ export default function ReviewPage() {
           })}
         </div>
 
+        {/* Co-reviewer notice for individual mode */}
+        {coReviewer && (
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6 flex items-start gap-3">
+            <Users className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-600 leading-relaxed">
+              Revisión <strong>individual</strong>: el investigador/a recibirá el resultado solo cuando <strong>{coReviewer}</strong> también envíe su evaluación.
+            </p>
+          </div>
+        )}
+
         {/* Submit */}
         {submitError && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
@@ -819,6 +919,16 @@ export default function ReviewPage() {
           </div>
         )}
       </div>
+
+      {/* Co-reviewer notice for individual mode */}
+      {coReviewer && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6 flex items-start gap-3">
+          <Users className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-600 leading-relaxed">
+            Revisión <strong>individual</strong>: el investigador/a recibirá el resultado solo cuando <strong>{coReviewer}</strong> también envíe su evaluación.
+          </p>
+        </div>
+      )}
 
       {/* Submit */}
       {submitError && (
