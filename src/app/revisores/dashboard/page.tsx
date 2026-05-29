@@ -299,6 +299,14 @@ export default function ReviewerDashboard() {
           >
             <BookOpen className="w-4 h-4" /> Mi perfil
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => router.push("/comite/migrar")}
+              className="flex items-center gap-2 text-slate-500 hover:text-violet-600 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:border-violet-200 hover:bg-violet-50"
+            >
+              <Settings className="w-4 h-4" /> BD Migrar
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-slate-500 hover:text-red-600 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:border-red-200 hover:bg-red-50"
