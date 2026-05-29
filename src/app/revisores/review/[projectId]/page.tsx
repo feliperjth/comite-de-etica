@@ -207,6 +207,7 @@ export default function ReviewPage() {
 
   // ── Done ──────────────────────────────────────────────────────────────────
   if (done) {
+    const hasCoReviewer = !!(project?.reviewer && project?.reviewer2);
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md text-center">
@@ -215,7 +216,9 @@ export default function ReviewPage() {
           </div>
           <h2 className="text-2xl font-bold text-[#1A1A1A] mb-3">Revisión enviada</h2>
           <p className="text-slate-500 text-sm mb-8">
-            Tu revisión fue registrada. Si el otro revisor también ha completado su evaluación, el sistema notificará automáticamente al investigador.
+            {hasCoReviewer
+              ? "Tu revisión fue registrada. El investigador será notificado cuando el otro revisor también complete su evaluación."
+              : "Tu revisión fue registrada. El investigador será notificado automáticamente."}
           </p>
           <button
             onClick={() => router.push("/revisores/dashboard")}
