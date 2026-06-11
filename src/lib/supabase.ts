@@ -59,3 +59,12 @@ export function getSupabaseAdmin() {
   if (!url || !serviceKey) throw new Error("Agrega SUPABASE_SERVICE_ROLE_KEY en las variables de entorno del servidor.");
   return createClient(url, serviceKey, { auth: { persistSession: false } });
 }
+
+/** Server-only: service-role client when available, anon otherwise. Only use in API routes. */
+export function getSupabaseServer() {
+  try {
+    return getSupabaseAdmin();
+  } catch {
+    return getSupabase();
+  }
+}

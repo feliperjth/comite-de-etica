@@ -38,13 +38,18 @@ export default function GroupReviewPage() {
   const [outcome, setOutcome]           = useState<"accepted" | "corrections" | null>(null);
   const [saving, setSaving]             = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastEditRef = useRef(0);
 
   const round = project?.current_round ?? 1;
 
   const loadDrafts = useCallback(async () => {
     if (!projectId) return;
     const res = await fetch(`/api/projects/${projectId}/group-draft?round=${round}`);
-    if (res.ok) setDrafts(await res.json());
+    if (!res.ok) return;
+    const data = await res.json();
+    // Don't clobber local edits while a save may still be in flight
+    if (Date.now() - lastEditRef.current < 4000) return;
+    setDrafts(data);
   }, [projectId, round]);
 
   useEffect(() => {
@@ -78,6 +83,7 @@ export default function GroupReviewPage() {
   }, [loadDrafts]);
 
   async function updateSection(sectionKey: string, field: Partial<DraftSection>) {
+    lastEditRef.current = Date.now();
     setSaving(sectionKey);
     setDrafts((prev) => prev.map((d) => d.section_key === sectionKey ? { ...d, ...field } : d));
     await fetch(`/api/projects/${projectId}/group-draft`, {

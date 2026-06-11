@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 
 // Canonical display order; unknown types go last, then by upload date
 const DOC_ORDER = ["protocol", "consent", "assent", "instruments", "revision"];
@@ -19,14 +19,9 @@ export async function GET(
 
   const { id } = await params;
 
-  // Prefer the service-role client so reviewers/comité always see every
-  // document regardless of RLS; fall back to anon if the key isn't set.
-  let supabase;
-  try {
-    supabase = getSupabaseAdmin();
-  } catch {
-    supabase = getSupabase();
-  }
+  // Service-role client so reviewers/comité always see every document
+  // regardless of RLS; falls back to anon if the key isn't set.
+  const supabase = getSupabaseServer();
 
   const { data: docs, error } = await supabase
     .from("documents")

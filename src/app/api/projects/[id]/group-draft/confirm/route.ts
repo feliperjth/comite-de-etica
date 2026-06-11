@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import {
   sendEmail,
   buildApprovalEmail,
@@ -16,7 +16,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const { reviewer_name, reviewer_email, origin } = await req.json();
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).single();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });

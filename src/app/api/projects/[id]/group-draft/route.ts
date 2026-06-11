@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const round = Number(req.nextUrl.searchParams.get("round") ?? "1");
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   const { data: existing } = await supabase
     .from("group_review_drafts")
@@ -27,8 +27,12 @@ export async function GET(
       custom_comment: "",
       confirmed_by: [],
     }));
-    await supabase.from("group_review_drafts").upsert(rows, { onConflict: "project_id,round,section_key" });
-    return NextResponse.json(rows);
+    const { data: inserted, error } = await supabase
+      .from("group_review_drafts")
+      .upsert(rows, { onConflict: "project_id,round,section_key" })
+      .select();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(inserted ?? rows);
   }
 
   return NextResponse.json(existing);
@@ -40,7 +44,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const { round, section_key, decision, standard_comments, custom_comment } = await req.json();
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   const { error } = await supabase
     .from("group_review_drafts")
