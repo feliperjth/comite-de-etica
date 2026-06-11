@@ -73,12 +73,29 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   }[] = [];
 
   if (isCorrections) {
+    const round = project.current_round ?? 1;
     const { data: reviews } = await supabase
       .from("reviews")
-      .select("id, reviewer_name, overall_decision, feedback_path, feedback_name")
+      .select("id, reviewer_name, overall_decision")
       .eq("project_id", project.id)
-      .eq("round", project.current_round ?? 1)
+      .eq("round", round)
       .eq("overall_decision", "corrections");
+
+    // Reviewer-uploaded commented documents for this round (file_name is
+    // prefixed with the reviewer's name at upload time)
+    const { data: fbDocs } = await supabase
+      .from("documents")
+      .select("file_name, file_path")
+      .eq("project_id", project.id)
+      .eq("doc_type", "review_feedback")
+      .like("file_path", `%/review-feedback/r${round}/%`);
+
+    const feedbackDocs = (fbDocs ?? [])
+      .filter((d) => d.file_path)
+      .map((d) => ({
+        filename: d.file_name,
+        url: supabase.storage.from("documents").getPublicUrl(d.file_path!).data.publicUrl,
+      }));
 
     if (reviews && reviews.length > 0) {
       const { data: sectionReviews } = await supabase
@@ -87,23 +104,24 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         .in("review_id", reviews.map((r) => r.id))
         .eq("decision", "corrections");
 
-      correctionsByReviewer = reviews.map((r) => ({
-        reviewer_name: r.reviewer_name,
-        sections: (sectionReviews ?? [])
-          .filter((sr) => sr.review_id === r.id)
-          .map((sr) => ({
-            label: sr.section_key === "general"
-              ? "Evaluación general"
-              : allSections.find((s) => s.key === sr.section_key)?.label ?? sr.section_key,
-            standardComments: sr.standard_comments ?? [],
-            customComment: sr.custom_comment ?? "",
-          }))
-          .filter((s) => s.standardComments.length > 0 || s.customComment),
-        feedbackUrl: r.feedback_path
-          ? supabase.storage.from("documents").getPublicUrl(r.feedback_path).data.publicUrl
-          : null,
-        feedbackName: r.feedback_name ?? null,
-      })).filter((r) => r.sections.length > 0 || r.feedbackUrl);
+      correctionsByReviewer = reviews.map((r) => {
+        const myDoc = feedbackDocs.find((d) => d.filename.startsWith(r.reviewer_name));
+        return {
+          reviewer_name: r.reviewer_name,
+          sections: (sectionReviews ?? [])
+            .filter((sr) => sr.review_id === r.id)
+            .map((sr) => ({
+              label: sr.section_key === "general"
+                ? "Evaluación general"
+                : allSections.find((s) => s.key === sr.section_key)?.label ?? sr.section_key,
+              standardComments: sr.standard_comments ?? [],
+              customComment: sr.custom_comment ?? "",
+            }))
+            .filter((s) => s.standardComments.length > 0 || s.customComment),
+          feedbackUrl: myDoc?.url ?? null,
+          feedbackName: myDoc?.filename ?? null,
+        };
+      }).filter((r) => r.sections.length > 0 || r.feedbackUrl);
     }
   }
 

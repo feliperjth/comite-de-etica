@@ -46,15 +46,6 @@ const SQL_MIGRATIONS: Migration[] = [
         ON CONFLICT (key) DO NOTHING;
     `.trim(),
   },
-  {
-    name: "reviews_feedback_document",
-    table: "reviews",
-    column: "feedback_path",
-    sql: `
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS feedback_path text;
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS feedback_name text;
-    `.trim(),
-  },
 ];
 
 // ── Try pg direct connection ──────────────────────────────────────────────────

@@ -149,9 +149,9 @@ export default function ReviewPage() {
     setSubmitting(true);
     setSubmitError("");
 
-    // Upload the reviewer's commented document (sent to the researcher)
-    let feedback_path: string | null = null;
-    let feedback_name: string | null = null;
+    // Upload the reviewer's commented document (sent to the researcher).
+    // Stored in the documents table with the reviewer's name prefixed so
+    // emails and tracking can attribute it without schema changes.
     if (feedbackFile) {
       const supabase = getSupabase();
       const round = project.current_round ?? 1;
@@ -164,8 +164,17 @@ export default function ReviewPage() {
         setSubmitting(false);
         return;
       }
-      feedback_path = path;
-      feedback_name = feedbackFile.name;
+      const { error: docError } = await supabase.from("documents").insert({
+        project_id: project.id,
+        doc_type:   "review_feedback",
+        file_name:  `${reviewerName} - ${feedbackFile.name}`,
+        file_path:  path,
+      });
+      if (docError) {
+        setSubmitError(`No se pudo registrar tu documento: ${docError.message}`);
+        setSubmitting(false);
+        return;
+      }
     }
 
     const payload = {
@@ -174,8 +183,6 @@ export default function ReviewPage() {
       reviewer_email: reviewerEmail,
       round:         project.current_round ?? 1,
       origin:        window.location.origin,
-      feedback_path,
-      feedback_name,
       // Single overall evaluation (pseudo-section "general")
       sections: [{
         section_key:       "general",

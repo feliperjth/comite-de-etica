@@ -27,6 +27,7 @@ export async function GET(
     .from("documents")
     .select("*")
     .eq("project_id", id)
+    .neq("doc_type", "review_feedback") // reviewer→researcher docs live elsewhere
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
