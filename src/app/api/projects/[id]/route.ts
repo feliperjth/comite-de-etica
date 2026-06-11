@@ -5,7 +5,7 @@ import {
   buildRejectedEmail,
   buildReviewerAssignedEmail,
   buildApprovalEmail,
-  buildMacarenaEmail,
+  buildCertRequestEmail,
   buildCoordinatorApprovalEmail,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
@@ -63,12 +63,17 @@ export async function PATCH(
     const macarenaEmail = process.env.MACARENA_EMAIL;
     if (macarenaEmail) {
       const certToken = generateCertToken(prev.id);
-      sendEmail(
-        macarenaEmail,
-        `Solicitud certificado de ética · ${prev.title}`,
-        buildMacarenaEmail(prev, origin, certToken),
-        prev.researcher_email,
-      ).catch(() => {});
+      buildCertRequestEmail(supabase, prev, origin, certToken)
+        .then(({ html, attachments }) =>
+          sendEmail(
+            macarenaEmail,
+            `Solicitud certificado de ética · ${prev.title}`,
+            html,
+            prev.researcher_email,
+            attachments,
+          ),
+        )
+        .catch(() => {});
     }
   }
 

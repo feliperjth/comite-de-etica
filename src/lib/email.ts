@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export type EmailAttachment = { filename: string; path: string };
 
 export function getTransporter() {
   return nodemailer.createTransport({
@@ -10,7 +13,13 @@ export function getTransporter() {
   });
 }
 
-export async function sendEmail(to: string, subject: string, html: string, cc?: string) {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  cc?: string,
+  attachments?: EmailAttachment[],
+) {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
   const t = getTransporter();
   await t.sendMail({
@@ -19,6 +28,7 @@ export async function sendEmail(to: string, subject: string, html: string, cc?: 
     cc,
     subject,
     html,
+    attachments,
   });
 }
 
@@ -209,15 +219,65 @@ export function buildResubmitNotificationEmail(
 }
 
 /* ── Email: solicitud carta de ética a Macarena ──────────────── */
-export function buildMacarenaEmail(project: {
+type MacarenaProject = {
   id: string;
   title: string;
   researcher_name: string;
   researcher_rut: string | null;
   researcher_email: string;
-}, origin: string, certToken: string) {
+  researcher_role?: string | null;
+  advisor_name?: string | null;
+  funding_type?: string | null;
+  funding_folio?: string | null;
+};
+
+export function buildMacarenaEmail(
+  project: MacarenaProject,
+  origin: string,
+  certToken: string,
+  docInfo: { hasConsent: boolean; hasAssent: boolean } = { hasConsent: false, hasAssent: false },
+) {
   const firstName  = project.researcher_name.split(" ")[0];
   const confirmUrl = `${origin}/api/certify?id=${project.id}&token=${certToken}`;
+
+  const roleText = project.researcher_role ? ` <span style="color:#888;">(${project.researcher_role})</span>` : "";
+
+  // ¿Asociado a FONDECYT?
+  const folioTxt = project.funding_folio ? ` · Folio ${project.funding_folio}` : "";
+  const fondecytText =
+    project.funding_type === "fondecyt"
+      ? `Sí — asociado a un proyecto FONDECYT${folioTxt}`
+      : project.funding_type === "grant_uai"
+        ? `No — financiado por Grant UAI${folioTxt}`
+        : "No";
+
+  // Checklist de revisión (el correo solo se envía tras la aprobación total)
+  const checkItem = (label: string, ok: boolean, note: string) => `
+      <p style="margin:0 0 8px;font-size:13px;color:#555;line-height:1.5;">
+        <span style="color:${ok ? "#16a34a" : "#b45309"};font-weight:700;">${ok ? "✓" : "•"}</span>
+        <strong>${label}:</strong> ${note}
+      </p>`;
+
+  const checklist = `
+    <div style="background:#f0fdf4;border-radius:10px;padding:18px 20px;border-left:4px solid #22c55e;margin-bottom:20px;">
+      <p style="margin:0 0 12px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;letter-spacing:1px;">Revisión de documentos éticos</p>
+      ${checkItem("Formulario de ética", true, "Revisado y aprobado por el comité.")}
+      ${checkItem(
+        "Consentimiento informado",
+        docInfo.hasConsent,
+        docInfo.hasConsent
+          ? "Revisado y aprobado · adjunto a este correo."
+          : "No fue adjuntado al proyecto.",
+      )}
+      ${checkItem(
+        "Asentimiento informado",
+        docInfo.hasAssent,
+        docInfo.hasAssent
+          ? "Revisado y aprobado · adjunto a este correo."
+          : "No aplica (sin participantes menores de edad).",
+      )}
+    </div>`;
+
   const body = `
     <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 20px;">
       Estimada Macarena,
@@ -228,10 +288,13 @@ export function buildMacarenaEmail(project: {
     <div style="background:#f9f9f9;border-radius:10px;padding:18px 20px;border-left:4px solid #22c55e;margin-bottom:20px;">
       <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;letter-spacing:1px;">Datos del proyecto</p>
       <p style="margin:0 0 6px;font-size:15px;color:#1a1a1a;font-weight:700;">${project.title}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Investigador/a:</strong> ${project.researcher_name}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Investigador/a principal:</strong> ${project.researcher_name}${roleText}</p>
+      ${project.advisor_name ? `<p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Profesor/a guía:</strong> ${project.advisor_name}</p>` : ""}
       <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>RUT:</strong> ${project.researcher_rut ?? "—"}</p>
-      <p style="margin:0;font-size:13px;color:#555;"><strong>Correo:</strong> ${project.researcher_email}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Correo:</strong> ${project.researcher_email}</p>
+      <p style="margin:0;font-size:13px;color:#555;"><strong>Asociado a FONDECYT:</strong> ${fondecytText}</p>
     </div>
+    ${checklist}
     <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 20px;">
       El proyecto fue revisado por el comité ético científico de la Escuela de Psicología y no presenta riesgos para los participantes, además de tomar todos los resguardos éticos necesarios.
     </p>
@@ -254,6 +317,42 @@ export function buildMacarenaEmail(project: {
       Te envío un saludo afectuoso y que tengas una excelente semana.
     </p>`;
   return wrap(body);
+}
+
+/**
+ * Arma el correo de solicitud de certificado a Macarena: busca los documentos
+ * de consentimiento/asentimiento del proyecto, los prepara como adjuntos y
+ * genera el HTML con el checklist de revisión. Devuelve { html, attachments }.
+ */
+export async function buildCertRequestEmail(
+  supabase: SupabaseClient,
+  project: MacarenaProject,
+  origin: string,
+  certToken: string,
+) {
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("doc_type, file_name, file_path")
+    .eq("project_id", project.id)
+    .in("doc_type", ["consent", "assent"]);
+
+  const consent = docs?.find((d) => d.doc_type === "consent" && d.file_path);
+  const assent  = docs?.find((d) => d.doc_type === "assent"  && d.file_path);
+
+  const attachments: EmailAttachment[] = [];
+  for (const d of [consent, assent]) {
+    if (d?.file_path) {
+      const { data } = supabase.storage.from("documents").getPublicUrl(d.file_path);
+      attachments.push({ filename: d.file_name, path: data.publicUrl });
+    }
+  }
+
+  const html = buildMacarenaEmail(project, origin, certToken, {
+    hasConsent: !!consent,
+    hasAssent: !!assent,
+  });
+
+  return { html, attachments };
 }
 
 /* ── Email: notificación al coordinador ──────────────────────── */

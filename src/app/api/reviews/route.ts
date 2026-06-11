@@ -6,7 +6,7 @@ import {
   buildApprovalEmail,
   buildCorrectionsEmail,
   buildCoordinatorApprovalEmail,
-  buildMacarenaEmail,
+  buildCertRequestEmail,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
 
@@ -139,11 +139,13 @@ export async function POST(req: Request) {
         const macarenaEmail = process.env.MACARENA_EMAIL;
         if (macarenaEmail) {
           const certToken = generateCertToken(project.id);
+          const { html, attachments } = await buildCertRequestEmail(supabase, project, origin, certToken);
           await sendEmail(
             macarenaEmail,
             `Solicitud certificado de ética · ${project.title}`,
-            buildMacarenaEmail(project, origin, certToken),
+            html,
             project.researcher_email,
+            attachments,
           );
         }
       } else {
