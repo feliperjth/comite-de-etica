@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Shield, Users, UserCheck, Mail, ArrowLeft, RefreshCw,
-  BookOpen, Search, Tag, Trash2, AlertTriangle, X,
+  BookOpen, Search, Tag, Trash2, AlertTriangle, X, KeyRound,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -267,6 +267,7 @@ export default function MiembrosPage() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
   const [filterTheme, setFilterTheme] = useState("");
+  const [filterAccount, setFilterAccount] = useState<"" | "with" | "without">("");
 
   useEffect(() => {
     fetch("/api/me").then(r => r.json()).then(me => {
@@ -282,9 +283,12 @@ export default function MiembrosPage() {
     fetch("/api/admin/members").then(r => r.json()).then(d => { setData(d); setLoading(false); });
   };
 
+  const withAccountCount = (data?.researchers ?? []).filter(r => r.hasAccount).length;
+
   const researchers = (data?.researchers ?? []).filter(r =>
     (!search || r.name.toLowerCase().includes(search.toLowerCase()) || r.email.toLowerCase().includes(search.toLowerCase())) &&
-    (!filterTheme || r.projects.some(p => p.theme === filterTheme))
+    (!filterTheme || r.projects.some(p => p.theme === filterTheme)) &&
+    (!filterAccount || (filterAccount === "with" ? r.hasAccount : !r.hasAccount))
   );
 
   const reviewers = (data?.reviewers ?? []).filter(r =>
@@ -346,6 +350,12 @@ export default function MiembrosPage() {
               <Users className="w-4 h-4 text-blue-400" />
               <span className="font-bold text-slate-700">{data?.researchers.length ?? 0}</span>
               <span className="text-slate-400">investigadores</span>
+            </div>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-2 text-sm">
+              <KeyRound className="w-4 h-4 text-amber-400" />
+              <span className="font-bold text-slate-700">{withAccountCount}</span>
+              <span className="text-slate-400">con cuenta</span>
             </div>
             <div className="w-px h-5 bg-slate-200" />
             <div className="flex items-center gap-2 text-sm">
@@ -420,6 +430,19 @@ export default function MiembrosPage() {
                 ))}
               </select>
             </div>
+            {tab === "researchers" && (
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                <select
+                  value={filterAccount}
+                  onChange={e => setFilterAccount(e.target.value as "" | "with" | "without")}
+                  className="pl-8 pr-3 py-2 bg-white border border-slate-100 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-uai-navy/20 shadow-sm appearance-none">
+                  <option value="">Todos</option>
+                  <option value="with">Con cuenta</option>
+                  <option value="without">Sin cuenta</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 

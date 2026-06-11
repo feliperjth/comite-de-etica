@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase, type Project } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
 import {
   CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft,
-  Loader2, FileText, Download, Eye, X, ExternalLink,
-  Monitor, FolderDown, ArrowRight, Users, UserCheck,
+  Loader2, Monitor, FolderDown, ArrowRight, Users, UserCheck,
 } from "lucide-react";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import ProjectMessages from "@/components/ProjectMessages";
-
-const docLabels: Record<string, string> = {
-  protocol:    "Protocolo de investigación",
-  consent:     "Consentimiento informado",
-  assent:      "Asentimiento informado",
-  instruments: "Instrumentos / tests a utilizar",
-};
+import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 
 type Decision   = "accepted" | "corrections" | null;
 type ReviewMode = "platform" | "download" | null;
@@ -60,10 +53,6 @@ export default function ReviewPage() {
   const [submitting, setSubmitting]     = useState(false);
   const [submitError, setSubmitError]   = useState("");
   const [done, setDone]                 = useState(false);
-  const [documents, setDocuments]       = useState<{ id: string; doc_type: string; file_name: string; url: string }[]>([]);
-  const [docsOpen, setDocsOpen]         = useState(true);
-  const [viewer, setViewer]             = useState<{ url: string; name: string } | null>(null);
-  const docsRef                         = useRef<HTMLDivElement>(null);
 
   // Step 0: joint vs individual (null = not chosen yet)
   const [jointChoice, setJointChoice] = useState<"joint" | "individual" | null>(null);
@@ -72,19 +61,6 @@ export default function ReviewPage() {
   const [mode, setMode]                       = useState<ReviewMode>(null);
   const [downloadDecision, setDownloadDecision] = useState<"accepted" | "corrections" | null>(null);
   const [downloadComment, setDownloadComment]   = useState("");
-
-  const closeViewer = useCallback(() => {
-    setViewer(null);
-    setTimeout(() => docsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-  }, []);
-
-  useEffect(() => {
-    if (!viewer) return;
-    window.history.pushState({ viewerOpen: true }, "");
-    const onPop = () => closeViewer();
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [viewer, closeViewer]);
 
   useEffect(() => {
     setReviewerName(decodeURIComponent(getCookie("reviewer_name")));
@@ -96,12 +72,6 @@ export default function ReviewPage() {
     const { data } = await supabase.from("projects").select("*").eq("id", projectId).single();
     setProject(data);
     setLoadingProject(false);
-
-    const docsRes = await fetch(`/api/projects/${projectId}/documents`);
-    if (docsRes.ok) {
-      const docsData = await docsRes.json();
-      setDocuments(docsData.documents ?? []);
-    }
   }, [projectId]);
 
   useEffect(() => { loadProject(); }, [loadProject]);
@@ -320,43 +290,6 @@ export default function ReviewPage() {
     </div>
   );
 
-  // ── Document viewer modal ─────────────────────────────────────────────────
-  const viewerModal = viewer && (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/80" onClick={closeViewer}>
-      <div
-        className="flex items-center justify-between px-5 py-3 bg-[#1A1A1A] shrink-0"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3">
-          <FileText className="w-4 h-4 text-[#CC5200]" />
-          <span className="text-white text-sm font-semibold truncate max-w-[60vw]">{viewer.name}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <a
-            href={viewer.url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" /> Abrir en nueva pestaña
-          </a>
-          <button onClick={closeViewer} className="text-slate-400 hover:text-white transition-colors ml-2">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        {viewer.name.toLowerCase().endsWith(".pdf") ? (
-          <iframe src={viewer.url} className="w-full h-full border-0" title={viewer.name} />
-        ) : (
-          <iframe
-            src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewer.url)}&embedded=true`}
-            className="w-full h-full border-0 bg-white"
-            title={viewer.name}
-          />
-        )}
-      </div>
-    </div>
-  );
-
   // ══════════════════════════════════════════════════════════════════════════
   // STEP 0: JOINT VS INDIVIDUAL (only when co-reviewer exists)
   // ══════════════════════════════════════════════════════════════════════════
@@ -365,6 +298,9 @@ export default function ReviewPage() {
       <div className="max-w-3xl mx-auto px-4 py-10">
         {nav}
         {projectHeader}
+
+        {/* Documents always available, from the very first step */}
+        <ProjectDocumentsPanel projectId={project.id} />
 
         <div className="text-center mb-8">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
@@ -431,60 +367,7 @@ export default function ReviewPage() {
         {projectHeader}
 
         {/* Documents panel — always visible before choosing mode */}
-        <div ref={docsRef} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
-          <button
-            onClick={() => setDocsOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <FileText className="w-4 h-4 text-[#CC5200]" />
-              <span className="font-semibold text-slate-700 text-sm">Documentos del proyecto</span>
-              <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">
-                {documents.length}
-              </span>
-            </div>
-            {docsOpen
-              ? <ChevronUp className="w-4 h-4 text-slate-400" />
-              : <ChevronDown className="w-4 h-4 text-slate-400" />}
-          </button>
-
-          {docsOpen && (
-            <div className="border-t border-slate-100 divide-y divide-slate-50">
-              {documents.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-slate-400">Sin documentos adjuntos.</p>
-              ) : documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-[#CC5200]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-700 truncate">
-                        {docLabels[doc.doc_type] ?? doc.doc_type}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-4">
-                    <button
-                      onClick={() => setViewer({ url: doc.url, name: doc.file_name })}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#CC5200] border border-slate-200 hover:border-[#CC5200] px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Ver
-                    </button>
-                    <a
-                      href={doc.url}
-                      download={doc.file_name}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#CC5200] hover:bg-[#B34700] px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Descargar
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProjectDocumentsPanel projectId={project.id} />
 
         {coReviewer && (
           <div className="flex items-center gap-2 mb-6">
@@ -543,8 +426,6 @@ export default function ReviewPage() {
             </div>
           </button>
         </div>
-
-        {viewerModal}
       </div>
     );
   }
@@ -563,60 +444,7 @@ export default function ReviewPage() {
         <AiAnalysisPanel title={project.title} abstract={project.abstract} mode="revisor" />
 
         {/* Documents panel */}
-        <div ref={docsRef} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
-          <button
-            onClick={() => setDocsOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <FileText className="w-4 h-4 text-[#CC5200]" />
-              <span className="font-semibold text-slate-700 text-sm">Documentos del proyecto</span>
-              <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">
-                {documents.length}
-              </span>
-            </div>
-            {docsOpen
-              ? <ChevronUp className="w-4 h-4 text-slate-400" />
-              : <ChevronDown className="w-4 h-4 text-slate-400" />}
-          </button>
-
-          {docsOpen && (
-            <div className="border-t border-slate-100 divide-y divide-slate-50">
-              {documents.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-slate-400">Sin documentos adjuntos.</p>
-              ) : documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-[#CC5200]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-700 truncate">
-                        {docLabels[doc.doc_type] ?? doc.doc_type}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-4">
-                    <button
-                      onClick={() => setViewer({ url: doc.url, name: doc.file_name })}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#CC5200] border border-slate-200 hover:border-[#CC5200] px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Ver
-                    </button>
-                    <a
-                      href={doc.url}
-                      download={doc.file_name}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#CC5200] hover:bg-[#B34700] px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Descargar
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProjectDocumentsPanel projectId={project.id} />
 
         {/* Messages */}
         <ProjectMessages projectId={project.id} role="reviewer" />
@@ -813,8 +641,6 @@ export default function ReviewPage() {
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Enviando revisión...</>
             : <><Send className="w-5 h-5" /> Enviar revisión completa</>}
         </button>
-
-        {viewerModal}
       </div>
     );
   }
@@ -829,41 +655,7 @@ export default function ReviewPage() {
       {modeBadge}
 
       {/* Documents list */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-6">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2.5">
-          <FolderDown className="w-4 h-4 text-slate-500" />
-          <span className="font-semibold text-slate-700 text-sm">Documentos del proyecto</span>
-          <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full ml-auto">
-            {documents.length}
-          </span>
-        </div>
-        <div className="divide-y divide-slate-50">
-          {documents.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-slate-400 text-center">Sin documentos adjuntos.</p>
-          ) : documents.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50/50">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5 text-slate-500" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-700 truncate">
-                    {docLabels[doc.doc_type] ?? doc.doc_type}
-                  </p>
-                  <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
-                </div>
-              </div>
-              <a
-                href={doc.url}
-                download={doc.file_name}
-                className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 px-4 py-2 rounded-xl transition-colors shrink-0 ml-4"
-              >
-                <Download className="w-3.5 h-3.5" /> Descargar
-              </a>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ProjectDocumentsPanel projectId={project.id} />
 
       {/* Messages */}
       <ProjectMessages projectId={project.id} role="reviewer" />

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
 import { CheckCircle, AlertCircle, Send, ArrowLeft, Loader2, Users, RefreshCw } from "lucide-react";
+import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 
 type Decision = "accepted" | "corrections";
 
@@ -189,6 +190,9 @@ export default function GroupReviewPage() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Documents uploaded by the researcher */}
+      <ProjectDocumentsPanel projectId={project.id} />
 
       {/* Sections */}
       <div className="space-y-4 mb-8">
