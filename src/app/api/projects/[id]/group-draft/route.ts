@@ -16,9 +16,11 @@ export async function GET(
     .eq("project_id", id)
     .eq("round", round);
 
-  // Initialize missing sections
-  if (!existing?.length) {
-    const rows = sections.map((s) => ({
+  // Initialize missing sections (first load, or after new sections were added to the pauta)
+  const have = new Set((existing ?? []).map((e) => e.section_key));
+  const missingRows = sections
+    .filter((s) => !have.has(s.key))
+    .map((s) => ({
       project_id: id,
       round,
       section_key: s.key,
@@ -27,12 +29,14 @@ export async function GET(
       custom_comment: "",
       confirmed_by: [],
     }));
+
+  if (missingRows.length) {
     const { data: inserted, error } = await supabase
       .from("group_review_drafts")
-      .upsert(rows, { onConflict: "project_id,round,section_key" })
+      .upsert(missingRows, { onConflict: "project_id,round,section_key" })
       .select();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(inserted ?? rows);
+    return NextResponse.json([...(existing ?? []), ...(inserted ?? missingRows)]);
   }
 
   return NextResponse.json(existing);
