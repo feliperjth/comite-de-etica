@@ -68,12 +68,14 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   let correctionsByReviewer: {
     reviewer_name: string;
     sections: { label: string; standardComments: string[]; customComment: string }[];
+    feedbackUrl: string | null;
+    feedbackName: string | null;
   }[] = [];
 
   if (isCorrections) {
     const { data: reviews } = await supabase
       .from("reviews")
-      .select("id, reviewer_name, overall_decision")
+      .select("id, reviewer_name, overall_decision, feedback_path, feedback_name")
       .eq("project_id", project.id)
       .eq("round", project.current_round ?? 1)
       .eq("overall_decision", "corrections");
@@ -90,12 +92,18 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         sections: (sectionReviews ?? [])
           .filter((sr) => sr.review_id === r.id)
           .map((sr) => ({
-            label: allSections.find((s) => s.key === sr.section_key)?.label ?? sr.section_key,
+            label: sr.section_key === "general"
+              ? "Evaluación general"
+              : allSections.find((s) => s.key === sr.section_key)?.label ?? sr.section_key,
             standardComments: sr.standard_comments ?? [],
             customComment: sr.custom_comment ?? "",
           }))
           .filter((s) => s.standardComments.length > 0 || s.customComment),
-      })).filter((r) => r.sections.length > 0);
+        feedbackUrl: r.feedback_path
+          ? supabase.storage.from("documents").getPublicUrl(r.feedback_path).data.publicUrl
+          : null,
+        feedbackName: r.feedback_name ?? null,
+      })).filter((r) => r.sections.length > 0 || r.feedbackUrl);
     }
   }
 
@@ -237,6 +245,22 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                         )}
                       </div>
                     ))}
+                    {r.feedbackUrl && (
+                      <a
+                        href={r.feedbackUrl}
+                        download={r.feedbackName ?? undefined}
+                        className="flex items-center justify-between bg-white border border-orange-200 rounded-xl px-4 py-3 hover:bg-orange-50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-base shrink-0">📎</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[#1A1A1A] truncate">Documento con comentarios del revisor</p>
+                            <p className="text-xs text-slate-400 truncate">{r.feedbackName ?? "Descargar documento"}</p>
+                          </div>
+                        </div>
+                        <Download className="w-4 h-4 text-[#CC5200] shrink-0 ml-3" />
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

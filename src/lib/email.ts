@@ -164,7 +164,12 @@ export function buildApprovalEmail(project: {
 /* ── Email: correcciones solicitadas ──────────────────────────── */
 export function buildCorrectionsEmail(
   project: { title: string; researcher_name: string; tracking_code: string | null },
-  correctionsByReviewer: { reviewer_name: string; sections: { label: string; standardComments: string[]; customComment: string }[] }[],
+  correctionsByReviewer: {
+    reviewer_name: string;
+    sections: { label: string; standardComments: string[]; customComment: string }[];
+    feedbackUrl?: string | null;
+    feedbackName?: string | null;
+  }[],
   origin: string,
 ) {
   const trackUrl = `${origin}/track/${project.tracking_code}`;
@@ -176,10 +181,17 @@ export function buildCorrectionsEmail(
         ${s.standardComments.map(c => `<p style="margin:2px 0 2px 16px;font-size:13px;color:#555;">• ${c}</p>`).join("")}
         ${s.customComment ? `<p style="margin:4px 0 0 16px;font-size:13px;color:#555;font-style:italic;">"${s.customComment}"</p>` : ""}
       </div>`).join("");
+    const feedbackHtml = r.feedbackUrl ? `
+      <div style="background:#fff;border:1px solid #f0d9c8;border-radius:8px;padding:12px 16px;margin-top:4px;">
+        <p style="margin:0;font-size:13px;color:#555;">📎 Documento con comentarios del revisor (adjunto a este correo):
+          <a href="${r.feedbackUrl}" style="color:#CC5200;font-weight:700;">${r.feedbackName ?? "descargar"}</a>
+        </p>
+      </div>` : "";
     return `
       <div style="background:#fff8f5;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:16px;">
         <p style="margin:0 0 14px;font-size:12px;font-weight:700;color:#CC5200;text-transform:uppercase;letter-spacing:1px;">Observaciones de ${r.reviewer_name}</p>
         ${sectionHtml}
+        ${feedbackHtml}
       </div>`;
   }).join("");
 

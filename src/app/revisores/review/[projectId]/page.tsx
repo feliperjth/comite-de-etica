@@ -7,6 +7,7 @@ import { sections } from "@/lib/sections";
 import {
   CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft,
   Loader2, Monitor, FolderDown, ArrowRight, Users, UserCheck,
+  Upload, FileText, X,
 } from "lucide-react";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import ProjectMessages from "@/components/ProjectMessages";
@@ -61,6 +62,7 @@ export default function ReviewPage() {
   const [mode, setMode]                       = useState<ReviewMode>(null);
   const [downloadDecision, setDownloadDecision] = useState<"accepted" | "corrections" | null>(null);
   const [downloadComment, setDownloadComment]   = useState("");
+  const [feedbackFile, setFeedbackFile]         = useState<File | null>(null);
 
   useEffect(() => {
     setReviewerName(decodeURIComponent(getCookie("reviewer_name")));
@@ -147,18 +149,40 @@ export default function ReviewPage() {
     setSubmitting(true);
     setSubmitError("");
 
+    // Upload the reviewer's commented document (sent to the researcher)
+    let feedback_path: string | null = null;
+    let feedback_name: string | null = null;
+    if (feedbackFile) {
+      const supabase = getSupabase();
+      const round = project.current_round ?? 1;
+      const path = `${project.id}/review-feedback/r${round}/${Date.now()}_${feedbackFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(path, feedbackFile, { upsert: true });
+      if (uploadError) {
+        setSubmitError(`No se pudo subir tu documento: ${uploadError.message}`);
+        setSubmitting(false);
+        return;
+      }
+      feedback_path = path;
+      feedback_name = feedbackFile.name;
+    }
+
     const payload = {
       project_id:    project.id,
       reviewer_name: reviewerName,
       reviewer_email: reviewerEmail,
       round:         project.current_round ?? 1,
       origin:        window.location.origin,
-      sections: sections.map((s) => ({
-        section_key:       s.key,
+      feedback_path,
+      feedback_name,
+      // Single overall evaluation (pseudo-section "general")
+      sections: [{
+        section_key:       "general",
         decision:          downloadDecision,
-        standard_comments: [],
-        custom_comment:    downloadDecision === "corrections" ? downloadComment : "",
-      })),
+        standard_comments: [] as string[],
+        custom_comment:    downloadComment.trim(),
+      }],
     };
 
     const res = await fetch("/api/reviews", {
@@ -268,7 +292,7 @@ export default function ReviewPage() {
           : "bg-slate-100 border-slate-200 text-slate-600"
       }`}>
         {mode === "platform" ? <Monitor className="w-3.5 h-3.5" /> : <FolderDown className="w-3.5 h-3.5" />}
-        {mode === "platform" ? "Revisión en plataforma" : "Revisión local"}
+        {mode === "platform" ? "Revisión en plataforma" : "Revisión con documento comentado"}
       </div>
       <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
         <UserCheck className="w-3.5 h-3.5" /> Individual
@@ -417,9 +441,9 @@ export default function ReviewPage() {
             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-slate-200 transition-colors">
               <FolderDown className="w-6 h-6 text-slate-600" />
             </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Descargar para revisión local</h3>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar con documento comentado</h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-5">
-              Descarga los documentos del proyecto para revisarlos en tu equipo e ingresa tu evaluación general una vez finalizada.
+              Descarga los documentos, revísalos en tu equipo y sube un documento con tus comentarios. Tu documento se enviará automáticamente al investigador/a junto con la evaluación.
             </p>
             <div className="flex items-center gap-1.5 text-slate-600 text-sm font-semibold">
               Descargar documentos <ArrowRight className="w-4 h-4" />
@@ -712,9 +736,10 @@ export default function ReviewPage() {
         </div>
 
         {downloadDecision === "corrections" && (
-          <div>
+          <div className="mb-5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-              Observaciones y correcciones solicitadas <span className="text-red-400">*</span>
+              Observaciones y correcciones solicitadas
+              {!feedbackFile && <span className="text-red-400"> *</span>}
             </label>
             <textarea
               value={downloadComment}
@@ -723,6 +748,44 @@ export default function ReviewPage() {
               placeholder="Describe las correcciones requeridas, indicando las secciones del formulario UAI que deben modificarse..."
               className="w-full border border-orange-200 bg-orange-50/30 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#CC5200] resize-none"
             />
+          </div>
+        )}
+
+        {/* Reviewer's commented document — sent to the researcher */}
+        {downloadDecision && (
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+              Documento con tus comentarios
+              {downloadDecision === "corrections" && !downloadComment.trim()
+                ? <span className="text-red-400"> *</span>
+                : <span className="text-slate-300 normal-case font-medium"> (opcional)</span>}
+            </label>
+            <p className="text-xs text-slate-400 mb-3">
+              Sube el documento revisado con tus comentarios (PDF o Word). Se enviará al investigador/a junto con tu evaluación.
+            </p>
+            {!feedbackFile ? (
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-6 cursor-pointer hover:border-[#CC5200] hover:bg-orange-50/40 transition-all">
+                <Upload className="w-6 h-6 text-slate-300" />
+                <span className="text-sm font-medium text-[#CC5200]">Seleccionar archivo</span>
+                <span className="text-xs text-slate-400">PDF o Word</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => { setFeedbackFile(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                />
+              </label>
+            ) : (
+              <div className="flex items-center justify-between bg-orange-50/60 border border-orange-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-[#CC5200] shrink-0" />
+                  <span className="text-sm font-medium text-slate-700 truncate">{feedbackFile.name}</span>
+                </div>
+                <button onClick={() => setFeedbackFile(null)} className="text-slate-400 hover:text-red-500 transition-colors ml-2 shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -743,9 +806,9 @@ export default function ReviewPage() {
           {submitError}
         </div>
       )}
-      {downloadDecision === "corrections" && !downloadComment.trim() && (
+      {downloadDecision === "corrections" && !downloadComment.trim() && !feedbackFile && (
         <p className="text-center text-sm text-orange-500 mb-4">
-          Debes escribir las observaciones antes de enviar.
+          Debes escribir las observaciones o subir un documento con tus comentarios antes de enviar.
         </p>
       )}
 
@@ -753,7 +816,7 @@ export default function ReviewPage() {
         onClick={handleDownloadSubmit}
         disabled={
           !downloadDecision || submitting ||
-          (downloadDecision === "corrections" && !downloadComment.trim())
+          (downloadDecision === "corrections" && !downloadComment.trim() && !feedbackFile)
         }
         className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-colors shadow-sm text-sm"
       >

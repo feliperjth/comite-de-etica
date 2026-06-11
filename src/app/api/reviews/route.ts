@@ -17,6 +17,12 @@ interface SectionPayload {
   custom_comment: string;
 }
 
+/** "general" is the pseudo-section used by the document/download review mode. */
+function sectionLabel(key: string) {
+  if (key === "general") return "Evaluación general";
+  return allSections.find((s) => s.key === key)?.label ?? key;
+}
+
 export async function POST(req: Request) {
   try {
     const {
@@ -26,6 +32,8 @@ export async function POST(req: Request) {
       round,
       origin,
       sections,
+      feedback_path,
+      feedback_name,
     }: {
       project_id: string;
       reviewer_name: string;
@@ -33,6 +41,8 @@ export async function POST(req: Request) {
       round: number;
       origin: string;
       sections: SectionPayload[];
+      feedback_path?: string | null;
+      feedback_name?: string | null;
     } = await req.json();
 
     const supabase = getSupabase();
@@ -58,7 +68,11 @@ export async function POST(req: Request) {
     // 3. Insert review
     const { data: review, error: reviewError } = await supabase
       .from("reviews")
-      .insert({ project_id, reviewer_name, reviewer_email, round, overall_decision })
+      .insert({
+        project_id, reviewer_name, reviewer_email, round, overall_decision,
+        feedback_path: feedback_path ?? null,
+        feedback_name: feedback_name ?? null,
+      })
       .select()
       .single();
 
@@ -86,9 +100,18 @@ export async function POST(req: Request) {
     // 5. Fetch all reviews for this project + round (to check if both reviewers done)
     const { data: allReviews } = await supabase
       .from("reviews")
-      .select("id, reviewer_name, reviewer_email, overall_decision")
+      .select("id, reviewer_name, reviewer_email, overall_decision, feedback_path, feedback_name")
       .eq("project_id", project_id)
       .eq("round", round);
+
+    // Reviewer-uploaded feedback documents (commented docs) for this round
+    const feedbackDocs = (allReviews ?? [])
+      .filter((r) => r.feedback_path)
+      .map((r) => ({
+        reviewer_name: r.reviewer_name,
+        filename: r.feedback_name ?? "comentarios.pdf",
+        url: supabase.storage.from("documents").getPublicUrl(r.feedback_path!).data.publicUrl,
+      }));
 
     const { data: project } = await supabase
       .from("projects")
@@ -118,11 +141,13 @@ export async function POST(req: Request) {
           .update({ status: "approved", progress: 100 })
           .eq("id", project_id);
 
-        // Email to researcher
+        // Email to researcher (with any reviewer-commented documents attached)
         await sendEmail(
           project.researcher_email,
           `¡Tu proyecto fue aprobado! · ${project.title}`,
           buildApprovalEmail(project, origin),
+          undefined,
+          feedbackDocs.map((d) => ({ filename: `${d.reviewer_name} - ${d.filename}`, path: d.url })),
         );
 
         // Email to coordinator
@@ -168,19 +193,28 @@ export async function POST(req: Request) {
             const mySections = (sectionReviews ?? [])
               .filter((sr) => sr.review_id === r.id && sr.decision === "corrections")
               .map((sr) => ({
-                label: allSections.find((s) => s.key === sr.section_key)?.label ?? sr.section_key,
+                label: sectionLabel(sr.section_key),
                 standardComments: sr.standard_comments ?? [],
                 customComment: sr.custom_comment ?? "",
-              }));
-            return { reviewer_name: r.reviewer_name, sections: mySections };
+              }))
+              .filter((s) => s.standardComments.length > 0 || s.customComment);
+            const myDoc = feedbackDocs.find((d) => d.reviewer_name === r.reviewer_name);
+            return {
+              reviewer_name: r.reviewer_name,
+              sections: mySections,
+              feedbackUrl: myDoc?.url ?? null,
+              feedbackName: myDoc?.filename ?? null,
+            };
           })
-          .filter((r) => r.sections.length > 0);
+          .filter((r) => r.sections.length > 0 || r.feedbackUrl);
 
         if (correctionsByReviewer.length > 0) {
           await sendEmail(
             project.researcher_email,
             `Tu proyecto tiene observaciones · ${project.title}`,
             buildCorrectionsEmail(project, correctionsByReviewer, origin),
+            undefined,
+            feedbackDocs.map((d) => ({ filename: `${d.reviewer_name} - ${d.filename}`, path: d.url })),
           );
         }
       }

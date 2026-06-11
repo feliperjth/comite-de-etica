@@ -10,10 +10,18 @@ function isAdmin(req: NextRequest) {
   return email?.toLowerCase() === ADMIN_EMAIL;
 }
 
-const SQL_MIGRATIONS = [
+type Migration = {
+  name: string;
+  /** Table to probe for existence (defaults to `name`). */
+  table?: string;
+  /** Column to probe for existence (defaults to `id`). */
+  column?: string;
+  sql: string;
+};
+
+const SQL_MIGRATIONS: Migration[] = [
   {
     name: "project_messages",
-    check: "SELECT 1 FROM information_schema.tables WHERE table_name = 'project_messages' AND table_schema = 'public'",
     sql: `
       CREATE TABLE IF NOT EXISTS project_messages (
         id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -27,7 +35,6 @@ const SQL_MIGRATIONS = [
   },
   {
     name: "app_settings",
-    check: "SELECT 1 FROM information_schema.tables WHERE table_name = 'app_settings' AND table_schema = 'public'",
     sql: `
       CREATE TABLE IF NOT EXISTS app_settings (
         key text PRIMARY KEY,
@@ -37,6 +44,15 @@ const SQL_MIGRATIONS = [
       INSERT INTO app_settings (key, value)
         VALUES ('reviewer_assignment_mode', 'manual')
         ON CONFLICT (key) DO NOTHING;
+    `.trim(),
+  },
+  {
+    name: "reviews_feedback_document",
+    table: "reviews",
+    column: "feedback_path",
+    sql: `
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS feedback_path text;
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS feedback_name text;
     `.trim(),
   },
 ];
@@ -92,8 +108,8 @@ async function checkExisting(): Promise<string[]> {
   const existing: string[] = [];
 
   for (const m of SQL_MIGRATIONS) {
-    // Try a lightweight SELECT to check existence
-    const { error } = await supabase.from(m.name).select("id").limit(0);
+    // Try a lightweight SELECT to check the table (and column, if specified) exists
+    const { error } = await supabase.from(m.table ?? m.name).select(m.column ?? "id").limit(0);
     if (!error) existing.push(m.name);
   }
   return existing;
