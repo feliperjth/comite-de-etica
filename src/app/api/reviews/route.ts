@@ -7,6 +7,7 @@ import {
   buildCorrectionsEmail,
   buildCoordinatorApprovalEmail,
   buildCertRequestEmail,
+  ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
 
@@ -169,7 +170,7 @@ export async function POST(req: Request) {
             macarenaEmail,
             `Solicitud certificado de ética · ${project.title}`,
             html,
-            project.researcher_email,
+            [project.researcher_email, ETHICS_COMMITTEE_EMAIL],
             attachments,
           );
         }

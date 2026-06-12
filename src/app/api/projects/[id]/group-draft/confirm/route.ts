@@ -6,6 +6,7 @@ import {
   buildCorrectionsEmail,
   buildCoordinatorApprovalEmail,
   buildCertRequestEmail,
+  ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
 import { sections as allSections } from "@/lib/sections";
@@ -101,7 +102,7 @@ export async function POST(
     const macarenaEmail = process.env.MACARENA_EMAIL;
     if (macarenaEmail) {
       const { html, attachments } = await buildCertRequestEmail(supabase, project, origin, generateCertToken(id));
-      await sendEmail(macarenaEmail, `Solicitud certificado de ética · ${project.title}`, html, project.researcher_email, attachments);
+      await sendEmail(macarenaEmail, `Solicitud certificado de ética · ${project.title}`, html, [project.researcher_email, ETHICS_COMMITTEE_EMAIL], attachments);
     }
   } else {
     await supabase.from("projects").update({ status: "corrections", progress: 40 }).eq("id", id);

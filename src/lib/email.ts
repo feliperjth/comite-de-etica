@@ -3,6 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type EmailAttachment = { filename: string; path: string };
 
+/** Casilla del comité que recibe copia de las solicitudes de certificado. */
+export const ETHICS_COMMITTEE_EMAIL = "eticapsicologiauai@gmail.com";
+
 export function getTransporter() {
   return nodemailer.createTransport({
     service: "gmail",
@@ -17,7 +20,7 @@ export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  cc?: string,
+  cc?: string | string[],
   attachments?: EmailAttachment[],
 ) {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;

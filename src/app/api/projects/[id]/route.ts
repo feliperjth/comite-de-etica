@@ -7,6 +7,7 @@ import {
   buildApprovalEmail,
   buildCertRequestEmail,
   buildCoordinatorApprovalEmail,
+  ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
 
@@ -69,7 +70,7 @@ export async function PATCH(
             macarenaEmail,
             `Solicitud certificado de ética · ${prev.title}`,
             html,
-            prev.researcher_email,
+            [prev.researcher_email, ETHICS_COMMITTEE_EMAIL],
             attachments,
           ),
         )
