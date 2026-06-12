@@ -243,11 +243,21 @@ export default function GroupReviewPage() {
       {/* Documents uploaded by the researcher */}
       <ProjectDocumentsPanel projectId={project.id} />
 
+      {/* Two review systems explainer */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6">
+        <p className="text-xs text-blue-700 leading-relaxed">
+          <strong>Existen dos sistemas de revisión, que pueden combinar:</strong><br />
+          <strong>Sistema 1 · Pauta en la plataforma:</strong> evalúen juntos cada sección del formulario UAI más abajo.<br />
+          <strong>Sistema 2 · Documento comentado:</strong> suban un documento con sus comentarios; se enviará al investigador/a junto con el resultado.
+        </p>
+      </div>
+
       {/* Reviewer-commented document upload */}
       <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-6">
         <div className="flex items-center gap-2.5 mb-1">
           <FileText className="w-4 h-4 text-[#CC5200]" />
           <h3 className="font-semibold text-slate-700 text-sm">Documento con comentarios <span className="text-slate-300 font-medium">(opcional)</span></h3>
+          <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full ml-auto shrink-0">Sistema 2</span>
         </div>
         <p className="text-xs text-slate-400 mb-4 ml-[26px]">
           Sube un documento revisado con tus comentarios (PDF o Word). Se enviará al investigador/a junto con el resultado de la revisión.
@@ -283,6 +293,10 @@ export default function GroupReviewPage() {
       </div>
 
       {/* Sections */}
+      <div className="flex items-center gap-2.5 mb-4">
+        <h3 className="font-semibold text-slate-700 text-sm">Pauta de evaluación por secciones</h3>
+        <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full shrink-0">Sistema 1</span>
+      </div>
       <div className="space-y-4 mb-8">
         {sections.map((section) => {
           const draft = drafts.find((d) => d.section_key === section.key);

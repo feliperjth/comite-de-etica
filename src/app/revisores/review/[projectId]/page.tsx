@@ -299,7 +299,7 @@ export default function ReviewPage() {
           : "bg-slate-100 border-slate-200 text-slate-600"
       }`}>
         {mode === "platform" ? <Monitor className="w-3.5 h-3.5" /> : <FolderDown className="w-3.5 h-3.5" />}
-        {mode === "platform" ? "Revisión en plataforma" : "Revisión con documento comentado"}
+        {mode === "platform" ? "Sistema 1 · Pauta en plataforma" : "Sistema 2 · Documento comentado"}
       </div>
       <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
         <UserCheck className="w-3.5 h-3.5" /> Individual
@@ -415,10 +415,11 @@ export default function ReviewPage() {
         )}
 
         <div className="text-center mb-8">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Modo de revisión</p>
-          <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo deseas revisar este proyecto?</h2>
-          <p className="text-slate-400 text-sm mt-2">
-            Elige el modo que mejor se adapte a tu proceso de evaluación
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sistemas de revisión</p>
+          <h2 className="text-xl font-bold text-[#1A1A1A]">Existen dos sistemas para revisar este proyecto</h2>
+          <p className="text-slate-400 text-sm mt-2 max-w-xl mx-auto">
+            <strong className="text-slate-600">Sistema 1:</strong> evalúa con la pauta sección por sección en la plataforma. ·{" "}
+            <strong className="text-slate-600">Sistema 2:</strong> sube un documento con tus comentarios, que se envía al investigador/a.
           </p>
         </div>
 
@@ -428,12 +429,15 @@ export default function ReviewPage() {
             onClick={() => setMode("platform")}
             className="group bg-white border-2 border-slate-100 hover:border-[#CC5200] rounded-2xl p-6 text-left transition-all hover:shadow-md"
           >
-            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
-              <Monitor className="w-6 h-6 text-[#CC5200]" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                <Monitor className="w-6 h-6 text-[#CC5200]" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full">Sistema 1</span>
             </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar en la plataforma</h3>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Pauta en la plataforma</h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-5">
-              Evalúa sección por sección del formulario UAI directamente en el sistema, con criterios de corrección automatizados para cada sección.
+              Evalúa sección por sección del formulario UAI directamente en el sistema, con criterios y correcciones estándar para cada sección de la pauta.
             </p>
             <div className="flex items-center gap-1.5 text-[#CC5200] text-sm font-semibold">
               Comenzar revisión <ArrowRight className="w-4 h-4" />
@@ -445,15 +449,18 @@ export default function ReviewPage() {
             onClick={() => setMode("download")}
             className="group bg-white border-2 border-slate-100 hover:border-slate-800 rounded-2xl p-6 text-left transition-all hover:shadow-md"
           >
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-slate-200 transition-colors">
-              <FolderDown className="w-6 h-6 text-slate-600" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                <FolderDown className="w-6 h-6 text-slate-600" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full">Sistema 2</span>
             </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar con documento comentado</h3>
+            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Documento comentado</h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-5">
               Descarga los documentos, revísalos en tu equipo y sube un documento con tus comentarios. Tu documento se enviará automáticamente al investigador/a junto con la evaluación.
             </p>
             <div className="flex items-center gap-1.5 text-slate-600 text-sm font-semibold">
-              Descargar documentos <ArrowRight className="w-4 h-4" />
+              Revisar con documento <ArrowRight className="w-4 h-4" />
             </div>
           </button>
         </div>
