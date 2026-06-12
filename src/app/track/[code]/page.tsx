@@ -123,6 +123,17 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         };
       }).filter((r) => r.sections.length > 0 || r.feedbackUrl);
     }
+
+    // Group reviews don't create rows in `reviews`; still surface any
+    // reviewer-commented documents uploaded for this round
+    if (correctionsByReviewer.length === 0 && feedbackDocs.length > 0) {
+      correctionsByReviewer = feedbackDocs.map((d) => ({
+        reviewer_name: d.filename.split(" - ")[0],
+        sections: [],
+        feedbackUrl: d.url,
+        feedbackName: d.filename,
+      }));
+    }
   }
 
   return (

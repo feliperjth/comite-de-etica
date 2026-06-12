@@ -67,10 +67,33 @@ export async function POST(
   const hasCorrections = updatedDrafts!.some((d) => d.decision === "corrections");
   const overall = hasCorrections ? "corrections" : "accepted";
 
+  // Reviewer-uploaded commented documents for this round (file_name is
+  // prefixed with the reviewer's name at upload time)
+  const { data: fbRows } = await supabase
+    .from("documents")
+    .select("file_name, file_path")
+    .eq("project_id", id)
+    .eq("doc_type", "review_feedback")
+    .like("file_path", `%/review-feedback/r${round}/%`);
+
+  const feedbackDocs = (fbRows ?? [])
+    .filter((d) => d.file_path)
+    .map((d) => ({
+      filename: d.file_name,
+      url: supabase.storage.from("documents").getPublicUrl(d.file_path!).data.publicUrl,
+    }));
+  const feedbackAttachments = feedbackDocs.map((d) => ({ filename: d.filename, path: d.url }));
+
   if (overall === "accepted") {
     await supabase.from("projects").update({ status: "approved", progress: 100 }).eq("id", id);
 
-    await sendEmail(project.researcher_email, `¡Tu proyecto fue aprobado! · ${project.title}`, buildApprovalEmail(project, origin));
+    await sendEmail(
+      project.researcher_email,
+      `¡Tu proyecto fue aprobado! · ${project.title}`,
+      buildApprovalEmail(project, origin),
+      undefined,
+      feedbackAttachments,
+    );
 
     const coordinatorEmail = process.env.COORDINATOR_EMAIL;
     if (coordinatorEmail) await sendEmail(coordinatorEmail, `Proyecto aprobado · ${project.title}`, buildCoordinatorApprovalEmail(project));
@@ -83,9 +106,15 @@ export async function POST(
   } else {
     await supabase.from("projects").update({ status: "corrections", progress: 40 }).eq("id", id);
 
-    const correctionsByReviewer = [
+    const jointName = [project.reviewer, project.reviewer2].filter(Boolean).join(" y ") || "Comité revisor";
+    const correctionsByReviewer: {
+      reviewer_name: string;
+      sections: { label: string; standardComments: string[]; customComment: string }[];
+      feedbackUrl?: string | null;
+      feedbackName?: string | null;
+    }[] = [
       {
-        reviewer_name: project.reviewer ?? "Revisor 1",
+        reviewer_name: jointName,
         sections: updatedDrafts!
           .filter((d) => d.decision === "corrections")
           .map((d) => ({
@@ -96,8 +125,24 @@ export async function POST(
       },
     ].filter((r) => r.sections.length > 0);
 
+    // Each reviewer-commented document gets its own block with a download link
+    for (const d of feedbackDocs) {
+      correctionsByReviewer.push({
+        reviewer_name: d.filename.split(" - ")[0],
+        sections: [],
+        feedbackUrl: d.url,
+        feedbackName: d.filename,
+      });
+    }
+
     if (correctionsByReviewer.length > 0) {
-      await sendEmail(project.researcher_email, `Tu proyecto tiene observaciones · ${project.title}`, buildCorrectionsEmail(project, correctionsByReviewer, origin));
+      await sendEmail(
+        project.researcher_email,
+        `Tu proyecto tiene observaciones · ${project.title}`,
+        buildCorrectionsEmail(project, correctionsByReviewer, origin),
+        undefined,
+        feedbackAttachments,
+      );
     }
   }
 

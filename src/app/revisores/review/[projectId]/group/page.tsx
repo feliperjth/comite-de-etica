@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
-import { CheckCircle, AlertCircle, Send, ArrowLeft, Loader2, Users, RefreshCw } from "lucide-react";
+import { CheckCircle, AlertCircle, Send, ArrowLeft, Loader2, Users, RefreshCw, Upload, FileText } from "lucide-react";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 
 type Decision = "accepted" | "corrections";
@@ -40,7 +40,50 @@ export default function GroupReviewPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastEditRef = useRef(0);
 
+  // Reviewer-uploaded commented documents (sent to the researcher with the outcome)
+  const [fbDocs, setFbDocs]             = useState<{ id: string; file_name: string }[]>([]);
+  const [fbUploading, setFbUploading]   = useState(false);
+  const [fbError, setFbError]           = useState("");
+
   const round = project?.current_round ?? 1;
+
+  const loadFeedbackDocs = useCallback(async () => {
+    if (!projectId) return;
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("documents")
+      .select("id, file_name")
+      .eq("project_id", projectId)
+      .eq("doc_type", "review_feedback")
+      .like("file_path", `%/review-feedback/r${round}/%`);
+    setFbDocs(data ?? []);
+  }, [projectId, round]);
+
+  useEffect(() => { loadFeedbackDocs(); }, [loadFeedbackDocs]);
+
+  async function handleFeedbackUpload(file: File) {
+    setFbUploading(true);
+    setFbError("");
+    const supabase = getSupabase();
+    const path = `${projectId}/review-feedback/r${round}/${Date.now()}_${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(path, file, { upsert: true });
+    if (uploadError) {
+      setFbError(`No se pudo subir el documento: ${uploadError.message}`);
+      setFbUploading(false);
+      return;
+    }
+    const { error: docError } = await supabase.from("documents").insert({
+      project_id: projectId,
+      doc_type:   "review_feedback",
+      file_name:  `${reviewerName} - ${file.name}`,
+      file_path:  path,
+    });
+    if (docError) setFbError(`No se pudo registrar el documento: ${docError.message}`);
+    await loadFeedbackDocs();
+    setFbUploading(false);
+  }
 
   const loadDrafts = useCallback(async () => {
     if (!projectId) return;
@@ -199,6 +242,45 @@ export default function GroupReviewPage() {
 
       {/* Documents uploaded by the researcher */}
       <ProjectDocumentsPanel projectId={project.id} />
+
+      {/* Reviewer-commented document upload */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-6">
+        <div className="flex items-center gap-2.5 mb-1">
+          <FileText className="w-4 h-4 text-[#CC5200]" />
+          <h3 className="font-semibold text-slate-700 text-sm">Documento con comentarios <span className="text-slate-300 font-medium">(opcional)</span></h3>
+        </div>
+        <p className="text-xs text-slate-400 mb-4 ml-[26px]">
+          Sube un documento revisado con tus comentarios (PDF o Word). Se enviará al investigador/a junto con el resultado de la revisión.
+        </p>
+
+        {fbDocs.length > 0 && (
+          <div className="space-y-1.5 mb-3 ml-[26px]">
+            {fbDocs.map((d) => (
+              <div key={d.id} className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-xs font-medium text-slate-700 truncate">{d.file_name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {fbError && <p className="text-xs text-red-500 mb-2 ml-[26px]">{fbError}</p>}
+
+        <label className={`ml-[26px] inline-flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer transition-colors ${
+          fbUploading ? "bg-slate-100 text-slate-400" : "bg-[#CC5200] hover:bg-[#B34700] text-white"
+        }`}>
+          {fbUploading
+            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
+            : <><Upload className="w-3.5 h-3.5" /> {fbDocs.length > 0 ? "Subir otro documento" : "Subir documento"}</>}
+          <input
+            type="file"
+            className="hidden"
+            accept=".pdf,.doc,.docx"
+            disabled={fbUploading}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFeedbackUpload(f); e.target.value = ""; }}
+          />
+        </label>
+      </div>
 
       {/* Sections */}
       <div className="space-y-4 mb-8">
