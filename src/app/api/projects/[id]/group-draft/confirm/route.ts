@@ -119,7 +119,9 @@ export async function POST(
         sections: updatedDrafts!
           .filter((d) => d.decision === "corrections")
           .map((d) => ({
-            label: allSections.find((s) => s.key === d.section_key)?.label ?? d.section_key,
+            label: d.section_key === "general"
+              ? "Evaluación general"
+              : allSections.find((s) => s.key === d.section_key)?.label ?? d.section_key,
             standardComments: d.standard_comments ?? [],
             customComment: d.custom_comment ?? "",
           })),

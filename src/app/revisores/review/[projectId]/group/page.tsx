@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
-import { CheckCircle, AlertCircle, Send, ArrowLeft, Loader2, Users, RefreshCw, Upload, FileText } from "lucide-react";
+import { CheckCircle, AlertCircle, Send, ArrowLeft, Loader2, Users, RefreshCw, Upload, FileText, FolderDown, Monitor, ArrowRight } from "lucide-react";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 
 type Decision = "accepted" | "corrections";
@@ -39,6 +39,9 @@ export default function GroupReviewPage() {
   const [saving, setSaving]             = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastEditRef = useRef(0);
+
+  // Which review system is active (null = chooser screen)
+  const [system, setSystem] = useState<"document" | "pauta" | null>(null);
 
   // Reviewer-uploaded commented documents (sent to the researcher with the outcome)
   const [fbDocs, setFbDocs]             = useState<{ id: string; file_name: string }[]>([]);
@@ -170,6 +173,9 @@ export default function GroupReviewPage() {
   const myConfirmed = drafts.length > 0 && drafts.every((d) => (d.confirmed_by ?? []).includes(reviewerEmail));
   const otherConfirmed = otherEmail ? drafts.length > 0 && drafts.every((d) => (d.confirmed_by ?? []).includes(otherEmail)) : false;
 
+  // Pseudo-section holding the overall decision of the commented-document system
+  const generalDraft = drafts.find((d) => d.section_key === "general");
+
   if (done) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -243,60 +249,189 @@ export default function GroupReviewPage() {
       {/* Documents uploaded by the researcher */}
       <ProjectDocumentsPanel projectId={project.id} />
 
-      {/* Two review systems explainer */}
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6">
-        <p className="text-xs text-blue-700 leading-relaxed">
-          <strong>Existen dos sistemas de revisión, que pueden combinar:</strong><br />
-          <strong>Sistema 1 · Pauta en la plataforma:</strong> evalúen juntos cada sección del formulario UAI más abajo.<br />
-          <strong>Sistema 2 · Documento comentado:</strong> suban un documento con sus comentarios; se enviará al investigador/a junto con el resultado.
-        </p>
-      </div>
-
-      {/* Reviewer-commented document upload */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-6">
-        <div className="flex items-center gap-2.5 mb-1">
-          <FileText className="w-4 h-4 text-[#CC5200]" />
-          <h3 className="font-semibold text-slate-700 text-sm">Documento con comentarios <span className="text-slate-300 font-medium">(opcional)</span></h3>
-          <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full ml-auto shrink-0">Sistema 2</span>
-        </div>
-        <p className="text-xs text-slate-400 mb-4 ml-[26px]">
-          Sube un documento revisado con tus comentarios (PDF o Word). Se enviará al investigador/a junto con el resultado de la revisión.
-        </p>
-
-        {fbDocs.length > 0 && (
-          <div className="space-y-1.5 mb-3 ml-[26px]">
-            {fbDocs.map((d) => (
-              <div key={d.id} className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span className="text-xs font-medium text-slate-700 truncate">{d.file_name}</span>
-              </div>
-            ))}
+      {/* ══ System chooser — one screen to pick between the two systems ══ */}
+      {system === null && (
+        <>
+          <div className="text-center mb-10 mt-2">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sistemas de revisión</p>
+            <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo quieren revisar este proyecto?</h2>
+            <p className="text-slate-400 text-sm mt-2 max-w-xl mx-auto">
+              Elijan uno de los dos sistemas. Pueden cambiar de sistema en cualquier momento y lo registrado en cada uno se incluirá en el resultado.
+            </p>
           </div>
-        )}
 
-        {fbError && <p className="text-xs text-red-500 mb-2 ml-[26px]">{fbError}</p>}
+          {/* Sistema 1 — documento comentado (recomendado) */}
+          <button
+            onClick={() => setSystem("document")}
+            className="group relative w-full text-left bg-gradient-to-br from-orange-50 via-white to-white border-2 border-[#CC5200] rounded-3xl p-7 mb-5 shadow-lg shadow-orange-100/70 hover:shadow-xl hover:shadow-orange-100 hover:-translate-y-0.5 transition-all"
+          >
+            <span className="absolute -top-3 left-7 bg-[#CC5200] text-white text-[10px] font-bold uppercase tracking-widest px-3.5 py-1 rounded-full shadow-sm">
+              ★ Recomendado
+            </span>
+            <div className="flex items-start gap-5">
+              <div className="w-14 h-14 bg-[#CC5200] rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-orange-200 group-hover:scale-105 transition-transform">
+                <FolderDown className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <h3 className="font-bold text-[#1A1A1A] text-lg">Documento comentado</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full">Sistema 1</span>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed mb-4">
+                  Descarguen los documentos del proyecto, revísenlos en su equipo y suban un documento con sus comentarios. Se enviará automáticamente al investigador/a junto con el resultado.
+                </p>
+                <div className="inline-flex items-center gap-1.5 bg-[#CC5200] group-hover:bg-[#B34700] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors">
+                  Revisar con documento <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+          </button>
 
-        <label className={`ml-[26px] inline-flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer transition-colors ${
-          fbUploading ? "bg-slate-100 text-slate-400" : "bg-[#CC5200] hover:bg-[#B34700] text-white"
-        }`}>
-          {fbUploading
-            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
-            : <><Upload className="w-3.5 h-3.5" /> {fbDocs.length > 0 ? "Subir otro documento" : "Subir documento"}</>}
-          <input
-            type="file"
-            className="hidden"
-            accept=".pdf,.doc,.docx"
-            disabled={fbUploading}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFeedbackUpload(f); e.target.value = ""; }}
-          />
-        </label>
-      </div>
+          {/* Sistema 2 — pauta en la plataforma (alternativa) */}
+          <button
+            onClick={() => setSystem("pauta")}
+            className="group w-full text-left bg-white border-2 border-slate-100 hover:border-slate-300 rounded-3xl p-6 transition-all hover:shadow-md"
+          >
+            <div className="flex items-start gap-5">
+              <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors">
+                <Monitor className="w-6 h-6 text-slate-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <h3 className="font-bold text-[#1A1A1A] text-base">Pauta en la plataforma</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">Sistema 2 · Alternativa</span>
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed mb-3">
+                  Evalúen juntos cada sección del formulario UAI directamente en el sistema, con criterios y correcciones estándar para cada sección de la pauta.
+                </p>
+                <div className="flex items-center gap-1.5 text-slate-500 group-hover:text-slate-700 text-sm font-semibold transition-colors">
+                  Revisar con la pauta <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+          </button>
+        </>
+      )}
 
-      {/* Sections */}
-      <div className="flex items-center gap-2.5 mb-4">
-        <h3 className="font-semibold text-slate-700 text-sm">Pauta de evaluación por secciones</h3>
-        <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full shrink-0">Sistema 1</span>
-      </div>
+      {/* ══ Active system badge + switcher ══ */}
+      {system !== null && (
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
+            system === "document"
+              ? "bg-orange-50 border-orange-200 text-[#CC5200]"
+              : "bg-slate-100 border-slate-200 text-slate-600"
+          }`}>
+            {system === "document" ? <FolderDown className="w-3.5 h-3.5" /> : <Monitor className="w-3.5 h-3.5" />}
+            {system === "document" ? "Sistema 1 · Documento comentado" : "Sistema 2 · Pauta en plataforma"}
+          </div>
+          <button
+            onClick={() => setSystem(null)}
+            className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
+          >
+            Cambiar de sistema
+          </button>
+        </div>
+      )}
+
+      {/* ══ SISTEMA 1: commented document + overall decision ══ */}
+      {system === "document" && (
+        <>
+          {/* Overall decision (stored in the "general" pseudo-section draft) */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-6">
+            <h3 className="font-semibold text-slate-700 text-sm mb-1">Evaluación general del proyecto</h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Tras revisar los documentos, registren la decisión conjunta. Se guarda automáticamente para ambos revisores.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => updateSection("general", { decision: "accepted", standard_comments: [], custom_comment: "" })}
+                className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all ${
+                  generalDraft?.decision === "accepted"
+                    ? "border-emerald-400 bg-emerald-50"
+                    : "border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50"
+                }`}
+              >
+                <CheckCircle className={`w-7 h-7 ${generalDraft?.decision === "accepted" ? "text-emerald-500" : "text-slate-300"}`} />
+                <span className={`text-sm font-bold ${generalDraft?.decision === "accepted" ? "text-emerald-700" : "text-slate-500"}`}>
+                  Aprobar proyecto
+                </span>
+                <span className="text-xs text-slate-400 text-center leading-snug">El proyecto cumple los criterios éticos</span>
+              </button>
+              <button
+                onClick={() => updateSection("general", { decision: "corrections" })}
+                className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all ${
+                  generalDraft?.decision === "corrections"
+                    ? "border-orange-400 bg-orange-50"
+                    : "border-slate-100 hover:border-orange-200 hover:bg-orange-50/50"
+                }`}
+              >
+                <AlertCircle className={`w-7 h-7 ${generalDraft?.decision === "corrections" ? "text-[#CC5200]" : "text-slate-300"}`} />
+                <span className={`text-sm font-bold ${generalDraft?.decision === "corrections" ? "text-[#CC5200]" : "text-slate-500"}`}>
+                  Solicitar correcciones
+                </span>
+                <span className="text-xs text-slate-400 text-center leading-snug">El proyecto requiere ajustes</span>
+              </button>
+            </div>
+            {generalDraft?.decision === "corrections" && (
+              <div className="mt-4">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                  Observaciones generales (se envían al investigador/a)
+                </label>
+                <textarea
+                  value={generalDraft?.custom_comment ?? ""}
+                  onChange={(e) => updateSection("general", { custom_comment: e.target.value })}
+                  rows={4}
+                  placeholder="Describan las correcciones requeridas, o súbanlas como documento comentado más abajo..."
+                  className="w-full border border-orange-200 bg-orange-50/30 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#CC5200] resize-none"
+                />
+              </div>
+            )}
+            {saving === "general" && <p className="text-xs text-slate-300 mt-2">Guardando...</p>}
+          </div>
+
+          {/* Reviewer-commented document upload */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-6">
+            <div className="flex items-center gap-2.5 mb-1">
+              <FileText className="w-4 h-4 text-[#CC5200]" />
+              <h3 className="font-semibold text-slate-700 text-sm">Documento con comentarios</h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 ml-[26px]">
+              Suban un documento revisado con sus comentarios (PDF o Word). Se enviará al investigador/a junto con el resultado de la revisión.
+            </p>
+
+            {fbDocs.length > 0 && (
+              <div className="space-y-1.5 mb-3 ml-[26px]">
+                {fbDocs.map((d) => (
+                  <div key={d.id} className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="text-xs font-medium text-slate-700 truncate">{d.file_name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {fbError && <p className="text-xs text-red-500 mb-2 ml-[26px]">{fbError}</p>}
+
+            <label className={`ml-[26px] inline-flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer transition-colors ${
+              fbUploading ? "bg-slate-100 text-slate-400" : "bg-[#CC5200] hover:bg-[#B34700] text-white"
+            }`}>
+              {fbUploading
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
+                : <><Upload className="w-3.5 h-3.5" /> {fbDocs.length > 0 ? "Subir otro documento" : "Subir documento"}</>}
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx"
+                disabled={fbUploading}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFeedbackUpload(f); e.target.value = ""; }}
+              />
+            </label>
+          </div>
+        </>
+      )}
+
+      {/* ══ SISTEMA 2: section-by-section pauta ══ */}
+      {system === "pauta" && (
       <div className="space-y-4 mb-8">
         {sections.map((section) => {
           const draft = drafts.find((d) => d.section_key === section.key);
@@ -356,9 +491,10 @@ export default function GroupReviewPage() {
           );
         })}
       </div>
+      )}
 
       {/* Confirm button */}
-      {!myConfirmed ? (
+      {system !== null && (!myConfirmed ? (
         <div className="sticky bottom-6">
           <button
             onClick={handleConfirm}
@@ -383,7 +519,7 @@ export default function GroupReviewPage() {
             )}
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

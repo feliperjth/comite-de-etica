@@ -16,14 +16,16 @@ export async function GET(
     .eq("project_id", id)
     .eq("round", round);
 
-  // Initialize missing sections (first load, or after new sections were added to the pauta)
+  // Initialize missing sections (first load, or after new sections were added
+  // to the pauta). "general" is the pseudo-section used by the
+  // commented-document system for the overall decision.
   const have = new Set((existing ?? []).map((e) => e.section_key));
-  const missingRows = sections
-    .filter((s) => !have.has(s.key))
-    .map((s) => ({
+  const missingRows = [...sections.map((s) => s.key), "general"]
+    .filter((key) => !have.has(key))
+    .map((key) => ({
       project_id: id,
       round,
-      section_key: s.key,
+      section_key: key,
       decision: "accepted",
       standard_comments: [],
       custom_comment: "",

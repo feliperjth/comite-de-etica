@@ -294,12 +294,12 @@ export default function ReviewPage() {
   const modeBadge = mode && (
     <div className="flex items-center gap-2 mb-6 flex-wrap">
       <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
-        mode === "platform"
+        mode === "download"
           ? "bg-orange-50 border-orange-200 text-[#CC5200]"
           : "bg-slate-100 border-slate-200 text-slate-600"
       }`}>
-        {mode === "platform" ? <Monitor className="w-3.5 h-3.5" /> : <FolderDown className="w-3.5 h-3.5" />}
-        {mode === "platform" ? "Sistema 1 · Pauta en plataforma" : "Sistema 2 · Documento comentado"}
+        {mode === "download" ? <FolderDown className="w-3.5 h-3.5" /> : <Monitor className="w-3.5 h-3.5" />}
+        {mode === "download" ? "Sistema 1 · Documento comentado" : "Sistema 2 · Pauta en plataforma"}
       </div>
       <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
         <UserCheck className="w-3.5 h-3.5" /> Individual
@@ -414,56 +414,64 @@ export default function ReviewPage() {
           </div>
         )}
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-10">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sistemas de revisión</p>
-          <h2 className="text-xl font-bold text-[#1A1A1A]">Existen dos sistemas para revisar este proyecto</h2>
+          <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo quieres revisar este proyecto?</h2>
           <p className="text-slate-400 text-sm mt-2 max-w-xl mx-auto">
-            <strong className="text-slate-600">Sistema 1:</strong> evalúa con la pauta sección por sección en la plataforma. ·{" "}
-            <strong className="text-slate-600">Sistema 2:</strong> sube un documento con tus comentarios, que se envía al investigador/a.
+            Elige uno de los dos sistemas para entregar tu evaluación.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Platform mode card */}
-          <button
-            onClick={() => setMode("platform")}
-            className="group bg-white border-2 border-slate-100 hover:border-[#CC5200] rounded-2xl p-6 text-left transition-all hover:shadow-md"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-100 transition-colors">
-                <Monitor className="w-6 h-6 text-[#CC5200]" />
+        {/* Sistema 1 — documento comentado (recomendado) */}
+        <button
+          onClick={() => setMode("download")}
+          className="group relative w-full text-left bg-gradient-to-br from-orange-50 via-white to-white border-2 border-[#CC5200] rounded-3xl p-7 mb-5 shadow-lg shadow-orange-100/70 hover:shadow-xl hover:shadow-orange-100 hover:-translate-y-0.5 transition-all"
+        >
+          <span className="absolute -top-3 left-7 bg-[#CC5200] text-white text-[10px] font-bold uppercase tracking-widest px-3.5 py-1 rounded-full shadow-sm">
+            ★ Recomendado
+          </span>
+          <div className="flex items-start gap-5">
+            <div className="w-14 h-14 bg-[#CC5200] rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-orange-200 group-hover:scale-105 transition-transform">
+              <FolderDown className="w-7 h-7 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <h3 className="font-bold text-[#1A1A1A] text-lg">Documento comentado</h3>
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full">Sistema 1</span>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full">Sistema 1</span>
+              <p className="text-slate-500 text-sm leading-relaxed mb-4">
+                Descarga los documentos del proyecto, revísalos en tu equipo y sube un documento con tus comentarios. Se enviará automáticamente al investigador/a junto con tu evaluación.
+              </p>
+              <div className="inline-flex items-center gap-1.5 bg-[#CC5200] group-hover:bg-[#B34700] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors">
+                Revisar con documento <ArrowRight className="w-4 h-4" />
+              </div>
             </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Pauta en la plataforma</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-5">
-              Evalúa sección por sección del formulario UAI directamente en el sistema, con criterios y correcciones estándar para cada sección de la pauta.
-            </p>
-            <div className="flex items-center gap-1.5 text-[#CC5200] text-sm font-semibold">
-              Comenzar revisión <ArrowRight className="w-4 h-4" />
-            </div>
-          </button>
+          </div>
+        </button>
 
-          {/* Download mode card */}
-          <button
-            onClick={() => setMode("download")}
-            className="group bg-white border-2 border-slate-100 hover:border-slate-800 rounded-2xl p-6 text-left transition-all hover:shadow-md"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center group-hover:bg-slate-200 transition-colors">
-                <FolderDown className="w-6 h-6 text-slate-600" />
+        {/* Sistema 2 — pauta en la plataforma (alternativa) */}
+        <button
+          onClick={() => setMode("platform")}
+          className="group w-full text-left bg-white border-2 border-slate-100 hover:border-slate-300 rounded-3xl p-6 transition-all hover:shadow-md"
+        >
+          <div className="flex items-start gap-5">
+            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors">
+              <Monitor className="w-6 h-6 text-slate-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <h3 className="font-bold text-[#1A1A1A] text-base">Pauta en la plataforma</h3>
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">Sistema 2 · Alternativa</span>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full">Sistema 2</span>
+              <p className="text-slate-400 text-sm leading-relaxed mb-3">
+                Evalúa sección por sección el formulario UAI directamente en el sistema, con criterios y correcciones estándar para cada sección de la pauta.
+              </p>
+              <div className="flex items-center gap-1.5 text-slate-500 group-hover:text-slate-700 text-sm font-semibold transition-colors">
+                Revisar con la pauta <ArrowRight className="w-4 h-4" />
+              </div>
             </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Documento comentado</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-5">
-              Descarga los documentos, revísalos en tu equipo y sube un documento con tus comentarios. Tu documento se enviará automáticamente al investigador/a junto con la evaluación.
-            </p>
-            <div className="flex items-center gap-1.5 text-slate-600 text-sm font-semibold">
-              Revisar con documento <ArrowRight className="w-4 h-4" />
-            </div>
-          </button>
-        </div>
+          </div>
+        </button>
       </div>
     );
   }
