@@ -140,6 +140,30 @@ export function buildReviewerAssignedEmail(project: {
   return wrap(body);
 }
 
+/* ── Email: el co-revisor ya completó su revisión ─────────────── */
+export function buildReviewerColleagueDoneEmail(
+  project: { title: string; researcher_name: string },
+  recipientName: string,
+  colleagueName: string,
+  reviewUrl: string,
+) {
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Tu co-revisor ya completó su revisión</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Estimada/o <strong>${recipientName}</strong>, te informamos que <strong>${colleagueName}</strong> ya envió su revisión de este proyecto. Falta tu revisión para cerrar la evaluación.
+    </p>
+    <div style="background:#f9f9f9;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">Pendiente de tu revisión</p>
+      <p style="margin:0 0 6px;font-size:15px;color:#1A1A1A;font-weight:600;">${project.title}</p>
+      <p style="margin:0;font-size:13px;color:#888;">Investigador/a: ${project.researcher_name}</p>
+    </div>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${reviewUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 32px;border-radius:8px;">Completar mi revisión</a>
+    </div>
+    <p style="font-size:12px;color:#999;margin:0;">Una vez ambos revisores hayan enviado su evaluación, el resultado se comunica automáticamente al investigador/a.</p>`;
+  return wrap(body);
+}
+
 /* ── Email: aprobación ─────────────────────────────────────────── */
 export function buildApprovalEmail(project: {
   title: string;

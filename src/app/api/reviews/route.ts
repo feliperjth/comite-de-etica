@@ -7,6 +7,7 @@ import {
   buildCorrectionsEmail,
   buildCoordinatorApprovalEmail,
   buildCertRequestEmail,
+  buildReviewerColleagueDoneEmail,
   ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
@@ -217,6 +218,28 @@ export async function POST(req: Request) {
             undefined,
             feedbackDocs.map((d) => ({ filename: d.filename, path: d.url })),
           );
+        }
+      }
+    } else if (reviewersNeeded === 2 && (allReviews?.length ?? 0) === 1) {
+      // Falta el segundo revisor → avisarle que su co-revisor ya completó.
+      const otherName = [project.reviewer, project.reviewer2]
+        .find((n) => n && n !== reviewer_name);
+      if (otherName) {
+        const { data: other } = await supabase
+          .from("reviewers")
+          .select("email")
+          .ilike("name", otherName)
+          .limit(1)
+          .maybeSingle();
+        if (other?.email) {
+          await sendEmail(
+            other.email,
+            `Tu co-revisor ya revisó · ${project.title}`,
+            buildReviewerColleagueDoneEmail(
+              project, otherName, reviewer_name,
+              `${origin}/revisores/review/${project.id}`,
+            ),
+          ).catch(() => {});
         }
       }
     }

@@ -137,27 +137,10 @@ export async function PATCH(
     }
   }
 
-  // ── Trigger: revisor asignado ────────────────────────────────────
-  const newReviewers: string[] = [];
-  if (prev && body.reviewer  !== undefined && body.reviewer  !== prev.reviewer)  newReviewers.push(body.reviewer);
-  if (prev && body.reviewer2 !== undefined && body.reviewer2 !== prev.reviewer2) newReviewers.push(body.reviewer2);
-
-  for (const name of newReviewers.filter(Boolean)) {
-    const { data: rev } = await supabase
-      .from("reviews")
-      .select("reviewer_email")
-      .ilike("reviewer_name", name)
-      .limit(1)
-      .maybeSingle();
-
-    if (rev?.reviewer_email) {
-      sendEmail(
-        rev.reviewer_email,
-        `Proyecto asignado para revisión · ${data.title}`,
-        buildReviewerAssignedEmail(data, name, origin),
-      ).catch(() => {});
-    }
-  }
+  // Nota: al asignar revisores manualmente NO se envía correo automático; el
+  // coordinador avisa explícitamente con el botón "Avisar" del dashboard, que
+  // llama a POST /api/projects/[id]/notify-reviewer. (La asignación automática
+  // de arriba sí notifica, por ser un envío sin intervención del coordinador.)
 
   return NextResponse.json(data);
 }

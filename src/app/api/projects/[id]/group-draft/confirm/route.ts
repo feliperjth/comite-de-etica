@@ -6,6 +6,7 @@ import {
   buildCorrectionsEmail,
   buildCoordinatorApprovalEmail,
   buildCertRequestEmail,
+  buildReviewerColleagueDoneEmail,
   ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
@@ -61,6 +62,22 @@ export async function POST(
   );
 
   if (!allConfirmed) {
+    // Uno confirmó y el otro aún no → avisar al co-revisor que falta.
+    for (const name of [project.reviewer, project.reviewer2].filter(Boolean) as string[]) {
+      if (name === reviewer_name) continue;
+      const coEmail = await getReviewerEmail(name, supabase);
+      if (!coEmail) continue;
+      const yaConfirmo = updatedDrafts?.every((d) => (d.confirmed_by ?? []).includes(coEmail));
+      if (yaConfirmo) continue;
+      await sendEmail(
+        coEmail,
+        `Tu co-revisor ya revisó · ${project.title}`,
+        buildReviewerColleagueDoneEmail(
+          project, name, reviewer_name,
+          `${origin}/revisores/review/${id}/group`,
+        ),
+      ).catch(() => {});
+    }
     return NextResponse.json({ ok: true, status: "waiting" });
   }
 

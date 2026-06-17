@@ -8,7 +8,7 @@ import StatusBadge from "@/components/StatusBadge";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
   AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
-  Trash2, AlertTriangle, X, Settings,
+  Trash2, AlertTriangle, X, Settings, Mail,
 } from "lucide-react";
 import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
@@ -85,6 +85,7 @@ export default function ReviewerDashboard() {
   const [viewMode, setViewMode] = useState<"all"|"mine">("all");
   const [assignMode, setAssignMode] = useState<"manual"|"auto">("manual");
   const [assignModeLoading, setAssignModeLoading] = useState(false);
+  const [notifying, setNotifying] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
@@ -174,6 +175,27 @@ export default function ReviewerDashboard() {
     setTimeout(() => setSavedId(null), 2000);
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], saving: false } }));
     loadProjects();
+  }
+
+  async function handleNotifyReviewers(id: string) {
+    setNotifying((prev) => ({ ...prev, [id]: { loading: true, msg: "" } }));
+    try {
+      const res  = await fetch(`/api/projects/${id}/notify-reviewer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      const msg  = res.ok
+        ? (data.notified?.length
+            ? `Aviso enviado a ${data.notified.join(", ")}`
+            : "Sin revisores con correo registrado")
+        : `Error: ${data.error}`;
+      setNotifying((prev) => ({ ...prev, [id]: { loading: false, msg } }));
+    } catch {
+      setNotifying((prev) => ({ ...prev, [id]: { loading: false, msg: "Error al enviar" } }));
+    }
+    setTimeout(() => setNotifying((prev) => ({ ...prev, [id]: { loading: false, msg: "" } })), 5000);
   }
 
   async function handleAutoAssign(projectId: string) {
@@ -630,8 +652,27 @@ export default function ReviewerDashboard() {
                             <span className={`text-xs font-medium ${aa.result.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>{aa.result}</span>
                           )}
                         </>}
-                        {/* Guardar + Eliminar — empujados a la derecha */}
+                        {/* Avisar / Guardar / Eliminar — empujados a la derecha */}
                         <div className="ml-auto flex items-center gap-2">
+                          {(p.reviewer || p.reviewer2) && (
+                            <>
+                              {notifying[p.id]?.msg && (
+                                <span className={`text-xs font-medium ${notifying[p.id].msg.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>
+                                  {notifying[p.id].msg}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleNotifyReviewers(p.id)}
+                                disabled={notifying[p.id]?.loading}
+                                title="Enviar correo a los revisores asignados avisando del proyecto"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-[#CC5200] border border-[#CC5200]/40 hover:bg-orange-50 disabled:opacity-50 transition-all"
+                              >
+                                {notifying[p.id]?.loading
+                                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enviando...</>
+                                  : <><Mail className="w-3.5 h-3.5" /> Avisar</>}
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => saveProject(p.id)}
                             disabled={(!changed && !isSaved) || edit.saving}
