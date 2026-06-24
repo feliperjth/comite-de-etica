@@ -2,6 +2,7 @@ import { getSupabase, isConfigured } from "@/lib/supabase";
 import { sections as allSections } from "@/lib/sections";
 import StatusBadge from "@/components/StatusBadge";
 import ResubmitForm from "@/components/ResubmitForm";
+import RepairMissingDocs from "@/components/RepairMissingDocs";
 import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award, Users, Download } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -50,6 +51,16 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   const isRejected    = project.status === "rejected";
   const isCorrections = project.status === "corrections";
   const currentStep   = statusOrder.indexOf(project.status);
+
+  // Documentos que quedaron sin archivo (subida fallida en el envío); se
+  // ofrecen para re-subir, salvo en proyectos rechazados.
+  const { data: missingDocsRaw } = await supabase
+    .from("documents")
+    .select("id, doc_type, file_name")
+    .eq("project_id", project.id)
+    .is("file_path", null)
+    .neq("doc_type", "review_feedback");
+  const missingDocs = isRejected ? [] : (missingDocsRaw ?? []);
 
   const reviewersAssigned = !!(project.reviewer || project.reviewer2);
   const reviewersNeeded   = project.reviewer2 ? 2 : 1;
@@ -312,6 +323,15 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
             />
             <AiSectionReviewer projectTitle={project.title} />
           </div>
+        )}
+
+        {/* Missing-document repair: re-upload files whose upload failed */}
+        {missingDocs.length > 0 && (
+          <RepairMissingDocs
+            projectId={project.id}
+            code={(project.tracking_code ?? code).toUpperCase()}
+            missing={missingDocs}
+          />
         )}
 
         {/* Re-upload section */}
