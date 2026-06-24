@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase, type Project } from "@/lib/supabase";
+import { safeStorageName } from "@/lib/storage";
 import { sections } from "@/lib/sections";
 import {
   CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft,
@@ -155,7 +156,7 @@ export default function ReviewPage() {
     if (feedbackFile) {
       const supabase = getSupabase();
       const round = project.current_round ?? 1;
-      const path = `${project.id}/review-feedback/r${round}/${Date.now()}_${feedbackFile.name}`;
+      const path = `${project.id}/review-feedback/r${round}/${Date.now()}_${safeStorageName(feedbackFile.name)}`;
       const { error: uploadError } = await supabase.storage
         .from("documents")
         .upload(path, feedbackFile, { upsert: true });

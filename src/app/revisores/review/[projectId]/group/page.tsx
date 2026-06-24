@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { safeStorageName } from "@/lib/storage";
 import { sections } from "@/lib/sections";
 import { CheckCircle, AlertCircle, Send, ArrowLeft, Loader2, Users, RefreshCw, Upload, FileText, FolderDown, Monitor, ArrowRight } from "lucide-react";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
@@ -68,7 +69,7 @@ export default function GroupReviewPage() {
     setFbUploading(true);
     setFbError("");
     const supabase = getSupabase();
-    const path = `${projectId}/review-feedback/r${round}/${Date.now()}_${file.name}`;
+    const path = `${projectId}/review-feedback/r${round}/${Date.now()}_${safeStorageName(file.name)}`;
     const { error: uploadError } = await supabase.storage
       .from("documents")
       .upload(path, file, { upsert: true });

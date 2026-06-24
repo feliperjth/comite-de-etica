@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Upload, CheckCircle, Loader2, FileText, X } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
+import { safeStorageName } from "@/lib/storage";
 
 interface Props {
   projectId: string;
@@ -22,7 +23,7 @@ export default function ResubmitForm({ projectId, currentRound }: Props) {
 
     try {
       const supabase = getSupabase();
-      const path = `${projectId}/revision-${currentRound + 1}/${file.name}`;
+      const path = `${projectId}/revision-${currentRound + 1}/${safeStorageName(file.name)}`;
 
       const { error: uploadError } = await supabase.storage
         .from("documents")

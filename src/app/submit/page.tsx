@@ -5,6 +5,7 @@ import { Check, Upload, Sparkles, Send, ChevronRight, ChevronLeft, FileText, X, 
 import Link from "next/link";
 import { themes } from "@/lib/themes";
 import { isConfigured, getSupabase } from "@/lib/supabase";
+import { safeStorageName } from "@/lib/storage";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
 
 type ProjectType = "pregrado" | "magister" | "doctorado" | "docente" | "fondecyt" | "externo" | "";
@@ -199,9 +200,12 @@ export default function SubmitPage() {
         if (projectError) throw projectError;
 
         // 2. Subir archivos a Storage
+        // La CLAVE de Storage se sanea (Supabase rechaza tildes/ñ/etc. con
+        // "Invalid key"); el nombre original se conserva en file_name.
+        const failedUploads: string[] = [];
         for (const [docType, file] of Object.entries(files)) {
           if (!file) continue;
-          const path = `${project.id}/${docType}/${file.name}`;
+          const path = `${project.id}/${docType}/${safeStorageName(file.name)}`;
 
           // Try upload; if file already exists at path, remove and re-upload
           let { error: uploadError } = await supabase.storage
@@ -215,7 +219,10 @@ export default function SubmitPage() {
           }
 
           const filePath = uploadError ? null : path;
-          if (uploadError) console.warn(`Upload failed for ${docType}:`, uploadError.message);
+          if (uploadError) {
+            console.warn(`Upload failed for ${docType}:`, uploadError.message);
+            failedUploads.push(file.name);
+          }
 
           await supabase.from("documents").insert({
             project_id: project.id,
@@ -223,6 +230,15 @@ export default function SubmitPage() {
             file_name:  file.name,
             file_path:  filePath,
           });
+        }
+
+        // Si algún archivo no se pudo subir, avisar (no fingir éxito):
+        // el proyecto queda creado pero esos documentos faltan.
+        if (failedUploads.length > 0) {
+          throw new Error(
+            `Tu proyecto se registró (código ${code}), pero no se pudieron subir estos archivos: ` +
+            `${failedUploads.join(", ")}. Por favor escribe al comité para reenviarlos.`
+          );
         }
 
         // 3. Enviar correo de confirmación
