@@ -134,7 +134,16 @@ export default function SubmitPage() {
     }).catch(() => {});
   }, []);
 
-  const canAdvance1 = form.name && form.email && form.projectTitle && form.projectType;
+  // El/la profesor/a guía es obligatorio/a para tesis (pregrado/magíster/doctorado)
+  // y también para estudiantes (pre/postgrado) aunque su proyecto NO sea una tesis y
+  // figuren como investigador/a principal: un trabajo estudiantil siempre lleva guía UAI.
+  const isThesisType  = ["pregrado", "magister", "doctorado"].includes(form.projectType);
+  const isStudentRole = ["estudiante_pregrado", "estudiante_postgrado"].includes(form.role);
+  const needsAdvisor  = isThesisType || isStudentRole;
+  const canAdvance1 = !!(
+    form.name && form.email && form.projectTitle && form.projectType &&
+    (!needsAdvisor || form.advisorName.trim())
+  );
   const canAdvance2 = selectedTheme !== "";
   const requiredUploaded = !!files["protocol"] && (!!files["consent"] || !!files["assent"]);
 
@@ -389,8 +398,8 @@ export default function SubmitPage() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Título del proyecto <span className="text-red-400">*</span></label>
                 <input type="text" value={form.projectTitle} onChange={(e) => update("projectTitle", e.target.value)} placeholder="Título completo de tu investigación" className={inputClass} />
               </div>
-              {/* Advisor — only for thesis types */}
-              {["pregrado", "magister", "doctorado"].includes(form.projectType) && (
+              {/* Profesor/a guía — tesis o estudiante (pre/postgrado), aunque no sea tesis */}
+              {needsAdvisor && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Profesor/a guía UAI <span className="text-red-400">*</span>
@@ -419,7 +428,15 @@ export default function SubmitPage() {
                       className={`${inputClass} mt-2`}
                     />
                   )}
-                  <p className="text-xs text-slate-400 mt-1.5">Nombre del profesor/a guía asociado/a a la UAI.</p>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Nombre del profesor/a guía asociado/a a la UAI.
+                    {isStudentRole && !isThesisType && " Obligatorio para estudiantes, aunque figures como investigador/a principal."}
+                  </p>
+                  {needsAdvisor && !form.advisorName.trim() && (
+                    <p className="text-amber-600 text-xs mt-1.5 flex items-center gap-1.5">
+                      <span>⚠</span> Debes indicar el/la profesor/a guía para continuar.
+                    </p>
+                  )}
                 </div>
               )}
 
