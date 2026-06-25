@@ -297,6 +297,28 @@ type MacarenaProject = {
   advisor_name?: string | null;
   funding_type?: string | null;
   funding_folio?: string | null;
+  project_type?: string | null;
+};
+
+/** Etiquetas legibles del tipo de proyecto (valores que guarda el formulario). */
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  pregrado:  "Tesis de pregrado",
+  magister:  "Tesis de magíster",
+  doctorado: "Tesis de doctorado",
+  docente:   "Proyecto de investigación docente",
+  fondecyt:  "Proyecto Fondecyt",
+  externo:   "Consultoría / Estudio externo",
+};
+
+/** Tipos de proyecto que corresponden a una tesis (llevan profesor/a guía). */
+const THESIS_TYPES = ["pregrado", "magister", "doctorado"];
+
+/** Etiquetas legibles del rol del investigador. */
+const ROLE_LABELS: Record<string, string> = {
+  estudiante_pregrado:  "Estudiante de pregrado",
+  estudiante_postgrado: "Estudiante de postgrado",
+  academico:            "Académico / Investigador",
+  externo:              "Investigador externo",
 };
 
 export function buildMacarenaEmail(
@@ -308,7 +330,27 @@ export function buildMacarenaEmail(
   const firstName  = project.researcher_name.split(" ")[0];
   const confirmUrl = `${origin}/api/certify?id=${project.id}&token=${certToken}`;
 
-  const roleText = project.researcher_role ? ` <span style="color:#888;">(${project.researcher_role})</span>` : "";
+  // Tipo de proyecto y relación con tesis (ambos derivados de project_type).
+  const typeLabel = project.project_type
+    ? (PROJECT_TYPE_LABELS[project.project_type] ?? project.project_type)
+    : "—";
+  const isThesis = !!project.project_type && THESIS_TYPES.includes(project.project_type);
+  const thesisText = isThesis
+    ? `Sí — corresponde a una ${typeLabel.toLowerCase()}`
+    : "No — no corresponde a una tesis";
+
+  // En una tesis la persona es el/la tesista y hay profesor/a guía; si no es
+  // tesis, es el/la investigador/a principal (sin guía).
+  const personLabel = isThesis ? "Tesista" : "Investigador/a principal";
+  const guideRow = isThesis
+    ? `<p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Profesor/a guía:</strong> ${project.advisor_name ?? "No indicado/a"}</p>`
+    : `<p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Profesor/a guía:</strong> No aplica (investigador/a principal)</p>`;
+
+  // Rol del investigador, con etiqueta legible.
+  const roleLabel = project.researcher_role
+    ? (ROLE_LABELS[project.researcher_role] ?? project.researcher_role)
+    : null;
+  const roleText = roleLabel ? ` <span style="color:#888;">(${roleLabel})</span>` : "";
 
   // ¿Asociado a FONDECYT?
   const folioTxt = project.funding_folio ? ` · Folio ${project.funding_folio}` : "";
@@ -356,8 +398,10 @@ export function buildMacarenaEmail(
     <div style="background:#f9f9f9;border-radius:10px;padding:18px 20px;border-left:4px solid #22c55e;margin-bottom:20px;">
       <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;letter-spacing:1px;">Datos del proyecto</p>
       <p style="margin:0 0 6px;font-size:15px;color:#1a1a1a;font-weight:700;">${project.title}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Investigador/a principal:</strong> ${project.researcher_name}${roleText}</p>
-      ${project.advisor_name ? `<p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Profesor/a guía:</strong> ${project.advisor_name}</p>` : ""}
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Tipo de proyecto:</strong> ${typeLabel}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Relación con tesis:</strong> ${thesisText}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>${personLabel}:</strong> ${project.researcher_name}${roleText}</p>
+      ${guideRow}
       <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>RUT:</strong> ${project.researcher_rut ?? "—"}</p>
       <p style="margin:0 0 4px;font-size:13px;color:#555;"><strong>Correo:</strong> ${project.researcher_email}</p>
       <p style="margin:0;font-size:13px;color:#555;"><strong>Asociado a FONDECYT:</strong> ${fondecytText}</p>
