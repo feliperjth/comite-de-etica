@@ -116,6 +116,7 @@ export default function SubmitPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [trackingCode, setTrackingCode] = useState("");
+  const [missingWarning, setMissingWarning] = useState<string[]>([]);
 
   const update = (field: keyof FormData, value: string) => setForm((p) => ({ ...p, [field]: value }));
   const handleFile = (id: string, file: File | null) => setFiles((p) => ({ ...p, [id]: file }));
@@ -232,15 +233,6 @@ export default function SubmitPage() {
           });
         }
 
-        // Si algún archivo no se pudo subir, avisar (no fingir éxito):
-        // el proyecto queda creado pero esos documentos faltan.
-        if (failedUploads.length > 0) {
-          throw new Error(
-            `Tu proyecto se registró (código ${code}), pero no se pudieron subir estos archivos: ` +
-            `${failedUploads.join(", ")}. Por favor escribe al comité para reenviarlos.`
-          );
-        }
-
         // 3. Enviar correo de confirmación
         await fetch("/api/send-email", {
           method: "POST",
@@ -256,6 +248,18 @@ export default function SubmitPage() {
 
         // 4. Sincronizar con Google Drive (en segundo plano, no bloquea)
         fetch(`/api/projects/${project.id}/sync-drive`, { method: "POST" }).catch(() => {});
+
+        // 5. Si alguna subida falló, el proyecto queda con documentos
+        // faltantes: avisar al investigador por correo y mostrar advertencia
+        // (no se finge éxito completo, pero tampoco se pierde el envío).
+        if (failedUploads.length > 0) {
+          setMissingWarning(failedUploads);
+          fetch(`/api/projects/${project.id}/notify-missing-docs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          }).catch(() => {});
+        }
       }
 
       setTrackingCode(code);
@@ -293,6 +297,18 @@ export default function SubmitPage() {
               Ver estado del proyecto <ArrowRight className="w-4 h-4" />
             </a>
           </div>
+
+          {missingWarning.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-left">
+              <p className="text-sm font-semibold text-amber-800 mb-1">Algunos archivos no se subieron</p>
+              <p className="text-xs text-amber-700/90 leading-relaxed">
+                No se pudieron guardar: <strong>{missingWarning.join(", ")}</strong>.
+                Te enviamos un correo con un enlace para volver a subirlos, o hazlo
+                ahora desde <span className="font-medium">Ver estado del proyecto</span> →
+                recuadro &quot;Documentos faltantes&quot;.
+              </p>
+            </div>
+          )}
 
           <p className="text-xs text-slate-400 leading-relaxed">
             Guarda este código. Puedes consultar el estado en cualquier momento en <span className="font-medium">/track/{trackingCode}</span>

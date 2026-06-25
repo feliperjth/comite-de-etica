@@ -257,6 +257,35 @@ export function buildResubmitNotificationEmail(
   return wrap(body);
 }
 
+/* ── Email: documentos faltantes (investigador) ──────────────── */
+export function buildMissingDocsEmail(
+  project: { title: string; researcher_name: string; tracking_code: string | null },
+  missingLabels: string[],
+  origin: string,
+) {
+  const trackUrl = `${origin}/track/${project.tracking_code}`;
+  const items = missingLabels
+    .map((l) => `<p style="margin:4px 0;font-size:14px;color:#1A1A1A;">• ${l}</p>`)
+    .join("");
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Faltan documentos en tu proyecto</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Estimada/o <strong>${project.researcher_name}</strong>, al revisar tu proyecto detectamos que algunos documentos no quedaron guardados correctamente y no están disponibles para el comité. Por favor vuelve a subirlos para que podamos continuar con la evaluación.
+    </p>
+    <div style="background:#fff8f5;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:20px;">
+      <p style="margin:0 0 10px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">Documentos por re-subir</p>
+      ${items}
+    </div>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${trackUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 32px;border-radius:8px;">Subir documentos faltantes</a>
+    </div>
+    <p style="font-size:13px;color:#555;line-height:1.6;margin:0 0 8px;">
+      En esa página verás un recuadro <strong>"Documentos faltantes"</strong> con un botón para subir cada archivo.
+    </p>
+    <p style="font-size:12px;color:#999;margin:0;">Código de seguimiento: <strong>${project.tracking_code}</strong></p>`;
+  return wrap(body);
+}
+
 /* ── Email: solicitud carta de ética a Macarena ──────────────── */
 type MacarenaProject = {
   id: string;

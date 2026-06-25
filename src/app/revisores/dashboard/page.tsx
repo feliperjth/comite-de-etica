@@ -86,23 +86,28 @@ export default function ReviewerDashboard() {
   const [assignMode, setAssignMode] = useState<"manual"|"auto">("manual");
   const [assignModeLoading, setAssignModeLoading] = useState(false);
   const [notifying, setNotifying] = useState<Record<string, { loading: boolean; msg: string }>>({});
+  const [notifyingMissing, setNotifyingMissing] = useState<Record<string, { loading: boolean; msg: string }>>({});
+  const [missingDocProjects, setMissingDocProjects] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
     const supabase = getSupabase();
 
-    const [{ data: projectData }, { data: reviewData }] = await Promise.all([
+    const [{ data: projectData }, { data: reviewData }, { data: missingData }] = await Promise.all([
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("reviews").select("project_id, round").eq(
         "reviewer_name",
         decodeURIComponent(getCookie("reviewer_name"))
       ),
+      supabase.from("documents").select("project_id")
+        .is("file_path", null).neq("doc_type", "review_feedback"),
     ]);
 
     const list = projectData ?? [];
     setProjects(list);
     setMyReviews(reviewData ?? []);
+    setMissingDocProjects(new Set((missingData ?? []).map((d) => d.project_id)));
 
     const initial: Record<string, EditState> = {};
     const initialAA: Record<string, AutoAssignState> = {};
@@ -196,6 +201,25 @@ export default function ReviewerDashboard() {
       setNotifying((prev) => ({ ...prev, [id]: { loading: false, msg: "Error al enviar" } }));
     }
     setTimeout(() => setNotifying((prev) => ({ ...prev, [id]: { loading: false, msg: "" } })), 5000);
+  }
+
+  async function handleNotifyMissing(id: string) {
+    setNotifyingMissing((prev) => ({ ...prev, [id]: { loading: true, msg: "" } }));
+    try {
+      const res  = await fetch(`/api/projects/${id}/notify-missing-docs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      const msg  = res.ok
+        ? (data.sent ? `Aviso enviado a ${data.to}` : "Este proyecto ya no tiene documentos faltantes")
+        : `Error: ${data.error}`;
+      setNotifyingMissing((prev) => ({ ...prev, [id]: { loading: false, msg } }));
+    } catch {
+      setNotifyingMissing((prev) => ({ ...prev, [id]: { loading: false, msg: "Error al enviar" } }));
+    }
+    setTimeout(() => setNotifyingMissing((prev) => ({ ...prev, [id]: { loading: false, msg: "" } })), 5000);
   }
 
   async function handleAutoAssign(projectId: string) {
@@ -654,6 +678,25 @@ export default function ReviewerDashboard() {
                         </>}
                         {/* Avisar / Guardar / Eliminar — empujados a la derecha */}
                         <div className="ml-auto flex items-center gap-2">
+                          {missingDocProjects.has(p.id) && (
+                            <>
+                              {notifyingMissing[p.id]?.msg && (
+                                <span className={`text-xs font-medium ${notifyingMissing[p.id].msg.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>
+                                  {notifyingMissing[p.id].msg}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleNotifyMissing(p.id)}
+                                disabled={notifyingMissing[p.id]?.loading}
+                                title="Avisar al investigador por correo que faltan documentos por subir"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100 disabled:opacity-50 transition-all"
+                              >
+                                {notifyingMissing[p.id]?.loading
+                                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enviando...</>
+                                  : <><AlertTriangle className="w-3.5 h-3.5" /> Avisar docs faltantes</>}
+                              </button>
+                            </>
+                          )}
                           {(p.reviewer || p.reviewer2) && (
                             <>
                               {notifying[p.id]?.msg && (
