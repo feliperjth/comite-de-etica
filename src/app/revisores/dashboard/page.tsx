@@ -8,7 +8,7 @@ import StatusBadge from "@/components/StatusBadge";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
   AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
-  Trash2, AlertTriangle, X, Settings, Mail,
+  Trash2, AlertTriangle, X, Settings, Mail, Award,
 } from "lucide-react";
 import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
@@ -87,6 +87,7 @@ export default function ReviewerDashboard() {
   const [assignModeLoading, setAssignModeLoading] = useState(false);
   const [notifying, setNotifying] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [notifyingMissing, setNotifyingMissing] = useState<Record<string, { loading: boolean; msg: string }>>({});
+  const [resendingCert, setResendingCert] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [missingDocProjects, setMissingDocProjects] = useState<Set<string>>(new Set());
   const router = useRouter();
 
@@ -220,6 +221,25 @@ export default function ReviewerDashboard() {
       setNotifyingMissing((prev) => ({ ...prev, [id]: { loading: false, msg: "Error al enviar" } }));
     }
     setTimeout(() => setNotifyingMissing((prev) => ({ ...prev, [id]: { loading: false, msg: "" } })), 5000);
+  }
+
+  // Reenvía a Macarena el correo de solicitud de certificado de ética (proyectos
+  // aprobados/certificados). Útil si el envío automático falló o se perdió.
+  async function handleResendCert(id: string) {
+    setResendingCert((prev) => ({ ...prev, [id]: { loading: true, msg: "" } }));
+    try {
+      const res  = await fetch(`/api/projects/${id}/request-cert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      const msg  = res.ok ? "Correo enviado a Macarena" : `Error: ${data.error}`;
+      setResendingCert((prev) => ({ ...prev, [id]: { loading: false, msg } }));
+    } catch {
+      setResendingCert((prev) => ({ ...prev, [id]: { loading: false, msg: "Error al enviar" } }));
+    }
+    setTimeout(() => setResendingCert((prev) => ({ ...prev, [id]: { loading: false, msg: "" } })), 5000);
   }
 
   async function handleAutoAssign(projectId: string) {
@@ -713,6 +733,25 @@ export default function ReviewerDashboard() {
                                 {notifying[p.id]?.loading
                                   ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enviando...</>
                                   : <><Mail className="w-3.5 h-3.5" /> Avisar</>}
+                              </button>
+                            </>
+                          )}
+                          {(p.status === "approved" || p.status === "certified") && (
+                            <>
+                              {resendingCert[p.id]?.msg && (
+                                <span className={`text-xs font-medium ${resendingCert[p.id].msg.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>
+                                  {resendingCert[p.id].msg}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleResendCert(p.id)}
+                                disabled={resendingCert[p.id]?.loading}
+                                title="Reenviar a Macarena el correo de solicitud de certificado de ética (con consentimiento/asentimiento adjuntos)"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-300 hover:bg-violet-100 disabled:opacity-50 transition-all"
+                              >
+                                {resendingCert[p.id]?.loading
+                                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enviando...</>
+                                  : <><Award className="w-3.5 h-3.5" /> Reenviar a Macarena</>}
                               </button>
                             </>
                           )}
