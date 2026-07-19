@@ -242,17 +242,12 @@ export default function SubmitPage() {
           });
         }
 
-        // 3. Enviar correo de confirmación
+        // 3. Enviar correo de confirmación. Solo se manda el id: el servidor
+        // lee de la base los datos que van en el correo.
         await fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: form.email,
-            projectTitle: form.projectTitle,
-            researcherName: form.name,
-            trackingCode: code,
-            origin: window.location.origin,
-          }),
+          body: JSON.stringify({ projectId: project.id }),
         });
 
         // 4. Sincronizar con Google Drive (en segundo plano, no bloquea)
