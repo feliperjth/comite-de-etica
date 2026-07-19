@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
 import { sendEmail, buildReviewerAssignedEmail } from "@/lib/email";
+import { requireStaff } from "@/lib/auth";
 
 /**
  * Avisa por correo a los revisores asignados de un proyecto que tienen una
@@ -19,9 +20,8 @@ export async function POST(
   const { id } = await params;
 
   // Debe estar autenticado en el comité/panel de revisores.
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  if (!email) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const { response } = await requireStaff(req);
+  if (response) return response;
 
   const body = await req.json().catch(() => ({}));
   const onlyName: string | undefined = body?.reviewerName;

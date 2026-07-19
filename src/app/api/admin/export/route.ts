@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import * as XLSX from "xlsx";
-
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
+import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 
 const STATUS_LABELS: Record<string, string> = {
   submitted:   "Enviado",
@@ -31,8 +30,8 @@ const FUNDING_LABELS: Record<string, string> = {
 
 export async function GET() {
   const jar = await cookies();
-  const email = jar.get("comite_email")?.value ?? jar.get("reviewer_email")?.value ?? "";
-  if (email !== ADMIN_EMAIL) {
+  const session = await verifySession(jar.get(SESSION_COOKIE)?.value);
+  if (session?.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

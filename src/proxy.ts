@@ -1,45 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 
-export function proxy(request: NextRequest) {
+/**
+ * Protección de páginas. La autorización real de los datos vive en cada
+ * route handler de /api (ver src/lib/auth.ts): esto solo evita que se
+ * muestren pantallas a quien no ha iniciado sesión.
+ */
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  const session = await verifySession(request.cookies.get(SESSION_COOKIE)?.value);
+
+  const isStaff =
+    session?.role === "revisor" || session?.role === "comite" || session?.role === "admin";
 
   // Reviewer dashboard — require session
   if (path.startsWith("/revisores/dashboard") || path.startsWith("/revisores/review")) {
-    const session = request.cookies.get("reviewer_session")?.value;
-    const token   = process.env.REVIEWER_SESSION_TOKEN;
-    if (session !== token) {
+    if (!isStaff) {
       return NextResponse.redirect(new URL("/revisores", request.url));
     }
   }
 
   // Investigador login page — skip if already logged in
   if (path === "/investigador") {
-    const email = request.cookies.get("investigador_email")?.value;
-    if (email) {
+    if (session?.role === "investigador") {
       return NextResponse.redirect(new URL("/investigador/perfil", request.url));
     }
   }
 
   // Investigador profile — require session
   if (path.startsWith("/investigador/perfil")) {
-    const email = request.cookies.get("investigador_email")?.value;
-    if (!email) {
+    if (session?.role !== "investigador") {
       return NextResponse.redirect(new URL("/investigador", request.url));
     }
   }
 
   // Comité login page — skip if already logged in
   if (path === "/comite") {
-    const email = request.cookies.get("comite_email")?.value;
-    if (email) {
+    if (isStaff) {
       return NextResponse.redirect(new URL("/comite/perfil", request.url));
     }
   }
 
   // Comité profile — require session
   if (path.startsWith("/comite/perfil")) {
-    const email = request.cookies.get("comite_email")?.value;
-    if (!email) {
+    if (!isStaff) {
       return NextResponse.redirect(new URL("/comite", request.url));
     }
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { sendEmail, buildMissingDocsEmail } from "@/lib/email";
 import { docLabel } from "@/lib/documents";
+import { getSession } from "@/lib/auth";
 
 /**
  * Avisa por correo al investigador que su proyecto tiene documentos faltantes
@@ -20,8 +21,10 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
   const code: string | undefined = body?.code;
 
-  const hasCommitteeCookie =
-    !!req.cookies.get("comite_email")?.value || !!req.cookies.get("reviewer_email")?.value;
+  // Autoriza el personal del comité con sesión, o quien conozca el código de
+  // seguimiento (flujo público de /track).
+  const session = await getSession(req);
+  const isCommittee = !!session && session.role !== "investigador";
 
   const supabase = getSupabaseServer();
 
@@ -35,7 +38,7 @@ export async function POST(
   }
 
   const authorized =
-    hasCommitteeCookie || (!!code && project.tracking_code === code.toUpperCase());
+    isCommittee || (!!code && project.tracking_code === code.toUpperCase());
   if (!authorized) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }

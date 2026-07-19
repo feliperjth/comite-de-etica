@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { requireAdmin, requireStaff } from "@/lib/auth";
 
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
+// Datos personales del comité (nombres y correos): solo para personal con sesión.
+export async function GET(req: NextRequest) {
+  const { response } = await requireStaff(req);
+  if (response) return response;
 
-function isAdmin(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  return email?.toLowerCase() === ADMIN_EMAIL;
-}
-
-export async function GET() {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("reviewers")
@@ -20,6 +17,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const { response } = await requireAdmin(req);
+  if (response) return response;
+
   const { name, email, expertise } = await req.json();
   if (!email) return NextResponse.json({ error: "Email requerido" }, { status: 400 });
 
@@ -35,7 +35,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const { response } = await requireAdmin(req);
+  if (response) return response;
+
   const { email } = await req.json();
   if (!email) return NextResponse.json({ error: "Email requerido" }, { status: 400 });
   const supabase = getSupabaseAdmin();

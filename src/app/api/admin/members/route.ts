@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
-
-function isAdmin(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  return email?.toLowerCase() === ADMIN_EMAIL;
-}
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const { response } = await requireAdmin(req);
+  if (response) return response;
 
   const supabase = getSupabaseAdmin();
 
@@ -109,7 +103,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const { response } = await requireAdmin(req);
+  if (response) return response;
   const { type, email } = await req.json();
   if (!type || !email) return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
   const supabase = getSupabaseAdmin();

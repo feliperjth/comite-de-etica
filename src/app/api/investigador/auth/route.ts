@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-
-const cookieOpts = {
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 60 * 60 * 24 * 7,
-  path: "/",
-  sameSite: "lax" as const,
-};
+import { clearSessionCookies, createSession, setSessionCookies } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -18,7 +12,7 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabase();
   const { data } = await supabase
     .from("researcher_accounts")
-    .select("email")
+    .select("email, name")
     .eq("email", email.toLowerCase().trim())
     .eq("password", password)
     .maybeSingle();
@@ -30,16 +24,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set("investigador_email", email.toLowerCase().trim(), {
-    ...cookieOpts,
-    httpOnly: true,
-  });
-  return res;
+  const session = createSession(data.email, data.name ?? data.email, "investigador");
+  return setSessionCookies(NextResponse.json({ ok: true }), session);
 }
 
 export async function DELETE() {
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set("investigador_email", "", { maxAge: 0, path: "/", sameSite: "lax" as const });
-  return res;
+  return clearSessionCookies(NextResponse.json({ ok: true }));
 }

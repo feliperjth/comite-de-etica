@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
+import { ADMIN_EMAIL, requireAdmin } from "@/lib/auth";
 
 function trackingCode() {
   return "CE-" + String(Math.floor(100000 + Math.random() * 900000));
@@ -474,7 +475,10 @@ const RESEARCHER_ACCOUNTS = PROJECTS.map(p => ({
   password: "test2026",
 }));
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const { response } = await requireAdmin(req);
+  if (response) return response;
+
   const results = {
     reviewers:   { ok: 0, errors: [] as string[] },
     projects:    { ok: 0, errors: [] as string[] },
@@ -540,12 +544,22 @@ export async function POST() {
   return NextResponse.json(results);
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  const { response } = await requireAdmin(req);
+  if (response) return response;
+
   let adminClient;
   try { adminClient = getSupabaseAdmin(); } catch { adminClient = getSupabase(); }
 
+  // Solo los revisores de esta lista de seed. Antes se borraba por
+  // `email LIKE '%@uai.cl'`, que también arrastraba a los revisores reales
+  // dados de alta desde la UI (todos tienen correo @uai.cl).
+  const seedEmails = REVIEWERS
+    .map(r => r.email)
+    .filter(email => email !== ADMIN_EMAIL);
+
   const [{ error: e1 }, { error: e2 }, { error: e3 }] = await Promise.all([
-    adminClient.from("reviewers").delete().like("email", "%@uai.cl"),
+    adminClient.from("reviewers").delete().in("email", seedEmails),
     adminClient.from("projects").delete().like("researcher_email", "%@investigador.cl"),
     adminClient.from("researcher_accounts").delete().like("email", "%@investigador.cl"),
   ]);

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { requireStaff } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response } = await requireStaff(req);
+  if (response) return response;
+
   const { id } = await params;
   const { numReviewers, mode } = await req.json() as { numReviewers: 1 | 2; mode: "individual" | "group" };
   const supabase = getSupabaseAdmin();

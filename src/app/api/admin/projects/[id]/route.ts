@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
+import { requireAdmin } from "@/lib/auth";
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-
-  if (!email || email.toLowerCase() !== ADMIN_EMAIL) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  }
+  const { response } = await requireAdmin(req);
+  if (response) return response;
 
   const { id } = await params;
   const supabase = getSupabase();

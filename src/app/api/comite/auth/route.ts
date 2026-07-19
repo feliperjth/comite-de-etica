@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const cookieOpts = {
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 60 * 60 * 24 * 7,
-  path: "/",
-  sameSite: "lax" as const,
-};
+import { getSupabase } from "@/lib/supabase";
+import { clearSessionCookies, createSession, setSessionCookies } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -19,23 +14,19 @@ export async function POST(req: NextRequest) {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const res = NextResponse.json({ ok: true });
 
-  res.cookies.set("comite_email", normalizedEmail, { ...cookieOpts, httpOnly: true });
+  const supabase = getSupabase();
+  const { data: reviewer } = await supabase
+    .from("reviewers")
+    .select("name")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
 
-  // Also set reviewer cookies so /revisores/dashboard and /revisores/review work
-  res.cookies.set("reviewer_session", process.env.REVIEWER_SESSION_TOKEN!, { ...cookieOpts, httpOnly: true });
-  res.cookies.set("reviewer_email", normalizedEmail, cookieOpts);
-
-  return res;
+  // La sesión del comité también habilita /revisores/dashboard y /revisores/review.
+  const session = createSession(normalizedEmail, reviewer?.name ?? "", "comite");
+  return setSessionCookies(NextResponse.json({ ok: true }), session);
 }
 
 export async function DELETE() {
-  const res = NextResponse.json({ ok: true });
-  const clear = { maxAge: 0, path: "/", sameSite: "lax" as const };
-  res.cookies.set("comite_email",      "", clear);
-  res.cookies.set("reviewer_session",  "", clear);
-  res.cookies.set("reviewer_name",     "", clear);
-  res.cookies.set("reviewer_email",    "", clear);
-  return res;
+  return clearSessionCookies(NextResponse.json({ ok: true }));
 }

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { requireStaff } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value;
-  if (!email) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const { response } = await requireStaff(req);
+  if (response) return response;
 
   const supabase = getSupabase();
   const { data, error } = await supabase

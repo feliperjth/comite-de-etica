@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
+import { canAccessProject, getSession } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
@@ -8,14 +9,22 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const email =
-    req.cookies.get("comite_email")?.value ||
-    req.cookies.get("reviewer_email")?.value ||
-    req.cookies.get("investigador_email")?.value;
-
-  if (!email) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();
+
+  // Un investigador solo puede leer la conversación de sus propios proyectos.
+  const { data: project } = await supabase
+    .from("projects")
+    .select("researcher_email")
+    .eq("id", id)
+    .maybeSingle();
+  if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+  if (!canAccessProject(session, project)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
   const { data } = await supabase
     .from("project_messages")
     .select("id, sender_type, body, created_at")
@@ -42,23 +51,21 @@ export async function POST(
     .single();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
 
-  const reviewerEmail     = req.cookies.get("reviewer_email")?.value;
-  const comiteEmail       = req.cookies.get("comite_email")?.value;
-  const investigadorEmail = req.cookies.get("investigador_email")?.value;
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   let senderType: string;
 
-  if (investigadorEmail) {
-    if (project.researcher_email !== investigadorEmail) {
+  if (session.role === "investigador") {
+    if (!canAccessProject(session, project)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     senderType = "investigador";
-  } else if (reviewerEmail || comiteEmail) {
-    const rEmail = reviewerEmail || comiteEmail!;
+  } else {
     const { data: reviewer } = await supabase
       .from("reviewers")
       .select("name")
-      .eq("email", rEmail)
+      .eq("email", session.email)
       .maybeSingle();
 
     const name = reviewer?.name;
@@ -69,8 +76,6 @@ export async function POST(
     } else {
       senderType = "revisor1";
     }
-  } else {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const { data: msg, error } = await supabase

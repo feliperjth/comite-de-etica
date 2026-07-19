@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { isAdmin } from "@/lib/auth";
 
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 const BUCKET      = "templates";
 
-function isAdmin(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  return email?.toLowerCase() === ADMIN_EMAIL;
-}
 
 // GET — list current templates with public URLs
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!(await isAdmin(req))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const supabase = getSupabaseAdmin();
 
@@ -29,7 +24,7 @@ export async function GET(req: NextRequest) {
 
 // POST — upload or replace a template
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!(await isAdmin(req))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const formData = await req.formData();
   const file  = formData.get("file")  as File   | null;
@@ -59,7 +54,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE — remove a template
 export async function DELETE(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!(await isAdmin(req))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { docId } = await req.json();
   if (!docId) return NextResponse.json({ error: "Falta docId" }, { status: 400 });

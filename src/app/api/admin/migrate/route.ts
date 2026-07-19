@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { isAdmin } from "@/lib/auth";
 import { Client } from "pg";
 
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 
-function isAdmin(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  return email?.toLowerCase() === ADMIN_EMAIL;
-}
 
 type Migration = {
   name: string;
@@ -107,7 +102,7 @@ async function checkExisting(): Promise<string[]> {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!(await isAdmin(req))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const existing = await checkExisting();
   const pending  = SQL_MIGRATIONS.filter((m) => !existing.includes(m.name));
@@ -141,7 +136,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!(await isAdmin(req))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const existing = await checkExisting();
   const pending  = SQL_MIGRATIONS.filter((m) => !existing.includes(m.name));

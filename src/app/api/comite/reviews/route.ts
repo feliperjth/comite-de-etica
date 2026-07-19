@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { requireStaff } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  // Accept both comite_email (login via /comite) and reviewer_email (login via /revisores)
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  const name  = req.cookies.get("comite_name")?.value;
+  const { session, response } = await requireStaff(req);
+  if (response) return response;
 
-  if (!email) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const email = session.email;
+  const name  = session.name;
 
   const supabase = getSupabase();
 

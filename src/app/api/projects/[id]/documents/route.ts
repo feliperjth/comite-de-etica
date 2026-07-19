@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
+import { canAccessProject, getSession } from "@/lib/auth";
 
 // Canonical display order; unknown types go last, then by upload date
 const DOC_ORDER = ["protocol", "consent", "assent", "instruments", "revision"];
@@ -8,12 +9,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email =
-    req.cookies.get("comite_email")?.value ||
-    req.cookies.get("reviewer_email")?.value ||
-    req.cookies.get("investigador_email")?.value;
-
-  if (!email) {
+  const session = await getSession(req);
+  if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -22,6 +19,17 @@ export async function GET(
   // Service-role client so reviewers/comité always see every document
   // regardless of RLS; falls back to anon if the key isn't set.
   const supabase = getSupabaseServer();
+
+  // Un investigador solo puede ver los documentos de sus propios proyectos.
+  const { data: project } = await supabase
+    .from("projects")
+    .select("researcher_email")
+    .eq("id", id)
+    .maybeSingle();
+  if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+  if (!canAccessProject(session, project)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
 
   const { data: docs, error } = await supabase
     .from("documents")

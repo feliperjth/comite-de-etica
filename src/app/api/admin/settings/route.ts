@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { isAdmin, requireStaff } from "@/lib/auth";
 
-const ADMIN_EMAIL = "felipe.rojast@uai.cl";
+// Lo consume el dashboard de revisores, así que basta con ser del comité.
+export async function GET(req: NextRequest) {
+  const { response } = await requireStaff(req);
+  if (response) return response;
 
-function isAdmin(req: NextRequest) {
-  const email = req.cookies.get("comite_email")?.value
-             ?? req.cookies.get("reviewer_email")?.value;
-  return email?.toLowerCase() === ADMIN_EMAIL;
-}
-
-export async function GET() {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase.from("app_settings").select("key, value");
   const settings: Record<string, string> = {};
@@ -18,7 +15,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!(await isAdmin(req))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const { key, value } = await req.json();
   if (!key || value === undefined) {
     return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
