@@ -10,11 +10,16 @@ import {
   ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
+import { requireAdmin, requireStaff } from "@/lib/auth";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Cambia estados y dispara correos (aprobación, solicitud de certificado).
+  const { response } = await requireStaff(request);
+  if (response) return response;
+
   const { id } = await params;
   const body   = await request.json();
   const supabase = getSupabase();
@@ -146,9 +151,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Borra el proyecto con sus revisiones y documentos: solo coordinación.
+  const { response } = await requireAdmin(req);
+  if (response) return response;
+
   const { id } = await params;
   const supabase = getSupabase();
 

@@ -6,6 +6,7 @@ import {
   ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
+import { requireStaff } from "@/lib/auth";
 
 // POST: (re)envía a Macarena el correo de solicitud de certificado de ética.
 // Mismo correo que se manda automáticamente al aprobarse el proyecto, pero
@@ -15,6 +16,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Envía correo a Macarena con documentos adjuntos: solo personal del comité.
+  const { response } = await requireStaff(request);
+  if (response) return response;
+
   const { id } = await params;
   const supabase = getSupabaseServer();
 

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { uploadProjectToDrive } from "@/lib/drive";
 
+// Sin sesión a propósito: el formulario público de /submit lo llama al enviar
+// un proyecto, antes de que exista cualquier sesión. Solo copia al Drive del
+// comité los documentos del proyecto indicado.
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

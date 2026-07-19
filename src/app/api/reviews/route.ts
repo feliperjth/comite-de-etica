@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { requireStaff } from "@/lib/auth";
 import { sections as allSections } from "@/lib/sections";
 import {
   sendEmail,
@@ -25,25 +26,37 @@ function sectionLabel(key: string) {
   return allSections.find((s) => s.key === key)?.label ?? key;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    // La identidad del revisor sale de la sesión firmada, no del cuerpo:
+    // antes se aceptaba cualquier reviewer_name que enviara el cliente.
+    const { session, response } = await requireStaff(req);
+    if (response) return response;
+
     const {
       project_id,
-      reviewer_name,
-      reviewer_email,
       round,
       origin,
       sections,
     }: {
       project_id: string;
-      reviewer_name: string;
-      reviewer_email: string;
       round: number;
       origin: string;
       sections: SectionPayload[];
     } = await req.json();
 
     const supabase = getSupabase();
+
+    // El nombre debe ser el de la ficha de revisor, que es como se referencia
+    // en projects.reviewer/reviewer2.
+    const { data: reviewerRow } = await supabase
+      .from("reviewers")
+      .select("name")
+      .eq("email", session.email)
+      .maybeSingle();
+
+    const reviewer_name  = reviewerRow?.name ?? session.name ?? session.email;
+    const reviewer_email = session.email;
 
     // 1. Check if this reviewer already submitted for this round
     const { data: existing } = await supabase

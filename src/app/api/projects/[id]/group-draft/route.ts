@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { sections } from "@/lib/sections";
+import { requireStaff } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response } = await requireStaff(req);
+  if (response) return response;
+
   const { id } = await params;
   const round = Number(req.nextUrl.searchParams.get("round") ?? "1");
   const supabase = getSupabaseServer();
@@ -48,6 +52,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response } = await requireStaff(req);
+  if (response) return response;
+
   const { id } = await params;
   const { round, section_key, decision, standard_comments, custom_comment } = await req.json();
   const supabase = getSupabaseServer();

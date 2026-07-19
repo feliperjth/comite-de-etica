@@ -11,14 +11,29 @@ import {
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
 import { sections as allSections } from "@/lib/sections";
+import { requireStaff } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // La identidad de quien confirma sale de la sesión, no del cuerpo.
+  const { session, response } = await requireStaff(req);
+  if (response) return response;
+
   const { id } = await params;
-  const { reviewer_name, reviewer_email, origin } = await req.json();
+  const { origin } = await req.json();
   const supabase = getSupabaseServer();
+
+  const reviewer_email = session.email;
+
+  // El nombre debe coincidir con projects.reviewer/reviewer2.
+  const { data: reviewerRow } = await supabase
+    .from("reviewers")
+    .select("name")
+    .eq("email", reviewer_email)
+    .maybeSingle();
+  const reviewer_name = reviewerRow?.name ?? session.name ?? reviewer_email;
 
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).single();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
