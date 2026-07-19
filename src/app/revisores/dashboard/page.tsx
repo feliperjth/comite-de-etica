@@ -4,14 +4,18 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase, type Project, type ProjectStatus } from "@/lib/supabase";
 import { getThemeLabel } from "@/lib/themes";
+import { safeStorageName } from "@/lib/storage";
 import StatusBadge from "@/components/StatusBadge";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
   AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
-  Trash2, AlertTriangle, X, Settings, Mail, Award,
+  Trash2, AlertTriangle, X, Settings, Mail, Award, Gavel, Upload, Send,
 } from "lucide-react";
 import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
+
+/** Debe coincidir con COORDINATION_NAME en /api/projects/[id]/close-stage. */
+const COORDINATION_NAME = "Coordinación del Comité";
 
 const statusOptions: { value: ProjectStatus; label: string }[] = [
   { value: "submitted",   label: "Enviado" },
@@ -43,6 +47,16 @@ type AutoAssignState = {
   mode: "individual" | "group";
   loading: boolean;
   result: string;
+};
+
+/** Cierre de etapa por la coordinación (ver /api/projects/[id]/close-stage). */
+type CloseStageState = {
+  project: Project;
+  decision: "corrections" | "approved" | "rejected";
+  comment: string;
+  file: File | null;
+  loading: boolean;
+  error: string;
 };
 
 function getInitials(name: string) {
@@ -89,6 +103,7 @@ export default function ReviewerDashboard() {
   const [notifyingMissing, setNotifyingMissing] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [resendingCert, setResendingCert] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [missingDocProjects, setMissingDocProjects] = useState<Set<string>>(new Set());
+  const [closeStage, setCloseStage] = useState<CloseStageState | null>(null);
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
@@ -269,6 +284,63 @@ export default function ReviewerDashboard() {
     setProjects((prev) => prev.filter((p) => p.id !== id));
     setConfirmDelete(null);
     setDeletingId(null);
+  }
+
+  function openCloseStage(project: Project) {
+    setCloseStage({
+      project,
+      decision: "corrections",
+      comment: "",
+      file: null,
+      loading: false,
+      error: "",
+    });
+  }
+
+  async function handleCloseStage() {
+    if (!closeStage) return;
+    const { project, decision, comment, file } = closeStage;
+    setCloseStage((prev) => prev && { ...prev, loading: true, error: "" });
+
+    // El documento va al mismo sitio que el de los revisores, con el prefijo de
+    // coordinación en el nombre para que se atribuya bien en correo y /track.
+    if (file) {
+      const supabase = getSupabase();
+      const round = project.current_round ?? 1;
+      const path = `${project.id}/review-feedback/r${round}/${Date.now()}_${safeStorageName(file.name)}`;
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(path, file, { upsert: true });
+      if (uploadError) {
+        setCloseStage((prev) => prev && { ...prev, loading: false, error: `No se pudo subir el documento: ${uploadError.message}` });
+        return;
+      }
+      const { error: docError } = await supabase.from("documents").insert({
+        project_id: project.id,
+        doc_type:   "review_feedback",
+        file_name:  `${COORDINATION_NAME} - ${file.name}`,
+        file_path:  path,
+      });
+      if (docError) {
+        setCloseStage((prev) => prev && { ...prev, loading: false, error: `No se pudo registrar el documento: ${docError.message}` });
+        return;
+      }
+    }
+
+    const res = await fetch(`/api/projects/${project.id}/close-stage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision, comment, origin: window.location.origin }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setCloseStage((prev) => prev && { ...prev, loading: false, error: data.error ?? "No se pudo cerrar la etapa." });
+      return;
+    }
+
+    setCloseStage(null);
+    await loadProjects();
   }
 
   async function handleBulkAutoAssign() {
@@ -768,6 +840,15 @@ export default function ReviewerDashboard() {
                              : edit.saving ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Guardando...</>
                              : <><Save className="w-3.5 h-3.5" /> Guardar</>}
                           </button>
+                          {["submitted", "reviewing", "corrections"].includes(p.status) && (
+                            <button
+                              onClick={() => openCloseStage(p)}
+                              title="Cerrar esta etapa en nombre de los revisores: enviar el documento y las observaciones al investigador, o resolver el proyecto. Los revisores asignados siguen a cargo."
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A1A1A] text-white hover:bg-black transition-all"
+                            >
+                              <Gavel className="w-3.5 h-3.5" /> Cerrar etapa
+                            </button>
+                          )}
                           <button
                             onClick={() => setConfirmDelete(p)}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all"
@@ -786,6 +867,99 @@ export default function ReviewerDashboard() {
         )}
       </div>
     </div>
+
+    {/* ── Modal cerrar etapa (coordinación) ── */}
+    {closeStage && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
+        <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 max-w-lg w-full my-auto">
+          <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <Gavel className="w-7 h-7 text-[#1A1A1A]" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 text-center mb-2">Cerrar etapa</h2>
+          <p className="text-slate-500 text-sm text-center mb-1 leading-snug">{closeStage.project.title}</p>
+          <p className="text-xs text-slate-400 text-center mb-5">
+            Ronda {closeStage.project.current_round ?? 1} · Cierras en nombre del comité.
+            {(closeStage.project.reviewer || closeStage.project.reviewer2) && " Los revisores asignados siguen a cargo del proyecto."}
+          </p>
+
+          {/* Decisión */}
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            {([
+              { value: "corrections", label: "Observaciones", cls: "bg-orange-500 border-orange-500" },
+              { value: "approved",    label: "Aprobar",       cls: "bg-emerald-500 border-emerald-500" },
+              { value: "rejected",    label: "Rechazar",      cls: "bg-red-500 border-red-500" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setCloseStage((prev) => prev && { ...prev, decision: opt.value })}
+                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  closeStage.decision === opt.value
+                    ? `${opt.cls} text-white`
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Comentario */}
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+            {closeStage.decision === "corrections" ? "Observaciones para el investigador" : "Comentario (opcional)"}
+          </label>
+          <textarea
+            value={closeStage.comment}
+            onChange={(e) => setCloseStage((prev) => prev && { ...prev, comment: e.target.value })}
+            rows={5}
+            placeholder={closeStage.decision === "corrections"
+              ? "Resume aquí lo que el investigador debe corregir…"
+              : "Se incluirá en el correo al investigador."}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none mb-4"
+          />
+
+          {/* Documento */}
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+            Documento de los revisores (opcional)
+          </label>
+          <label className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors mb-1">
+            <Upload className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="text-sm text-slate-500 truncate">
+              {closeStage.file ? closeStage.file.name : "Adjuntar el documento comentado"}
+            </span>
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => setCloseStage((prev) => prev && { ...prev, file: e.target.files?.[0] ?? null })}
+            />
+          </label>
+          <p className="text-[11px] text-slate-400 mb-5">
+            Se enviará adjunto al investigador y quedará visible en su seguimiento.
+          </p>
+
+          {closeStage.error && (
+            <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{closeStage.error}</p>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setCloseStage(null)}
+              disabled={closeStage.loading}
+              className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" /> Cancelar
+            </button>
+            <button
+              onClick={handleCloseStage}
+              disabled={closeStage.loading}
+              className="flex-1 py-3 rounded-xl bg-[#1A1A1A] hover:bg-black text-white font-bold text-sm transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {closeStage.loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {closeStage.loading ? "Enviando..." : "Enviar al investigador"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ── Modal confirmación eliminar ── */}
     {confirmDelete && (

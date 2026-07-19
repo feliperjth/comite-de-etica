@@ -41,6 +41,18 @@ const SQL_MIGRATIONS: Migration[] = [
         ON CONFLICT (key) DO NOTHING;
     `.trim(),
   },
+  {
+    // Marca las revisiones emitidas por la coordinación al cerrar una etapa en
+    // nombre de los revisores. No cuentan para el cierre automático por número
+    // de revisiones, pero sí se muestran al investigador.
+    name: "reviews_is_editorial",
+    table: "reviews",
+    column: "is_editorial",
+    sql: `
+      ALTER TABLE reviews
+        ADD COLUMN IF NOT EXISTS is_editorial boolean NOT NULL DEFAULT false;
+    `.trim(),
+  },
 ];
 
 // ── Try pg direct connection ──────────────────────────────────────────────────

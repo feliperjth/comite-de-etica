@@ -119,8 +119,7 @@ export default function ReviewPage() {
 
     const payload = {
       project_id:    project.id,
-      reviewer_name: reviewerName,
-      reviewer_email: reviewerEmail,
+      // La identidad la toma el servidor de la sesión firmada.
       round:         project.current_round ?? 1,
       origin:        window.location.origin,
       sections: sections.map((s) => ({
@@ -180,8 +179,7 @@ export default function ReviewPage() {
 
     const payload = {
       project_id:    project.id,
-      reviewer_name: reviewerName,
-      reviewer_email: reviewerEmail,
+      // La identidad la toma el servidor de la sesión firmada.
       round:         project.current_round ?? 1,
       origin:        window.location.origin,
       // Single overall evaluation (pseudo-section "general")

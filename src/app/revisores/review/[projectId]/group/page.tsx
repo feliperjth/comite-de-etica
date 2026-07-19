@@ -154,7 +154,8 @@ export default function GroupReviewPage() {
     const res = await fetch(`/api/projects/${projectId}/group-draft/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reviewer_name: reviewerName, reviewer_email: reviewerEmail, origin: window.location.origin }),
+      // La identidad la toma el servidor de la sesión firmada.
+      body: JSON.stringify({ origin: window.location.origin }),
     });
     const data = await res.json();
     if (res.ok) {
