@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 import { sendEmail, buildRejectedEmail } from "@/lib/email";
-import { applyApproval, applyCorrections, buildCorrections, getFeedbackDocs } from "@/lib/outcome";
+import { applyApproval, applyCorrections, getFeedbackDocs } from "@/lib/outcome";
 
 /**
  * Cierre de etapa por la coordinación ("editor jefe").
@@ -114,11 +114,31 @@ export async function POST(
   if (decision === "approved") {
     await applyApproval(supabase, project, origin, feedbackDocs);
   } else {
-    const corrections = await buildCorrections(
-      supabase,
-      [{ id: review.id, reviewer_name: COORDINATION_NAME, overall_decision }],
-      feedbackDocs,
-    );
+    // El detalle se arma aquí en vez de con buildCorrections(): esa función
+    // atribuye cada documento comparando el prefijo del nombre de archivo con
+    // el del firmante, y los documentos de la ronda los subieron los revisores
+    // con SU nombre, no el de coordinación. Al no cruzar, la entrada quedaba
+    // vacía y el correo no se enviaba pese a haber cambiado el estado.
+    // Al cerrar una etapa, todos los documentos de la ronda son los que se
+    // envían, vengan de quien vengan.
+    const corrections = [
+      {
+        reviewer_name: COORDINATION_NAME,
+        sections: trimmed
+          ? [{ label: "Evaluación general", standardComments: [], customComment: trimmed }]
+          : [],
+        feedbackUrl: feedbackDocs[0]?.url ?? null,
+        feedbackName: feedbackDocs[0]?.filename ?? null,
+      },
+      // Un bloque por cada documento adicional, con su enlace de descarga.
+      ...feedbackDocs.slice(1).map((d) => ({
+        reviewer_name: d.filename.split(" - ")[0],
+        sections: [],
+        feedbackUrl: d.url,
+        feedbackName: d.filename,
+      })),
+    ];
+
     await applyCorrections(supabase, project, origin, corrections, feedbackDocs);
   }
 
