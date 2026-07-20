@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (projectIds.length > 0) {
     const { data } = await supabase
       .from("projects")
-      .select("id, title, status, tracking_code, researcher_name, current_round, reviewer, reviewer2")
+      .select("id, title, status, tracking_code, researcher_name, current_round, reviewer, reviewer2, certificate_url")
       .in("id", projectIds);
     projects = data ?? [];
   }
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
   if (resolvedName) {
     const { data } = await supabase
       .from("projects")
-      .select("id, title, status, tracking_code, researcher_name, current_round, reviewer, reviewer2, progress")
+      .select("id, title, status, tracking_code, researcher_name, current_round, reviewer, reviewer2, progress, certificate_url")
       .or(`reviewer.ilike.${resolvedName},reviewer2.ilike.${resolvedName}`)
       .in("status", ["submitted", "reviewing", "corrections"]);
     assignedProjects = data ?? [];

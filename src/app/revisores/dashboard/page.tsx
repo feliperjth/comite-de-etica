@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSupabase, type Project, type ProjectStatus } from "@/lib/supabase";
 import { getThemeLabel } from "@/lib/themes";
 import { safeStorageName } from "@/lib/storage";
-import StatusBadge from "@/components/StatusBadge";
+import ProjectState from "@/components/ProjectState";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
   AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
@@ -663,7 +663,7 @@ export default function ReviewerDashboard() {
                         {p.researcher_name} · {p.project_type} · {getThemeLabel(p.theme)}
                       </p>
                       <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                        <StatusBadge status={p.status} />
+                        <ProjectState status={p.status} certificateUrl={p.certificate_url} />
                         {p.current_round && p.current_round > 1 && (
                           <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100">
                             Ronda {p.current_round}

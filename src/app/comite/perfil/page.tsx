@@ -8,7 +8,7 @@ import {
   AlertCircle, FileSearch, LayoutDashboard, BookOpen,
   ChevronRight, Users,
 } from "lucide-react";
-import StatusBadge from "@/components/StatusBadge";
+import ProjectState from "@/components/ProjectState";
 import { themes } from "@/lib/themes";
 
 type Review = {
@@ -29,6 +29,7 @@ type ProjectInfo = {
   reviewer: string | null;
   reviewer2: string | null;
   progress: number;
+  certificate_url: string | null;
 };
 
 export default function ComitePerfil() {
@@ -332,7 +333,7 @@ export default function ComitePerfil() {
                     <h3 className="font-semibold text-slate-800 mb-1 leading-snug">{p.title}</h3>
                     <p className="text-xs text-slate-400 mb-2">{p.researcher_name}</p>
                     <div className="flex items-center gap-2">
-                      <StatusBadge status={p.status} />
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} />
                       {p.current_round && p.current_round > 1 && (
                         <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-1 rounded-full border border-violet-100">
                           Ronda {p.current_round}
@@ -403,7 +404,7 @@ export default function ComitePerfil() {
                             <AlertCircle className="w-3.5 h-3.5" /> Con correcciones
                           </span>
                         )}
-                        {proj && <StatusBadge status={proj.status} />}
+                        {proj && <ProjectState status={proj.status} certificateUrl={proj.certificate_url} />}
                       </div>
                     </div>
                     {proj && (

@@ -32,6 +32,7 @@ export type Project = {
   funding_detail: string | null;
   researcher_rut: string | null;
   review_mode: "individual" | "group" | null;
+  certificate_url: string | null;
 };
 
 export type Document = {

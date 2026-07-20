@@ -394,7 +394,7 @@ export default function CoordinadorStats() {
     const supabase = getSupabase();
     const { data } = await supabase
       .from("projects")
-      .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at")
+      .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,certificate_url")
       .order("created_at", { ascending: false });
     setProjects(data ?? []);
   }
@@ -457,7 +457,7 @@ export default function CoordinadorStats() {
       const supabase = getSupabase();
       supabase
         .from("projects")
-        .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at")
+        .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,certificate_url")
         .order("created_at", { ascending: false })
         .then(({ data }) => { setProjects(data ?? []); setLoading(false); });
       loadTemplates();

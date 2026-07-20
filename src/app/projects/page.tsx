@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import StatusBadge from "@/components/StatusBadge";
+import ProjectState from "@/components/ProjectState";
 import { getThemeLabel } from "@/lib/themes";
 import { themes } from "@/lib/themes";
 import { getSupabase } from "@/lib/supabase";
@@ -28,6 +28,7 @@ type Project = {
   reviewer2: string | null;
   funding_type: string | null;
   funding_folio: string | null;
+  certificate_url?: string | null;
 };
 
 type UserType = "investigador" | "comite" | "admin" | "none";
@@ -99,7 +100,7 @@ export default function ProjectsPage() {
       const supabase = getSupabase();
       const { data } = await supabase
         .from("projects")
-        .select("id,title,status,project_type,theme,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,tracking_code,current_round")
+        .select("id,title,status,project_type,theme,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,tracking_code,current_round,certificate_url")
         .order("created_at", { ascending: false });
       setProjects(data ?? []);
     }
@@ -296,7 +297,7 @@ export default function ProjectsPage() {
                     <p className="font-semibold text-slate-800 text-sm leading-snug truncate">{p.title}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{p.researcher_name}{p.researcher_email ? ` · ${p.researcher_email}` : ""}</p>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <StatusBadge status={p.status} />
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} />
                       {TYPE_LABELS[p.project_type] && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">
                           {TYPE_LABELS[p.project_type]}
@@ -537,7 +538,7 @@ export default function ProjectsPage() {
                       {formatDate(p.created_at)}
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={p.status} />
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} />
                     </td>
                     <td className="px-6 py-4 hidden lg:table-cell">
                       <div className="flex items-center gap-2.5">

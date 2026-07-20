@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       .order("name"),
     supabase
       .from("projects")
-      .select("id, title, status, project_type, theme, researcher_email, researcher_name, reviewer, reviewer2, created_at")
+      .select("id, title, status, project_type, theme, researcher_email, researcher_name, reviewer, reviewer2, created_at, certificate_url")
       .order("created_at", { ascending: false }),
     supabase
       .from("reviewers")
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   // Build researcher map from PROJECTS (all researchers, with or without account)
   const researcherMap: Record<string, {
     id: string; name: string; email: string; created_at: string | null; hasAccount: boolean;
-    projects: { id: string; title: string; status: string; project_type: string; theme: string; created_at: string }[];
+    projects: { id: string; title: string; status: string; project_type: string; theme: string; created_at: string; certificate_url: string | null }[];
   }> = {};
 
   for (const p of allProjects ?? []) {
@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
     researcherMap[p.researcher_email].projects.push({
       id: p.id, title: p.title, status: p.status,
       project_type: p.project_type, theme: p.theme, created_at: p.created_at,
+      certificate_url: p.certificate_url,
     });
   }
 
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest) {
     assigned: (assignedByName[r.name] ?? []).map(p => ({
       id: p.id, title: p.title, status: p.status,
       project_type: p.project_type, theme: p.theme,
+      certificate_url: p.certificate_url,
     })),
     reviews_submitted: reviewsByName[r.name] ?? 0,
   }));
