@@ -118,7 +118,10 @@ export async function POST(
   const feedbackAttachments = feedbackDocs.map((d) => ({ filename: d.filename, path: d.url }));
 
   if (overall === "accepted") {
-    await supabase.from("projects").update({ status: "approved", progress: 100 }).eq("id", id);
+    await supabase
+      .from("projects")
+      .update({ status: "approved", progress: 100, decided_at: new Date().toISOString() })
+      .eq("id", id);
 
     await sendEmail(
       project.researcher_email,

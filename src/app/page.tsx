@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getHomeStats } from "@/lib/stats";
 import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, User, ClipboardList } from "lucide-react";
 
 const features = [
@@ -57,7 +58,21 @@ const steps = [
 ];
 
 
-export default function Home() {
+// Las cifras salen de la base en cada renderizado, con 5 minutos de caché:
+// no necesitan ser al segundo, pero tampoco pueden congelarse en el build.
+export const revalidate = 300;
+
+/** Tailwind extrae las clases de forma estática, así que no valen plantillas. */
+const COLUMNAS: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+};
+
+export default async function Home() {
+  const stats = await getHomeStats();
+
   return (
     <div>
       {/* Hero */}
@@ -104,22 +119,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="bg-white border-b border-slate-100">
-        <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {[
-            { value: "120+", label: "Proyectos revisados" },
-            { value: "94%",  label: "Tasa de aprobación" },
-            { value: "~12 días", label: "Tiempo promedio de revisión" },
-            { value: "8",    label: "Revisores especializados" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="text-3xl font-bold text-uai-navy">{s.value}</div>
-              <div className="text-slate-400 text-sm mt-1">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Stats — cifras reales de la base; la sección desaparece si no hay */}
+      {stats.length > 0 && (
+        <section className="bg-white border-b border-slate-100">
+          <div className={`max-w-5xl mx-auto px-4 py-10 grid grid-cols-2 ${COLUMNAS[stats.length] ?? "md:grid-cols-4"} gap-8`}>
+            {stats.map((s) => (
+              <div key={s.label} className="text-center">
+                <div className="text-3xl font-bold text-uai-navy">{s.value}</div>
+                <div className="text-slate-400 text-sm mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Profile selector */}
       <section className="bg-white border-b border-slate-100 py-10 px-4">

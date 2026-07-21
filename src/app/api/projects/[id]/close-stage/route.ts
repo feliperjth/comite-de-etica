@@ -58,7 +58,7 @@ export async function POST(
   if (decision === "rejected") {
     await supabase
       .from("projects")
-      .update({ status: "rejected", progress: 100 })
+      .update({ status: "rejected", progress: 100, decided_at: new Date().toISOString() })
       .eq("id", id);
 
     if (project.researcher_email) {

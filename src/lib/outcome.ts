@@ -63,7 +63,7 @@ export async function applyApproval(
 ) {
   await supabase
     .from("projects")
-    .update({ status: "approved", progress: 100 })
+    .update({ status: "approved", progress: 100, decided_at: new Date().toISOString() })
     .eq("id", project.id);
 
   await sendEmail(

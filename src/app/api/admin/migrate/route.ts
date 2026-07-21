@@ -53,6 +53,19 @@ const SQL_MIGRATIONS: Migration[] = [
         ADD COLUMN IF NOT EXISTS is_editorial boolean NOT NULL DEFAULT false;
     `.trim(),
   },
+  {
+    // Fecha en que el proyecto quedó resuelto (aprobado o rechazado). Sin
+    // esto no hay forma de calcular cuánto tarda una revisión: projects solo
+    // guardaba created_at. Queda null para los proyectos ya resueltos antes
+    // de esta migración — el cálculo los ignora en vez de inventarlos.
+    name: "projects_decided_at",
+    table: "projects",
+    column: "decided_at",
+    sql: `
+      ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS decided_at timestamptz;
+    `.trim(),
+  },
 ];
 
 // ── Try pg direct connection ──────────────────────────────────────────────────

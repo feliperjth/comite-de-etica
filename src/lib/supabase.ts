@@ -26,6 +26,8 @@ export type Project = {
   tracking_code: string | null;
   current_round: number | null;
   created_at: string;
+  /** Cuándo se aprobó o rechazó. Null en los resueltos antes de registrarlo. */
+  decided_at: string | null;
   advisor_name: string | null;
   funding_type: string | null;
   funding_folio: string | null;
