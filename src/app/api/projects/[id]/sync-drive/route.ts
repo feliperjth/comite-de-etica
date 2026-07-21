@@ -15,13 +15,20 @@ export async function POST(
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).single();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
 
-  const { data: docs } = await supabase.from("documents").select("*").eq("project_id", id);
+  // Orden cronológico: cuando hay varias rondas del mismo tipo de documento,
+  // la numeración que les pone drive.ts tiene que seguir el orden real.
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("project_id", id)
+    .order("created_at", { ascending: true });
 
   const documents = (docs ?? [])
     .filter(d => d.file_path)
     .map(d => ({
-      doc_type:  d.doc_type,
-      file_name: d.file_name,
+      doc_type:   d.doc_type,
+      file_name:  d.file_name,
+      created_at: d.created_at,
       url: supabase.storage.from("documents").getPublicUrl(d.file_path!).data.publicUrl,
     }));
 

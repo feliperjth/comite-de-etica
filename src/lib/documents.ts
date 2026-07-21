@@ -5,6 +5,7 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   assent:      "Asentimiento informado",
   instruments: "Instrumentos / tests a utilizar",
   revision:    "Documento corregido (reenvío)",
+  review_feedback: "Comentarios de revisión",
 };
 
 export function docLabel(docType: string): string {

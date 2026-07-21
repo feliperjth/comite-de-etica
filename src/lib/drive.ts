@@ -1,12 +1,44 @@
 import { google } from "googleapis";
 import { Readable } from "stream";
+import { docLabel } from "./documents";
 
-const DOC_LABELS: Record<string, string> = {
-  protocol:    "Protocolo de investigación",
-  consent:     "Consentimiento informado",
-  assent:      "Asentimiento informado",
-  instruments: "Instrumentos y tests",
-};
+type DriveDoc = { doc_type: string; file_name: string; url: string; created_at?: string | null };
+
+/**
+ * Quita los caracteres que rompen al bajar el archivo a un sistema de ficheros.
+ * Importa para las etiquetas con barra, como "Instrumentos / tests a utilizar".
+ */
+function safeName(name: string): string {
+  return name.replace(/[/\\?%*:|"<>]/g, "-").replace(/\s{2,}/g, " ").trim();
+}
+
+/**
+ * Nombre de cada archivo en el Drive, ya desambiguado.
+ *
+ * Un proyecto puede tener varios documentos del mismo tipo — sobre todo
+ * `review_feedback`, uno por ronda de revisión. Como Drive admite nombres
+ * repetidos, sin esto quedan N archivos homónimos e indistinguibles en la
+ * misma carpeta. Solo se numeran los tipos que de verdad se repiten, para no
+ * ensuciar el caso normal.
+ */
+function buildDriveNames(documents: DriveDoc[]): string[] {
+  const totales = new Map<string, number>();
+  for (const d of documents) totales.set(d.doc_type, (totales.get(d.doc_type) ?? 0) + 1);
+
+  const vistos = new Map<string, number>();
+  return documents.map(d => {
+    // Sin punto no hay extensión: "archivo".split(".").pop() devuelve el
+    // nombre entero y quedaría un absurdo "Protocolo.archivo".
+    const ext  = d.file_name.includes(".") ? `.${d.file_name.split(".").pop()}` : "";
+    const base = safeName(docLabel(d.doc_type));
+    if ((totales.get(d.doc_type) ?? 0) < 2) return `${base}${ext}`;
+
+    const n = (vistos.get(d.doc_type) ?? 0) + 1;
+    vistos.set(d.doc_type, n);
+    const fecha = d.created_at ? new Date(d.created_at).toISOString().slice(0, 10) : null;
+    return fecha ? `${base} ${n} (${fecha})${ext}` : `${base} ${n}${ext}`;
+  });
+}
 
 function bufferToStream(buffer: Buffer): Readable {
   const stream = new Readable();
@@ -31,7 +63,7 @@ async function getOrCreateFolder(
   name: string,
   parentId: string,
 ): Promise<string> {
-  const safe = name.replace(/[/\\?%*:|"<>]/g, "-");
+  const safe = safeName(name);
   const res = await drive.files.list({
     q: `name='${safe}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: "files(id)",
@@ -83,7 +115,7 @@ export async function uploadProjectToDrive(project: {
   funding_type: string | null;
   funding_folio: string | null;
   created_at: string;
-}, documents: { doc_type: string; file_name: string; url: string }[]): Promise<DriveSyncResult> {
+}, documents: DriveDoc[]): Promise<DriveSyncResult> {
   const auth   = getAuth();
   const rootId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!auth || !rootId) {
@@ -136,10 +168,11 @@ export async function uploadProjectToDrive(project: {
   }
 
   // Upload each document
-  for (const doc of documents) {
-    const label     = DOC_LABELS[doc.doc_type] ?? doc.doc_type;
+  const driveNames = buildDriveNames(documents);
+
+  for (const [i, doc] of documents.entries()) {
+    const driveName = driveNames[i];
     const ext       = doc.file_name.split(".").pop() ?? "pdf";
-    const driveName = `${label}.${ext}`;
 
     try {
       const fileRes = await fetch(doc.url);
