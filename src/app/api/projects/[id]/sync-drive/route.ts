@@ -26,8 +26,25 @@ export async function POST(
     }));
 
   try {
-    await uploadProjectToDrive(project, documents);
-    return NextResponse.json({ ok: true });
+    const result = await uploadProjectToDrive(project, documents);
+
+    // No fingir éxito: si Drive no está configurado, o si no se subió nada
+    // habiendo algo que subir, el llamador tiene que ver un error de verdad.
+    if (!result.configured) {
+      return NextResponse.json(
+        { error: "Google Drive no está configurado en este entorno", ...result },
+        { status: 503 },
+      );
+    }
+    if (result.uploaded === 0 && result.errors.length > 0) {
+      return NextResponse.json(
+        { error: result.errors[0], ...result },
+        { status: 502 },
+      );
+    }
+
+    // Éxito total o parcial: 200, pero con el detalle de lo que falló.
+    return NextResponse.json({ ok: true, ...result });
   } catch (e: unknown) {
     console.error("Drive sync error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

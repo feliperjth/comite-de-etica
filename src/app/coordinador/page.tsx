@@ -348,7 +348,7 @@ export default function CoordinadorStats() {
   const [deleting, setDeleting]           = useState<string | null>(null);
   const [templateMsg, setTemplateMsg]     = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing]             = useState(false);
-  const [syncMsg, setSyncMsg]             = useState<string | null>(null);
+  const [syncMsg, setSyncMsg]             = useState<{ ok: boolean; text: string } | null>(null);
   const [meUser, setMeUser]       = useState<{ name?: string; email: string } | null>(null);
   const [seeding, setSeeding]     = useState(false);
   const [seedMsg, setSeedMsg]     = useState<{ ok: boolean; text: string } | null>(null);
@@ -363,14 +363,37 @@ export default function CoordinadorStats() {
 
   async function handleSyncAll() {
     setSyncing(true); setSyncMsg(null);
-    let ok = 0, fail = 0;
+    let ok = 0, fail = 0, archivos = 0;
+    let primerError: string | null = null;
+
     for (const p of projects) {
-      const res = await fetch(`/api/projects/${p.id}/sync-drive`, { method: "POST" });
-      if (res.ok) ok++; else fail++;
+      try {
+        const res  = await fetch(`/api/projects/${p.id}/sync-drive`, { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        archivos  += data.uploaded ?? 0;
+
+        // Un 200 con errores dentro es éxito parcial, no éxito.
+        if (res.ok && !(data.errors?.length > 0)) {
+          ok++;
+        } else {
+          fail++;
+          primerError ??= data.error ?? data.errors?.[0] ?? `HTTP ${res.status}`;
+        }
+      } catch (e: unknown) {
+        fail++;
+        primerError ??= e instanceof Error ? e.message : String(e);
+      }
     }
-    setSyncMsg(`✓ ${ok} sincronizado${ok !== 1 ? "s" : ""}${fail > 0 ? ` · ${fail} con error` : ""}`);
+
+    if (fail === 0) {
+      setSyncMsg({ ok: true, text: `✓ ${ok} proyecto${ok !== 1 ? "s" : ""} · ${archivos} archivo${archivos !== 1 ? "s" : ""} al Drive` });
+      setTimeout(() => setSyncMsg(null), 5000);
+    } else {
+      // El error se queda en pantalla: es la única señal de que el Drive
+      // dejó de funcionar (p. ej. el refresh token de Google caducó).
+      setSyncMsg({ ok: false, text: `${fail} de ${projects.length} fallaron — ${primerError}` });
+    }
     setSyncing(false);
-    setTimeout(() => setSyncMsg(null), 5000);
   }
 
   const loadTemplates = async () => {
@@ -750,7 +773,11 @@ export default function CoordinadorStats() {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            {syncMsg && <span className="text-xs font-semibold text-emerald-600">{syncMsg}</span>}
+            {syncMsg && (
+              <span className={`text-xs font-semibold max-w-md text-right ${syncMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                {syncMsg.text}
+              </span>
+            )}
             <button onClick={handleSyncAll} disabled={syncing || projects.length === 0}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
               {syncing

@@ -250,8 +250,17 @@ export default function SubmitPage() {
           body: JSON.stringify({ projectId: project.id }),
         });
 
-        // 4. Sincronizar con Google Drive (en segundo plano, no bloquea)
-        fetch(`/api/projects/${project.id}/sync-drive`, { method: "POST" }).catch(() => {});
+        // 4. Sincronizar con Google Drive (en segundo plano, no bloquea: el
+        // envío ya está guardado y no se le muestra al investigador). El fallo
+        // sí queda registrado — el coordinador lo ve en "Sincronizar todos".
+        fetch(`/api/projects/${project.id}/sync-drive`, { method: "POST" })
+          .then(async res => {
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              console.warn(`Drive sync falló para ${code}:`, data.error ?? res.status);
+            }
+          })
+          .catch(e => console.warn(`Drive sync falló para ${code}:`, e));
 
         // 5. Si alguna subida falló, el proyecto queda con documentos
         // faltantes: avisar al investigador por correo y mostrar advertencia
