@@ -241,10 +241,20 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            <Link href="/revisores"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors">
-              Revisores
-            </Link>
+            // Sin sesión: los dos accesos. Antes solo estaba el de revisores y
+            // los investigadores entraban por el selector de la portada, que ya
+            // no existe — sin esto se quedarían sin puerta.
+            <div className="flex items-center gap-1">
+              <Link href="/investigador"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/10">
+                Investigadores
+              </Link>
+              <span className="text-white/20 select-none">|</span>
+              <Link href="/revisores"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/10">
+                Revisores
+              </Link>
+            </div>
           )}
         </div>
       </div>

@@ -49,3 +49,46 @@ html { scroll-behavior: smooth; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
 ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+
+/* ── Portada: animaciones ──────────────────────────────────────────────────
+   Todo en CSS, sin librería ni JavaScript, para que la portada siga siendo
+   un componente de servidor. Cada animación se desactiva entera si el
+   sistema pide menos movimiento (mareos, vestibular, preferencia). */
+
+@keyframes ce-entrada {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Deriva lenta de los nodos de la red neuronal del fondo. */
+@keyframes ce-deriva {
+  0%, 100% { transform: translate(0, 0); }
+  33%      { transform: translate(14px, -18px); }
+  66%      { transform: translate(-10px, 12px); }
+}
+
+/* Latido del halo naranja: respiración, no parpadeo. */
+@keyframes ce-halo {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%      { opacity: 0.6;  transform: scale(1.08); }
+}
+
+/* Sinapsis: el brillo recorre la conexión entre dos nodos. */
+@keyframes ce-sinapsis {
+  0%       { stroke-dashoffset: 240; opacity: 0; }
+  15%      { opacity: 0.9; }
+  85%      { opacity: 0.9; }
+  100%     { stroke-dashoffset: 0; opacity: 0; }
+}
+
+.ce-entrada    { animation: ce-entrada 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.ce-deriva     { animation: ce-deriva 18s ease-in-out infinite; }
+.ce-halo       { animation: ce-halo 7s ease-in-out infinite; }
+.ce-sinapsis   { stroke-dasharray: 240; animation: ce-sinapsis 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ce-entrada, .ce-deriva, .ce-halo, .ce-sinapsis {
+    animation: none;
+  }
+  .ce-sinapsis { opacity: 0.5; stroke-dashoffset: 0; }
+}

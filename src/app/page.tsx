@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getHomeStats } from "@/lib/stats";
-import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, User, ClipboardList } from "lucide-react";
+import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, FileSearch } from "lucide-react";
 
 const features = [
   {
@@ -76,44 +76,89 @@ export default async function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative bg-gradient-to-br from-uai-navy-dark via-uai-navy to-uai-navy-light text-white py-28 px-4 overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23ffffff%22 fill-opacity=%220.02%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%221.5%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] pointer-events-none" />
+      <section className="relative bg-gradient-to-b from-uai-navy-dark via-uai-navy to-uai-navy-light text-white py-32 px-4 overflow-hidden">
+        {/* Halo naranja: da calidez al negro y ancla la marca UAI. */}
+        <div className="ce-halo absolute top-1/2 left-1/2 w-[680px] h-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(204,82,0,0.22)_0%,transparent_68%)] pointer-events-none" />
+
+        {/* Red neuronal: nodos y sinapsis. Es la metáfora de la psicología que
+            mejor envejece — mente como red de conexiones — y evita el tópico
+            del diván o el cerebro ilustrado. Decorativa: oculta al lector de
+            pantalla, que no gana nada describiéndola. */}
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full pointer-events-none opacity-70"
+          viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice"
+        >
+          <g className="ce-deriva" stroke="rgba(204,82,0,0.28)" strokeWidth="1" fill="none">
+            <path d="M120 180 L310 120 L470 230 L300 330 Z" />
+            <path d="M470 230 L690 160 L860 260" />
+            <path d="M300 330 L520 420 L760 380 L860 260" />
+            <path d="M860 260 L1050 190 L1120 340" />
+            <path d="M520 420 L640 540" />
+            <path d="M310 120 L690 160" />
+          </g>
+
+          {/* Sinapsis: pulsos que recorren algunas conexiones. */}
+          <g stroke="#CC5200" strokeWidth="2" fill="none" strokeLinecap="round">
+            <path className="ce-sinapsis" d="M120 180 L310 120 L470 230" style={{ animationDelay: "0s" }} />
+            <path className="ce-sinapsis" d="M300 330 L520 420 L760 380" style={{ animationDelay: "2.4s" }} />
+            <path className="ce-sinapsis" d="M860 260 L1050 190 L1120 340" style={{ animationDelay: "4.1s" }} />
+          </g>
+
+          <g className="ce-deriva" fill="#CC5200">
+            {[[120,180],[310,120],[470,230],[300,330],[690,160],[860,260],[520,420],[760,380],[1050,190],[1120,340],[640,540]].map(([cx, cy]) => (
+              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" opacity="0.75" />
+            ))}
+          </g>
+        </svg>
+
+        {/* Ψ de fondo: el símbolo de la psicología, apenas insinuado. */}
+        <span
+          aria-hidden="true"
+          className="absolute right-[6%] top-1/2 -translate-y-1/2 text-[22rem] leading-none font-serif text-white/[0.035] select-none pointer-events-none hidden lg:block"
+        >
+          Ψ
+        </span>
 
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 text-amber-300 text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-full mb-8">
-            <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
+          <div className="ce-entrada inline-flex items-center gap-2 bg-white/[0.07] backdrop-blur-sm border border-white/10 text-uai-gold text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8">
+            <span className="w-1.5 h-1.5 bg-uai-gold rounded-full animate-pulse" />
             Escuela de Psicología · Universidad Adolfo Ibáñez
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6 tracking-tight">
-            Portal del<br />
-            <span className="text-amber-400">Comité de Ética</span>
+
+          <h1
+            className="ce-entrada text-5xl md:text-7xl font-bold leading-[1.05] mb-6 tracking-tight"
+            style={{ animationDelay: "0.1s" }}
+          >
+            Comité de Ética
+            <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-uai-gold via-orange-400 to-uai-gold">
+              Investigación en Psicología
+            </span>
           </h1>
-          <p className="text-blue-200 text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-            Plataforma oficial para el envío, seguimiento y revisión ética de
-            proyectos de investigación en psicología.
+
+          <p
+            className="ce-entrada text-slate-300 text-lg md:text-xl max-w-xl mx-auto mb-12 leading-relaxed"
+            style={{ animationDelay: "0.2s" }}
+          >
+            Cuidar a quienes participan en la investigación es parte de investigar bien.
           </p>
-          <div className="flex gap-4 justify-center flex-wrap">
+
+          {/* Solo dos caminos: enviar y hacer seguimiento. El acceso de
+              revisores y comité vive en la barra superior. */}
+          <div className="ce-entrada flex gap-4 justify-center flex-wrap" style={{ animationDelay: "0.3s" }}>
             <Link
               href="/submit"
-              className="group flex items-center gap-2 bg-uai-gold hover:bg-uai-gold-hover text-uai-navy font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:-translate-y-0.5"
+              className="group flex items-center gap-2 bg-uai-gold hover:bg-uai-gold-hover text-white font-bold px-9 py-4 rounded-xl transition-all shadow-lg shadow-[#CC5200]/25 hover:shadow-[#CC5200]/40 hover:-translate-y-0.5"
             >
               Enviar mi proyecto
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               href="/track"
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-3.5 rounded-xl transition-all border border-white/15 hover:-translate-y-0.5"
+              className="group flex items-center gap-2 bg-white/[0.07] hover:bg-white/[0.14] text-white font-semibold px-9 py-4 rounded-xl transition-all border border-white/15 hover:border-white/30 hover:-translate-y-0.5"
             >
-              Seguimiento
-            </Link>
-            <Link
-              href="/comite"
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-3.5 rounded-xl transition-all border border-white/15 hover:-translate-y-0.5"
-            >
-              Revisar proyectos
+              <FileSearch className="w-4 h-4 text-uai-gold" />
+              Seguir mi proyecto
             </Link>
           </div>
         </div>
@@ -132,46 +177,6 @@ export default async function Home() {
           </div>
         </section>
       )}
-
-      {/* Profile selector */}
-      <section className="bg-white border-b border-slate-100 py-10 px-4">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
-            Accede a tu perfil
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* Investigador */}
-            <Link
-              href="/investigador"
-              className="group flex items-center gap-5 bg-white hover:bg-blue-50 border-2 border-slate-200 hover:border-blue-400 rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              <div className="w-14 h-14 bg-blue-50 group-hover:bg-blue-100 rounded-2xl flex items-center justify-center shrink-0 transition-colors">
-                <User className="w-7 h-7 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-uai-navy text-base mb-0.5">Soy Investigador</h3>
-                <p className="text-slate-400 text-sm">Ver mis proyectos enviados y su estado</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-            </Link>
-
-            {/* Revisor / Miembro del Comité */}
-            <Link
-              href="/revisores"
-              className="group flex items-center gap-5 bg-white hover:bg-emerald-50 border-2 border-slate-200 hover:border-emerald-500 rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              <div className="w-14 h-14 bg-emerald-50 group-hover:bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0 transition-colors">
-                <ClipboardList className="w-7 h-7 text-emerald-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-uai-navy text-base mb-0.5">Soy Revisor / Comité</h3>
-                <p className="text-slate-400 text-sm">Acceder al panel de revisión de proyectos</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* INDH + Tres pilares */}
       <section className="py-20 px-4 bg-slate-50">
