@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { uploadProjectToDrive } from "@/lib/drive";
 
 // Sin sesión a propósito: el formulario público de /submit lo llama al enviar
@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).single();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });

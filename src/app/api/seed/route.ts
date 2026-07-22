@@ -1,6 +1,6 @@
 import { hashPassword } from "@/lib/password";
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabase";
 import { ADMIN_EMAIL, requireAdmin } from "@/lib/auth";
 
 function trackingCode() {
@@ -487,7 +487,7 @@ export async function POST(req: NextRequest) {
   };
 
   let adminClient;
-  try { adminClient = getSupabaseAdmin(); } catch { adminClient = getSupabase(); }
+  try { adminClient = getSupabaseAdmin(); } catch { adminClient = getSupabaseServer(); }
 
   // Reviewers
   for (const r of REVIEWERS) {
@@ -511,7 +511,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Projects
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   for (const p of PROJECTS) {
     const { error } = await supabase
       .from("projects")
@@ -553,7 +553,7 @@ export async function DELETE(req: NextRequest) {
   if (response) return response;
 
   let adminClient;
-  try { adminClient = getSupabaseAdmin(); } catch { adminClient = getSupabase(); }
+  try { adminClient = getSupabaseAdmin(); } catch { adminClient = getSupabaseServer(); }
 
   // Solo los revisores de esta lista de seed. Antes se borraba por
   // `email LIKE '%@uai.cl'`, que también arrastraba a los revisores reales

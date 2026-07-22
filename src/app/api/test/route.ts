@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSupabase, isConfigured } from "@/lib/supabase";
+import { isConfigured, getSupabaseServer } from "@/lib/supabase";
 
 export async function GET() {
   if (!isConfigured) {
     return NextResponse.json({ status: "❌ Variables de entorno no detectadas" });
   }
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabaseServer();
     const { data, error } = await supabase.from("projects").select("count").limit(1);
     if (error) return NextResponse.json({ status: "⚠️ Conectado pero tabla no existe", error: error.message });
     return NextResponse.json({ status: "✅ Conexión exitosa", data });

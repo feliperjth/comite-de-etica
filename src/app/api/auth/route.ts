@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { clearSessionCookies, createSession, setSessionCookies } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Look up name from reviewers table
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const { data: reviewer } = await supabase
     .from("reviewers")
     .select("name")

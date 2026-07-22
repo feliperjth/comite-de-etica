@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import {
   sendEmail,
   buildReviewerColleagueDoneEmail,
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       sections: SectionPayload[];
     } = await req.json();
 
-    const supabase = getSupabase();
+    const supabase = getSupabaseServer();
 
     // El nombre con el que se firma la revisión debe ser el de la ficha de
     // revisor, que es como se referencia en projects.reviewer/reviewer2.

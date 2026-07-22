@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 
 export async function DELETE(
@@ -10,7 +10,7 @@ export async function DELETE(
   if (response) return response;
 
   const { id } = await params;
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   // Delete related records first
   await supabase.from("section_reviews").delete().in(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { requireStaff } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const email = session.email;
   const name  = session.name;
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   // Reviews submitted by this member
   const { data: reviews, error: reviewError } = await supabase

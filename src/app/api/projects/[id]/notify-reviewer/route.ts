@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabase";
 import { sendEmail, buildReviewerAssignedEmail } from "@/lib/email";
 import { requireStaff } from "@/lib/auth";
 
@@ -26,7 +26,7 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
   const onlyName: string | undefined = body?.reviewerName;
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const { data: project } = await supabase
     .from("projects")
     .select("*")

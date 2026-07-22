@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const investigadorEmail = session.role === "investigador" ? session.email : null;
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const select = "id, title, status, progress, tracking_code, current_round, created_at, project_type, theme, researcher_name, reviewer, reviewer2, advisor_name, funding_type, funding_folio, funding_detail, certificate_url";
 
   let query = supabase.from("projects").select(select).order("created_at", { ascending: false });

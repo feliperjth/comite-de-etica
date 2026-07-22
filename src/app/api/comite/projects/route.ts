@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { requireStaff } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const { response } = await requireStaff(req);
   if (response) return response;
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from("projects")
     .select("*")

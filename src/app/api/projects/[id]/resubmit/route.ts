@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { sendEmail, buildResubmitNotificationEmail } from "@/lib/email";
 
 export async function POST(
@@ -9,7 +9,7 @@ export async function POST(
   try {
     const { id } = await params;
     const { round } = await req.json();
-    const supabase = getSupabase();
+    const supabase = getSupabaseServer();
 
     const { data: project } = await supabase
       .from("projects")

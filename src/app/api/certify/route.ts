@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabase";
 import crypto from "crypto";
 
 export function generateCertToken(projectId: string): string {
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const expected = generateCertToken(id);
   if (token !== expected) return new NextResponse("Token inválido.", { status: 403 });
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const { data: project } = await supabase
     .from("projects")
     .select("id, title, status, certificate_url")
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const supabase      = getSupabase();
+  const supabase      = getSupabaseServer();
   const supabaseAdmin = getSupabaseAdmin();
 
   const { data: project } = await supabase

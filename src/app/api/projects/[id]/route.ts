@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabase";
 import {
   sendEmail,
   buildRejectedEmail,
@@ -22,7 +22,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body   = await request.json();
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   // Snapshot before update so we can detect changes
   const { data: prev } = await supabase
@@ -159,7 +159,7 @@ export async function DELETE(
   if (response) return response;
 
   const { id } = await params;
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   // Remove dependent records first
   await supabase.from("section_reviews").delete().in(

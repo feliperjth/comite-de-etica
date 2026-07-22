@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { clearSessionCookies, createSession, setSessionCookies } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const { data: reviewer } = await supabase
     .from("reviewers")
     .select("name")
