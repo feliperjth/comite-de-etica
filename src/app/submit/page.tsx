@@ -167,47 +167,42 @@ export default function SubmitPage() {
     }
   }
 
-  function generateTrackingCode() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let code = "CE-";
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    return code;
-  }
-
   async function handleSubmit() {
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const code = generateTrackingCode();
+      let code = "";
 
       if (isConfigured) {
         const supabase = getSupabase();
 
-        // 1. Guardar proyecto en base de datos
-        const { data: project, error: projectError } = await supabase
-          .from("projects")
-          .insert({
-            title: form.projectTitle,
-            researcher_name: form.name,
-            researcher_rut: form.rut || null,
+        // 1. Crear el proyecto en el servidor. El estado inicial y el código
+        // de seguimiento los fija el servidor: si los pusiera el formulario,
+        // cualquiera podría darse por aprobado o reutilizar el código de otro.
+        const resProyecto = await fetch("/api/projects", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title:            form.projectTitle,
+            researcher_name:  form.name,
+            researcher_rut:   form.rut || null,
             researcher_email: form.email,
-            researcher_role: form.role || null,
-            project_type: form.projectType,
-            theme: selectedTheme,
-            abstract: form.abstract || null,
-            status: "submitted",
-            progress: 10,
-            tracking_code: code,
-            advisor_name:   form.advisorName   || null,
-            funding_type:   form.fundingType   || null,
-            funding_folio:  form.fundingFolio  || null,
-            funding_detail: form.fundingDetail || null,
-          })
-          .select()
-          .single();
+            researcher_role:  form.role || null,
+            project_type:     form.projectType,
+            theme:            selectedTheme,
+            abstract:         form.abstract || null,
+            advisor_name:     form.advisorName   || null,
+            funding_type:     form.fundingType   || null,
+            funding_folio:    form.fundingFolio  || null,
+            funding_detail:   form.fundingDetail || null,
+          }),
+        });
+        const creado = await resProyecto.json().catch(() => ({}));
+        if (!resProyecto.ok) throw new Error(creado.error ?? "No se pudo registrar el proyecto.");
 
-        if (projectError) throw projectError;
+        const project = { id: creado.id as string };
+        code = creado.tracking_code as string;
 
         // 2. Subir archivos a Storage
         // La CLAVE de Storage se sanea (Supabase rechaza tildes/ñ/etc. con
@@ -234,11 +229,18 @@ export default function SubmitPage() {
             failedUploads.push(file.name);
           }
 
-          await supabase.from("documents").insert({
-            project_id: project.id,
-            doc_type:   docType,
-            file_name:  file.name,
-            file_path:  filePath,
+          // El registro va por el servidor: la tabla `documents` deja de ser
+          // escribible desde el navegador. El código de seguimiento actúa de
+          // credencial, porque en este punto aún no hay sesión.
+          await fetch(`/api/projects/${project.id}/documents`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              doc_type:  docType,
+              file_name: file.name,
+              file_path: filePath,
+              code,
+            }),
           });
         }
 

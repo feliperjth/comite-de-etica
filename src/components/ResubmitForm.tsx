@@ -31,12 +31,17 @@ export default function ResubmitForm({ projectId, currentRound }: Props) {
 
       if (uploadError) throw uploadError;
 
-      await supabase.from("documents").insert({
-        project_id: projectId,
-        doc_type: "revision",
-        file_name: file.name,
-        file_path: path,
+      // Registro por el servidor: `documents` ya no es escribible desde el
+      // navegador. Aquí hay sesión de investigador, así que autoriza sola.
+      const res = await fetch(`/api/projects/${projectId}/documents`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc_type: "revision", file_name: file.name, file_path: path }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? "No se pudo registrar el documento.");
+      }
 
       // Notify reviewers + update project status
       await fetch(`/api/projects/${projectId}/resubmit`, {

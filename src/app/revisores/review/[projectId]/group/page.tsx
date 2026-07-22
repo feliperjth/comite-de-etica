@@ -78,12 +78,18 @@ export default function GroupReviewPage() {
       setFbUploading(false);
       return;
     }
-    const { error: docError } = await supabase.from("documents").insert({
-      project_id: projectId,
-      doc_type:   "review_feedback",
-      file_name:  `${reviewerName} - ${file.name}`,
-      file_path:  path,
-    });
+    // Registro por el servidor: `documents` ya no es escribible desde el
+      // navegador. La sesion de revisor autoriza la operacion.
+      const resDoc = await fetch(`/api/projects/${projectId}/documents`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_type:  "review_feedback",
+          file_name: `${reviewerName} - ${file.name}`,
+          file_path: path,
+        }),
+      });
+      const docError = resDoc.ok ? null : { message: (await resDoc.json().catch(() => ({}))).error ?? "Error al registrar" };
     if (docError) setFbError(`No se pudo registrar el documento: ${docError.message}`);
     await loadFeedbackDocs();
     setFbUploading(false);

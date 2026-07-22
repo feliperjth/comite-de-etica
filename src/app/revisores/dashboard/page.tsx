@@ -314,12 +314,18 @@ export default function ReviewerDashboard() {
         setCloseStage((prev) => prev && { ...prev, loading: false, error: `No se pudo subir el documento: ${uploadError.message}` });
         return;
       }
-      const { error: docError } = await supabase.from("documents").insert({
-        project_id: project.id,
-        doc_type:   "review_feedback",
-        file_name:  `${COORDINATION_NAME} - ${file.name}`,
-        file_path:  path,
+      // Registro por el servidor: `documents` ya no es escribible desde el
+      // navegador. La sesion de revisor autoriza la operacion.
+      const resDoc = await fetch(`/api/projects/${project.id}/documents`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_type:  "review_feedback",
+          file_name: `${COORDINATION_NAME} - ${file.name}`,
+          file_path: path,
+        }),
       });
+      const docError = resDoc.ok ? null : { message: (await resDoc.json().catch(() => ({}))).error ?? "Error al registrar" };
       if (docError) {
         setCloseStage((prev) => prev && { ...prev, loading: false, error: `No se pudo registrar el documento: ${docError.message}` });
         return;

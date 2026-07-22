@@ -164,12 +164,18 @@ export default function ReviewPage() {
         setSubmitting(false);
         return;
       }
-      const { error: docError } = await supabase.from("documents").insert({
-        project_id: project.id,
-        doc_type:   "review_feedback",
-        file_name:  `${reviewerName} - ${feedbackFile.name}`,
-        file_path:  path,
+      // Registro por el servidor: `documents` ya no es escribible desde el
+      // navegador. La sesion de revisor autoriza la operacion.
+      const resDoc = await fetch(`/api/projects/${project.id}/documents`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_type:  "review_feedback",
+          file_name: `${reviewerName} - ${feedbackFile.name}`,
+          file_path: path,
+        }),
       });
+      const docError = resDoc.ok ? null : { message: (await resDoc.json().catch(() => ({}))).error ?? "Error al registrar" };
       if (docError) {
         setSubmitError(`No se pudo registrar tu documento: ${docError.message}`);
         setSubmitting(false);
