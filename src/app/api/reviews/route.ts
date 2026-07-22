@@ -19,6 +19,38 @@ interface SectionPayload {
   custom_comment: string;
 }
 
+/**
+ * Revisiones ya emitidas por quien está en sesión, para que el dashboard sepa
+ * qué proyectos tiene hechos.
+ *
+ * Antes el navegador consultaba `reviews` directamente con la clave anónima,
+ * filtrando por una cookie de nombre — falsificable, y además obligaba a dejar
+ * la tabla legible por cualquiera. Ahora la identidad sale de la sesión.
+ */
+export async function GET(req: NextRequest) {
+  const { session, response } = await requireStaff(req);
+  if (response) return response;
+
+  const supabase = getSupabaseServer();
+
+  // Mismo criterio de nombre que el POST: la ficha de revisor manda.
+  const { data: reviewerRow } = await supabase
+    .from("reviewers")
+    .select("name")
+    .eq("email", session.email)
+    .maybeSingle();
+
+  const reviewer_name = reviewerRow?.name ?? session.name ?? session.email;
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("project_id, round")
+    .eq("reviewer_name", reviewer_name);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ reviews: data ?? [] });
+}
+
 export async function POST(req: NextRequest) {
   try {
     // La identidad del revisor sale de la sesión firmada, no del cuerpo:
