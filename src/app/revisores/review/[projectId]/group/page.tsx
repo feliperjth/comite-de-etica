@@ -53,13 +53,9 @@ export default function GroupReviewPage() {
 
   const loadFeedbackDocs = useCallback(async () => {
     if (!projectId) return;
-    const supabase = getSupabase();
-    const { data } = await supabase
-      .from("documents")
-      .select("id, file_name")
-      .eq("project_id", projectId)
-      .eq("doc_type", "review_feedback")
-      .like("file_path", `%/review-feedback/r${round}/%`);
+    // Por endpoint: `documents` deja de leerse desde el navegador.
+    const res  = await fetch(`/api/projects/${projectId}/documents?type=review_feedback&round=${round}`);
+    const data = res.ok ? (await res.json()).documents : [];
     setFbDocs(data ?? []);
   }, [projectId, round]);
 
@@ -113,7 +109,7 @@ export default function GroupReviewPage() {
     setReviewerEmail(email);
 
     const supabase = getSupabase();
-    supabase.from("projects").select("id,title,researcher_name,reviewer,reviewer2,current_round").eq("id", projectId).single()
+    fetch(`/api/projects/${projectId}`).then(async (r) => ({ data: r.ok ? (await r.json()).project : null }))
       .then(({ data }) => {
         if (!data) { router.push("/revisores/dashboard"); return; }
         setProject(data);

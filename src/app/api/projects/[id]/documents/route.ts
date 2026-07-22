@@ -108,12 +108,26 @@ export async function GET(
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { data: docs, error } = await supabase
+  // Por defecto se omiten los documentos con comentarios del revisor, que se
+  // muestran aparte. Con ?type= se piden explícitamente, opcionalmente de una
+  // ronda concreta (la ronda va en la ruta de Storage).
+  const tipo  = req.nextUrl.searchParams.get("type");
+  const ronda = req.nextUrl.searchParams.get("round");
+
+  let query = supabase
     .from("documents")
     .select("*")
     .eq("project_id", id)
-    .neq("doc_type", "review_feedback") // reviewer→researcher docs live elsewhere
     .order("created_at", { ascending: true });
+
+  if (tipo) {
+    query = query.eq("doc_type", tipo);
+    if (ronda) query = query.like("file_path", `%/review-feedback/r${ronda}/%`);
+  } else {
+    query = query.neq("doc_type", "review_feedback");
+  }
+
+  const { data: docs, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

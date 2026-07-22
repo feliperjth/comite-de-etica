@@ -6,7 +6,6 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
-import { getSupabase } from "@/lib/supabase";
 import { themes } from "@/lib/themes";
 import {
   BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle,
@@ -414,12 +413,10 @@ export default function CoordinadorStats() {
   }
 
   async function reloadProjects() {
-    const supabase = getSupabase();
-    const { data } = await supabase
-      .from("projects")
-      .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,certificate_url")
-      .order("created_at", { ascending: false });
-    setProjects(data ?? []);
+    // Por endpoint: la tabla `projects` deja de leerse desde el navegador.
+    const res = await fetch("/api/comite/projects");
+    const data = res.ok ? await res.json() : { projects: [] };
+    setProjects(data.projects ?? []);
   }
 
   async function handleSeed() {
@@ -477,12 +474,9 @@ export default function CoordinadorStats() {
     fetch("/api/me").then(r => r.json()).then(me => {
       if (me.email !== ADMIN_EMAIL) { router.push("/"); return; }
       setMeUser(me);
-      const supabase = getSupabase();
-      supabase
-        .from("projects")
-        .select("id,title,status,project_type,theme,advisor_name,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,certificate_url")
-        .order("created_at", { ascending: false })
-        .then(({ data }) => { setProjects(data ?? []); setLoading(false); });
+      fetch("/api/comite/projects")
+        .then((r) => (r.ok ? r.json() : { projects: [] }))
+        .then((d) => { setProjects(d.projects ?? []); setLoading(false); });
       loadTemplates();
     });
   }, [router]);

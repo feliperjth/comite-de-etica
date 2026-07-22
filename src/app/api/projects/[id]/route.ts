@@ -10,7 +10,34 @@ import {
   ETHICS_COMMITTEE_EMAIL,
 } from "@/lib/email";
 import { generateCertToken } from "@/app/api/certify/route";
-import { requireAdmin, requireStaff } from "@/lib/auth";
+import { canAccessProject, getSession, requireAdmin, requireStaff } from "@/lib/auth";
+
+/**
+ * Un proyecto concreto. Lo consumen las pantallas de revisión, que antes lo
+ * leían de la tabla con la clave anónima — lo que obligaba a dejar `projects`
+ * legible por cualquiera.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession(request);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { id } = await params;
+  const supabase = getSupabaseServer();
+
+  const { data, error } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data)  return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+
+  // Un investigador solo puede ver los suyos; el personal del comité, todos.
+  if (!canAccessProject(session, data)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  return NextResponse.json({ project: data });
+}
 
 export async function PATCH(
   request: NextRequest,

@@ -72,7 +72,9 @@ export default function ReviewPage() {
 
   const loadProject = useCallback(async () => {
     const supabase = getSupabase();
-    const { data } = await supabase.from("projects").select("*").eq("id", projectId).single();
+    // Por endpoint: `projects` deja de leerse desde el navegador.
+    const resProj = await fetch(`/api/projects/${projectId}`);
+    const data = resProj.ok ? (await resProj.json()).project : null;
     setProject(data);
     setLoadingProject(false);
   }, [projectId]);

@@ -108,21 +108,21 @@ export default function ReviewerDashboard() {
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
-    const supabase = getSupabase();
-
-    // Las revisiones propias vienen del servidor: identifica al revisor por la
-    // sesión firmada, no por una cookie, y permite cerrar la tabla `reviews`.
-    const [{ data: projectData }, misRevisiones, { data: missingData }] = await Promise.all([
-      supabase.from("projects").select("*").order("created_at", { ascending: false }),
-      fetch("/api/reviews").then(r => r.ok ? r.json() : { reviews: [] }).catch(() => ({ reviews: [] })),
-      supabase.from("documents").select("project_id")
-        .is("file_path", null).neq("doc_type", "review_feedback"),
+    // Todo por endpoints: la identidad sale de la sesión firmada y las tablas
+    // `projects`, `documents` y `reviews` dejan de leerse desde el navegador.
+    const [listado, misRevisiones] = await Promise.all([
+      fetch("/api/comite/projects")
+        .then(r => r.ok ? r.json() : { projects: [], missingDocs: [] })
+        .catch(() => ({ projects: [], missingDocs: [] })),
+      fetch("/api/reviews")
+        .then(r => r.ok ? r.json() : { reviews: [] })
+        .catch(() => ({ reviews: [] })),
     ]);
 
-    const list = projectData ?? [];
+    const list: Project[] = listado.projects ?? [];
     setProjects(list);
     setMyReviews(misRevisiones.reviews ?? []);
-    setMissingDocProjects(new Set((missingData ?? []).map((d) => d.project_id)));
+    setMissingDocProjects(new Set<string>(listado.missingDocs ?? []));
 
     const initial: Record<string, EditState> = {};
     const initialAA: Record<string, AutoAssignState> = {};

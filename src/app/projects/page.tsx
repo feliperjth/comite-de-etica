@@ -6,7 +6,6 @@ import Link from "next/link";
 import ProjectState from "@/components/ProjectState";
 import { getThemeLabel } from "@/lib/themes";
 import { themes } from "@/lib/themes";
-import { getSupabase } from "@/lib/supabase";
 import {
   FolderOpen, Plus, RefreshCw, ChevronRight,
   LayoutDashboard, Users, Trash2, AlertTriangle,
@@ -97,12 +96,9 @@ export default function ProjectsPage() {
       }
 
     } else if (type === "admin") {
-      const supabase = getSupabase();
-      const { data } = await supabase
-        .from("projects")
-        .select("id,title,status,project_type,theme,funding_type,funding_folio,researcher_name,researcher_email,reviewer,reviewer2,created_at,tracking_code,current_round,certificate_url")
-        .order("created_at", { ascending: false });
-      setProjects(data ?? []);
+      const res = await fetch("/api/comite/projects");
+      const data = res.ok ? await res.json() : { projects: [] };
+      setProjects(data.projects ?? []);
     }
 
     setLoading(false);
