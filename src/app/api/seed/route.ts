@@ -1,3 +1,4 @@
+import { hashPassword } from "@/lib/password";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
 import { ADMIN_EMAIL, requireAdmin } from "@/lib/auth";
@@ -501,7 +502,10 @@ export async function POST(req: NextRequest) {
   for (const a of RESEARCHER_ACCOUNTS) {
     const { error } = await adminClient
       .from("researcher_accounts")
-      .upsert({ name: a.name, email: a.email, password: a.password }, { onConflict: "email" });
+      .upsert(
+        { name: a.name, email: a.email, password: await hashPassword(a.password) },
+        { onConflict: "email" },
+      );
     if (error) results.researchers.errors.push(`${a.name}: ${error.message}`);
     else results.researchers.ok++;
   }

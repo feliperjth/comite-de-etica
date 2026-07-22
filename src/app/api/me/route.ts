@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { ADMIN_NAME, getSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   // El nombre se resuelve contra la base para reflejar cambios de perfil
   // posteriores al inicio de sesión.
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   const table = session.role === "investigador" ? "researcher_accounts" : "reviewers";
   const { data } = await supabase
     .from(table)

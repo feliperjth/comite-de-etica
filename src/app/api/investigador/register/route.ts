@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import { createSession, setSessionCookies } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 
 export async function POST(req: NextRequest) {
   const { email, name, password } = await req.json();
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "La clave debe tener al menos 6 caracteres." }, { status: 400 });
   }
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
 
   // Check if account already exists
   const { data: existing } = await supabase
@@ -31,7 +32,11 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from("researcher_accounts")
-    .insert({ email: email.toLowerCase().trim(), name: name.trim(), password });
+    .insert({
+      email:    email.toLowerCase().trim(),
+      name:     name.trim(),
+      password: await hashPassword(password),
+    });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
