@@ -1,4 +1,4 @@
-import { getSupabase, isConfigured } from "@/lib/supabase";
+import { getSupabaseServer, isConfigured } from "@/lib/supabase";
 import { sections as allSections } from "@/lib/sections";
 import StatusBadge from "@/components/StatusBadge";
 import ResubmitForm from "@/components/ResubmitForm";
@@ -39,7 +39,10 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   const messageRole: "investigador" | "reviewer" | null =
     isReviewer ? "reviewer" : investigadorEmailCookie ? "investigador" : null;
 
-  const supabase = getSupabase();
+  // Server component: va con la service-role. Con RLS cerrada la clave anónima
+  // no lee `projects` y la página respondía "Código no encontrado" a todos.
+  // El expediente lo sigue autorizando el código de seguimiento.
+  const supabase = getSupabaseServer();
   const { data: project } = await supabase
     .from("projects")
     .select("*")
