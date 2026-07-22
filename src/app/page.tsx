@@ -80,45 +80,40 @@ export default async function Home() {
         {/* Halo naranja: da calidez al negro y ancla la marca UAI. */}
         <div className="ce-halo absolute top-1/2 left-1/2 w-[680px] h-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(204,82,0,0.22)_0%,transparent_68%)] pointer-events-none" />
 
-        {/* Red neuronal: nodos y sinapsis. Es la metáfora de la psicología que
-            mejor envejece — mente como red de conexiones — y evita el tópico
-            del diván o el cerebro ilustrado. Decorativa: oculta al lector de
-            pantalla, que no gana nada describiéndola. */}
+        {/* Psi: el símbolo de la psicología como disciplina, no de un área
+            concreta — una red neuronal tiraba a neurociencia y dejaba fuera la
+            social, la clínica o la cualitativa. Los anillos concéntricos
+            aportan la idea de método e investigación sin comprometerse con
+            ninguna corriente. Decorativo: aria-hidden. */}
         <svg
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-70"
+          className="absolute inset-0 w-full h-full pointer-events-none"
           viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice"
         >
-          <g className="ce-deriva" stroke="rgba(204,82,0,0.28)" strokeWidth="1" fill="none">
-            <path d="M120 180 L310 120 L470 230 L300 330 Z" />
-            <path d="M470 230 L690 160 L860 260" />
-            <path d="M300 330 L520 420 L760 380 L860 260" />
-            <path d="M860 260 L1050 190 L1120 340" />
-            <path d="M520 420 L640 540" />
-            <path d="M310 120 L690 160" />
-          </g>
-
-          {/* Sinapsis: pulsos que recorren algunas conexiones. */}
-          <g stroke="#CC5200" strokeWidth="2" fill="none" strokeLinecap="round">
-            <path className="ce-sinapsis" d="M120 180 L310 120 L470 230" style={{ animationDelay: "0s" }} />
-            <path className="ce-sinapsis" d="M300 330 L520 420 L760 380" style={{ animationDelay: "2.4s" }} />
-            <path className="ce-sinapsis" d="M860 260 L1050 190 L1120 340" style={{ animationDelay: "4.1s" }} />
-          </g>
-
-          <g className="ce-deriva" fill="#CC5200">
-            {[[120,180],[310,120],[470,230],[300,330],[690,160],[860,260],[520,420],[760,380],[1050,190],[1120,340],[640,540]].map(([cx, cy]) => (
-              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" opacity="0.75" />
-            ))}
+          <g transform="translate(600 300)">
+            {/* Anillos: giran muy lento, casi imperceptible. */}
+            <g className="ce-orbita" fill="none" stroke="#CC5200" opacity="0.18">
+              <circle r="230" strokeWidth="1" strokeDasharray="3 14" />
+              <circle r="280" strokeWidth="1" strokeDasharray="2 22" />
+            </g>
+            {/* El trazo se dibuja al cargar; el relleno late despacio despues. */}
+            <text
+              x="0" y="0" textAnchor="middle" dominantBaseline="central"
+              fontSize="420" fontFamily="Georgia, 'Times New Roman', serif"
+              fill="#CC5200" className="ce-aura"
+            >
+              Ψ
+            </text>
+            <text
+              x="0" y="0" textAnchor="middle" dominantBaseline="central"
+              fontSize="420" fontFamily="Georgia, 'Times New Roman', serif"
+              fill="none" stroke="#CC5200" strokeWidth="1.5" opacity="0.20"
+              className="ce-trazo"
+            >
+              Ψ
+            </text>
           </g>
         </svg>
-
-        {/* Ψ de fondo: el símbolo de la psicología, apenas insinuado. */}
-        <span
-          aria-hidden="true"
-          className="absolute right-[6%] top-1/2 -translate-y-1/2 text-[22rem] leading-none font-serif text-white/[0.035] select-none pointer-events-none hidden lg:block"
-        >
-          Ψ
-        </span>
 
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="ce-entrada inline-flex items-center gap-2 bg-white/[0.07] backdrop-blur-sm border border-white/10 text-uai-gold text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8">

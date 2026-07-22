@@ -60,35 +60,38 @@ html { scroll-behavior: smooth; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Deriva lenta de los nodos de la red neuronal del fondo. */
-@keyframes ce-deriva {
-  0%, 100% { transform: translate(0, 0); }
-  33%      { transform: translate(14px, -18px); }
-  66%      { transform: translate(-10px, 12px); }
-}
-
-/* Latido del halo naranja: respiración, no parpadeo. */
+/* Halo naranja: respiración, no parpadeo. */
 @keyframes ce-halo {
   0%, 100% { opacity: 0.35; transform: scale(1); }
   50%      { opacity: 0.6;  transform: scale(1.08); }
 }
 
-/* Sinapsis: el brillo recorre la conexión entre dos nodos. */
-@keyframes ce-sinapsis {
-  0%       { stroke-dashoffset: 240; opacity: 0; }
-  15%      { opacity: 0.9; }
-  85%      { opacity: 0.9; }
-  100%     { stroke-dashoffset: 0; opacity: 0; }
+/* La psi se dibuja sola, como un trazo a mano. */
+@keyframes ce-trazo {
+  from { stroke-dashoffset: 1400; }
+  to   { stroke-dashoffset: 0; }
 }
 
-.ce-entrada    { animation: ce-entrada 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-.ce-deriva     { animation: ce-deriva 18s ease-in-out infinite; }
-.ce-halo       { animation: ce-halo 7s ease-in-out infinite; }
-.ce-sinapsis   { stroke-dasharray: 240; animation: ce-sinapsis 6s ease-in-out infinite; }
+/* Aura de la psi: late despacio una vez dibujada. */
+@keyframes ce-aura {
+  0%, 100% { opacity: 0.05; }
+  50%      { opacity: 0.10; }
+}
+
+/* Anillos concéntricos girando muy lento alrededor del símbolo. */
+@keyframes ce-orbita {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.ce-entrada { animation: ce-entrada 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.ce-halo    { animation: ce-halo 7s ease-in-out infinite; }
+.ce-trazo   { stroke-dasharray: 1400; animation: ce-trazo 3.2s ease-out forwards; }
+.ce-aura    { animation: ce-aura 6s ease-in-out infinite 3s backwards; }
+.ce-orbita  { animation: ce-orbita 70s linear infinite; transform-origin: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ce-entrada, .ce-deriva, .ce-halo, .ce-sinapsis {
-    animation: none;
-  }
-  .ce-sinapsis { opacity: 0.5; stroke-dashoffset: 0; }
+  .ce-entrada, .ce-halo, .ce-trazo, .ce-aura, .ce-orbita { animation: none; }
+  .ce-trazo { stroke-dashoffset: 0; }
+  .ce-aura  { opacity: 0.08; }
 }
