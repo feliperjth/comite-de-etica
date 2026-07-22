@@ -870,7 +870,10 @@ export default function ReviewerDashboard() {
                   {/* Documentos del expediente. La coordinación puede gestionar
                       todos; un revisor, solo los que subió él. */}
                   <div className="mt-3">
-                    <ProjectDocumentsPanel projectId={p.id} manage scopeAll defaultOpen={false} />
+                    {/* Desplegado: el revisor entra aquí a leer y reemplazar
+                        archivos, y tenerlos plegados obligaba a un clic extra
+                        por proyecto. */}
+                    <ProjectDocumentsPanel projectId={p.id} manage scopeAll />
                   </div>
                 </div>
               );

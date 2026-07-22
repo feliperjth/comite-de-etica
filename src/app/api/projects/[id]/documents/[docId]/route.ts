@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { canAccessProject, getSession } from "@/lib/auth";
 import { canManageDocument, razonBloqueo } from "@/lib/documentAccess";
+import {
+  carpetaDe, etiquetaRondaRevisor, reemplazoAvisaAlInvestigador, rondaDeDocumento,
+} from "@/lib/documentRounds";
+import { sendEmail, buildFeedbackReplacedEmail } from "@/lib/email";
 
 /**
  * Gestión de un documento del expediente.
@@ -21,7 +25,7 @@ async function cargarContexto(req: NextRequest, id: string, docId: string) {
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, researcher_email, status")
+    .select("id, title, researcher_name, researcher_email, tracking_code, status, current_round")
     .eq("id", id)
     .maybeSingle();
   if (!project) return { error: NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 }) };
@@ -89,6 +93,17 @@ export async function PUT(
     return NextResponse.json({ error: "La ruta no pertenece a este proyecto" }, { status: 400 });
   }
 
+  // Y en la MISMA carpeta que el documento al que sustituye: la ronda de un
+  // archivo se deduce de su ruta, así que dejarlo en otra carpeta lo movería
+  // de ronda sin que nadie lo pidiera.
+  const carpetaVieja = carpetaDe(ctx.doc.file_path);
+  if (carpetaVieja && carpetaDe(filePath) !== carpetaVieja) {
+    return NextResponse.json(
+      { error: "El reemplazo debe quedar en la misma carpeta que el documento original." },
+      { status: 400 },
+    );
+  }
+
   // El tipo lo hereda del documento sustituido: reemplazar no puede convertir
   // un consentimiento en un protocolo.
   const { data: nuevo, error: errInsert } = await ctx.supabase
@@ -119,5 +134,37 @@ export async function PUT(
     return NextResponse.json({ error: errArchivo.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, replaced: docId, id: nuevo.id });
+  // Aviso al investigador: solo si ya tenía la versión anterior en su
+  // expediente. El reemplazo ya está hecho, así que un fallo del correo no
+  // deshace nada — se informa en la respuesta y la UI lo dice.
+  let avisado: string | null = null;
+  let avisoError: string | null = null;
+
+  if (reemplazoAvisaAlInvestigador(ctx.project, ctx.doc) && ctx.project.researcher_email) {
+    const origin =
+      req.headers.get("origin") ??
+      (req.headers.get("referer") ?? "").match(/^(https?:\/\/[^/]+)/)?.[1] ??
+      "";
+    try {
+      // sendEmail calla si no hay credenciales; aquí se distingue para no
+      // decirle al revisor que se avisó cuando no salió ningún correo.
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        throw new Error("El correo no está configurado en el servidor.");
+      }
+      await sendEmail(
+        ctx.project.researcher_email,
+        `Documento de revisión actualizado · ${ctx.project.title}`,
+        buildFeedbackReplacedEmail(
+          ctx.project,
+          { rondaLabel: etiquetaRondaRevisor(rondaDeDocumento(ctx.doc)), fileName },
+          origin,
+        ),
+      );
+      avisado = ctx.project.researcher_email;
+    } catch (e: unknown) {
+      avisoError = e instanceof Error ? e.message : "No se pudo enviar el aviso.";
+    }
+  }
+
+  return NextResponse.json({ ok: true, replaced: docId, id: nuevo.id, avisado, avisoError });
 }

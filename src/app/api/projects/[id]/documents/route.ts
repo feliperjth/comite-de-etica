@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { canAccessProject, getSession } from "@/lib/auth";
 import { canManageDocument, razonBloqueo } from "@/lib/documentAccess";
+import {
+  grupoDeDocumento, rondaDeDocumento, reemplazoAvisaAlInvestigador,
+} from "@/lib/documentRounds";
 
 // Canonical display order; unknown types go last, then by upload date
 const DOC_ORDER = ["protocol", "consent", "assent", "instruments", "revision"];
@@ -103,7 +106,7 @@ export async function GET(
   // Un investigador solo puede ver los documentos de sus propios proyectos.
   const { data: project } = await supabase
     .from("projects")
-    .select("researcher_email, status")
+    .select("researcher_email, status, current_round")
     .eq("id", id)
     .maybeSingle();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
@@ -151,15 +154,27 @@ export async function GET(
         id:        d.id,
         doc_type:  d.doc_type,
         file_name: d.file_name,
+        file_path: d.file_path ?? null,
         url,
         uploaded_by: d.uploaded_by ?? null,
+        // Grupo y ronda los resuelve el servidor: el panel los pinta tal cual
+        // en vez de volver a interpretar las rutas de Storage por su cuenta.
+        grupo: grupoDeDocumento(d),
+        ronda: rondaDeDocumento(d),
+        // Si al reemplazarlo se avisará por correo al investigador, para que
+        // el revisor lo sepa ANTES de confirmar.
+        avisaAlInvestigador: reemplazoAvisaAlInvestigador(project, d),
         // La UI solo pinta los botones; quien decide de verdad es el
         // endpoint de gestión, que vuelve a comprobarlo contra la sesión.
         canManage:  canManageDocument(session, project, d),
         bloqueo:    razonBloqueo(session, project, d),
       };
     })
+    // Investigador antes que revisores, rondas en orden y, dentro de cada una,
+    // el orden canónico del expediente.
     .sort((a, b) => {
+      if (a.grupo !== b.grupo) return a.grupo === "investigador" ? -1 : 1;
+      if (a.ronda !== b.ronda) return a.ronda - b.ronda;
       const ia = DOC_ORDER.indexOf(a.doc_type);
       const ib = DOC_ORDER.indexOf(b.doc_type);
       return (ia === -1 ? DOC_ORDER.length : ia) - (ib === -1 ? DOC_ORDER.length : ib);

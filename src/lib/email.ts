@@ -238,6 +238,37 @@ export function buildCorrectionsEmail(
   return wrap(body);
 }
 
+/* ── Email: un revisor sustituyó su documento de comentarios ─── */
+/**
+ * Solo se envía cuando el investigador ya tenía la versión anterior en su
+ * expediente (ver `reemplazoAvisaAlInvestigador`): avisarle de un archivo que
+ * nunca llegó a ver sería ruido.
+ */
+export function buildFeedbackReplacedEmail(
+  project: { title: string; researcher_name: string; tracking_code: string | null },
+  datos: { rondaLabel: string; fileName: string },
+  origin: string,
+) {
+  const trackUrl = `${origin}/track/${project.tracking_code}`;
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Se actualizó un documento de revisión</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Estimada/o <strong>${project.researcher_name}</strong>, el comité sustituyó uno de los documentos con comentarios de tu proyecto por una versión corregida. <strong>La versión anterior ya no es válida</strong>: usa la nueva para preparar tus correcciones.
+    </p>
+    <div style="background:#f9f9f9;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">Proyecto</p>
+      <p style="margin:0 0 12px;font-size:15px;color:#1A1A1A;font-weight:600;">${project.title}</p>
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">Documento actualizado</p>
+      <p style="margin:0 0 4px;font-size:14px;color:#1A1A1A;">${datos.fileName}</p>
+      <p style="margin:0;font-size:13px;color:#888;">${datos.rondaLabel}</p>
+    </div>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${trackUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 32px;border-radius:8px;">Ver el documento actualizado</a>
+    </div>
+    <p style="font-size:12px;color:#999;margin:0;">Código de seguimiento: <strong>${project.tracking_code}</strong></p>`;
+  return wrap(body);
+}
+
 /* ── Email: investigador resubmitió ──────────────────────────── */
 export function buildResubmitNotificationEmail(
   project: { title: string; researcher_name: string },
