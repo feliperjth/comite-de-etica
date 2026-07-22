@@ -251,7 +251,7 @@ export default function GroupReviewPage() {
       </div>
 
       {/* Documents uploaded by the researcher */}
-      <ProjectDocumentsPanel projectId={project.id} />
+      <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
 
       {/* ══ System chooser — one screen to pick between the two systems ══ */}
       {system === null && (

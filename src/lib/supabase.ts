@@ -44,6 +44,13 @@ export type Document = {
   file_name: string;
   file_path: string | null;
   created_at: string;
+  /** Null mientras está vigente. Los archivados no se muestran ni se suben al Drive. */
+  archived_at: string | null;
+  archived_by: string | null;
+  /** Quién lo subió. Null en los anteriores a que se registrara. */
+  uploaded_by: string | null;
+  /** Si sustituye a otro documento, el id del que reemplazó. */
+  replaces_id: string | null;
 };
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { canAccessProject, getSession } from "@/lib/auth";
+import { canManageDocument, razonBloqueo } from "@/lib/documentAccess";
 
 // Canonical display order; unknown types go last, then by upload date
 const DOC_ORDER = ["protocol", "consent", "assent", "instruments", "revision"];
@@ -72,8 +73,10 @@ export async function POST(
       doc_type:    docType,
       file_name:   fileName,
       file_path:   filePath,
-      // uploaded_by lo añade la rama del panel de documentos, junto con su
-      // migración: aquí todavía no existe la columna.
+      // Autoría, para saber quién puede gestionarlo luego. Se toma de la
+      // sesión, no del cuerpo: si viniera del cliente, cualquiera podría
+      // atribuirse el documento de otro.
+      uploaded_by: session?.email ?? project.researcher_email ?? null,
     })
     .select("id")
     .single();
@@ -100,7 +103,7 @@ export async function GET(
   // Un investigador solo puede ver los documentos de sus propios proyectos.
   const { data: project } = await supabase
     .from("projects")
-    .select("researcher_email")
+    .select("researcher_email, status")
     .eq("id", id)
     .maybeSingle();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
@@ -109,21 +112,25 @@ export async function GET(
   }
 
   // Por defecto se omiten los documentos con comentarios del revisor, que se
-  // muestran aparte. Con ?type= se piden explícitamente, opcionalmente de una
-  // ronda concreta (la ronda va en la ruta de Storage).
-  const tipo  = req.nextUrl.searchParams.get("type");
-  const ronda = req.nextUrl.searchParams.get("round");
+  // muestran en su propia sección. Con ?type= se piden explícitamente (y
+  // ?round= acota a una ronda, que va en la ruta de Storage); con ?scope=all
+  // vienen junto al resto, para los paneles de gestión.
+  const filtros = req.nextUrl.searchParams;
+  const tipo    = filtros.get("type");
+  const ronda   = filtros.get("round");
+  const todos   = filtros.get("scope") === "all";
 
   let query = supabase
     .from("documents")
     .select("*")
     .eq("project_id", id)
+    .is("archived_at", null) // los archivados son historial, no expediente vivo
     .order("created_at", { ascending: true });
 
   if (tipo) {
     query = query.eq("doc_type", tipo);
     if (ronda) query = query.like("file_path", `%/review-feedback/r${ronda}/%`);
-  } else {
+  } else if (!todos) {
     query = query.neq("doc_type", "review_feedback");
   }
 
@@ -145,6 +152,11 @@ export async function GET(
         doc_type:  d.doc_type,
         file_name: d.file_name,
         url,
+        uploaded_by: d.uploaded_by ?? null,
+        // La UI solo pinta los botones; quien decide de verdad es el
+        // endpoint de gestión, que vuelve a comprobarlo contra la sesión.
+        canManage:  canManageDocument(session, project, d),
+        bloqueo:    razonBloqueo(session, project, d),
       };
     })
     .sort((a, b) => {

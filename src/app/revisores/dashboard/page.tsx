@@ -6,6 +6,7 @@ import { getSupabase, type Project, type ProjectStatus } from "@/lib/supabase";
 import { getThemeLabel } from "@/lib/themes";
 import { safeStorageName } from "@/lib/storage";
 import ProjectState from "@/components/ProjectState";
+import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
   AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
@@ -865,6 +866,12 @@ export default function ReviewerDashboard() {
                       </div>
                     );
                   })()}
+
+                  {/* Documentos del expediente. La coordinación puede gestionar
+                      todos; un revisor, solo los que subió él. */}
+                  <div className="mt-3">
+                    <ProjectDocumentsPanel projectId={p.id} manage scopeAll defaultOpen={false} />
+                  </div>
                 </div>
               );
             })}

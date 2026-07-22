@@ -3,39 +3,108 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   FileText, ChevronDown, ChevronUp, Eye, Download, X, ExternalLink, AlertTriangle,
+  Trash2, RefreshCw, Loader2,
 } from "lucide-react";
+import { getSupabase } from "@/lib/supabase";
+import { safeStorageName } from "@/lib/storage";
+import { docLabel } from "@/lib/documents";
 
-const docLabels: Record<string, string> = {
-  protocol:    "Protocolo de investigación",
-  consent:     "Consentimiento informado",
-  assent:      "Asentimiento informado",
-  instruments: "Instrumentos / tests a utilizar",
-  revision:    "Documento corregido (reenvío)",
+type Doc = {
+  id: string;
+  doc_type: string;
+  file_name: string;
+  url: string | null;
+  canManage?: boolean;
+  bloqueo?: string | null;
 };
 
-type Doc = { id: string; doc_type: string; file_name: string; url: string | null };
+/**
+ * Ruta del archivo de reemplazo en Storage. Fuera del componente a propósito:
+ * `Date.now()` es impuro y React no admite llamarlo durante el render.
+ * El sufijo temporal evita chocar con el archivo al que sustituye.
+ */
+function rutaStorage(projectId: string, docType: string, fileName: string): string {
+  return `${projectId}/${docType}/${Date.now()}_${safeStorageName(fileName)}`;
+}
+
+type Props = {
+  projectId: string;
+  /** Muestra los botones de eliminar y reemplazar en los documentos permitidos. */
+  manage?: boolean;
+  /** Incluye también los documentos con comentarios de los revisores. */
+  scopeAll?: boolean;
+  /** En listados de varios proyectos conviene arrancar plegado. */
+  defaultOpen?: boolean;
+};
 
 /**
  * Collapsible panel listing every document the researcher uploaded for a
  * project, with in-app viewer and download. Used in all reviewer flows
  * (individual, download, group) so documents are always accessible.
+ *
+ * Con `manage`, además permite archivar y reemplazar los documentos que la
+ * sesión pueda gestionar. Quién puede qué lo decide el servidor: aquí solo se
+ * pinta lo que venga en `canManage`.
  */
-export default function ProjectDocumentsPanel({ projectId }: { projectId: string }) {
+export default function ProjectDocumentsPanel({
+  projectId, manage = false, scopeAll = false, defaultOpen = true,
+}: Props) {
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [loaded, setLoaded]       = useState(false);
-  const [open, setOpen]           = useState(true);
+  const [open, setOpen]           = useState(defaultOpen);
   const [viewer, setViewer]       = useState<{ url: string; name: string } | null>(null);
+  const [busy, setBusy]           = useState<string | null>(null);
+  const [error, setError]         = useState<string | null>(null);
+  const [confirmar, setConfirmar] = useState<string | null>(null);
   const panelRef                  = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/projects/${projectId}/documents`)
+  const cargar = useCallback(() => {
+    return fetch(`/api/projects/${projectId}/documents${scopeAll ? "?scope=all" : ""}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => { if (!cancelled) setDocuments(d.documents ?? []); })
+      .then((d) => setDocuments(d.documents ?? []))
       .catch(() => {})
-      .finally(() => { if (!cancelled) setLoaded(true); });
-    return () => { cancelled = true; };
-  }, [projectId]);
+      .finally(() => setLoaded(true));
+  }, [projectId, scopeAll]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  async function eliminar(doc: Doc) {
+    setBusy(doc.id); setError(null);
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/documents/${doc.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+      await cargar();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "No se pudo eliminar el documento.");
+    } finally {
+      setBusy(null); setConfirmar(null);
+    }
+  }
+
+  async function reemplazar(doc: Doc, file: File) {
+    setBusy(doc.id); setError(null);
+    try {
+      const supabase = getSupabase();
+      const path = rutaStorage(projectId, doc.doc_type, file.name);
+
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, file);
+      if (upErr) throw new Error(`No se pudo subir el archivo: ${upErr.message}`);
+
+      const res  = await fetch(`/api/projects/${projectId}/documents/${doc.id}`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ fileName: file.name, filePath: path }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+      await cargar();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "No se pudo reemplazar el documento.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const closeViewer = useCallback(() => {
     setViewer(null);
@@ -71,6 +140,12 @@ export default function ProjectDocumentsPanel({ projectId }: { projectId: string
 
         {open && (
           <div className="border-t border-slate-100 divide-y divide-slate-50">
+            {error && (
+              <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-600 font-medium">{error}</p>
+              </div>
+            )}
             {!loaded ? (
               <p className="px-5 py-4 text-sm text-slate-400">Cargando documentos...</p>
             ) : documents.length === 0 ? (
@@ -83,12 +158,55 @@ export default function ProjectDocumentsPanel({ projectId }: { projectId: string
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-700 truncate">
-                      {docLabels[doc.doc_type] ?? doc.doc_type}
+                      {docLabel(doc.doc_type)}
                     </p>
                     <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-4">
+                  {manage && doc.canManage && (
+                    busy === doc.id ? (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 px-3 py-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando...
+                      </span>
+                    ) : confirmar === doc.id ? (
+                      <span className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">¿Eliminar?</span>
+                        <button
+                          onClick={() => eliminar(doc)}
+                          className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          Sí, eliminar
+                        </button>
+                        <button
+                          onClick={() => setConfirmar(null)}
+                          className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-2 py-1.5"
+                        >
+                          Cancelar
+                        </button>
+                      </span>
+                    ) : (
+                      <>
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#CC5200] border border-slate-200 hover:border-[#CC5200] px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
+                          <RefreshCw className="w-3.5 h-3.5" /> Reemplazar
+                          <input
+                            type="file" className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = ""; // permite reintentar el mismo archivo
+                              if (f) reemplazar(doc, f);
+                            }}
+                          />
+                        </label>
+                        <button
+                          onClick={() => setConfirmar(doc.id)}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                        </button>
+                      </>
+                    )
+                  )}
                   {doc.url ? (
                     <>
                       <button

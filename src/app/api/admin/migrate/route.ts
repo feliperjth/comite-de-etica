@@ -66,6 +66,24 @@ const SQL_MIGRATIONS: Migration[] = [
         ADD COLUMN IF NOT EXISTS decided_at timestamptz;
     `.trim(),
   },
+  {
+    // Gestión de documentos: eliminar y reemplazar sin perder el expediente.
+    // Un documento nunca se borra de verdad — se archiva, dejando quién y
+    // cuándo. En un comité de ética el expediente tiene que seguir siendo
+    // auditable si alguien reclama.
+    name: "documents_archivado",
+    table: "documents",
+    column: "archived_at",
+    sql: `
+      ALTER TABLE documents
+        ADD COLUMN IF NOT EXISTS archived_at  timestamptz,
+        ADD COLUMN IF NOT EXISTS archived_by  text,
+        ADD COLUMN IF NOT EXISTS uploaded_by  text,
+        ADD COLUMN IF NOT EXISTS replaces_id  uuid REFERENCES documents(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS documents_activos_idx
+        ON documents(project_id) WHERE archived_at IS NULL;
+    `.trim(),
+  },
 ];
 
 // ── Try pg direct connection ──────────────────────────────────────────────────

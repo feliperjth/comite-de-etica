@@ -338,7 +338,7 @@ export default function ReviewPage() {
         {projectHeader}
 
         {/* Documents always available, from the very first step */}
-        <ProjectDocumentsPanel projectId={project.id} />
+        <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
 
         <div className="text-center mb-8">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
@@ -405,7 +405,7 @@ export default function ReviewPage() {
         {projectHeader}
 
         {/* Documents panel — always visible before choosing mode */}
-        <ProjectDocumentsPanel projectId={project.id} />
+        <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
 
         {coReviewer && (
           <div className="flex items-center gap-2 mb-6">
@@ -497,7 +497,7 @@ export default function ReviewPage() {
         <AiAnalysisPanel title={project.title} abstract={project.abstract} mode="revisor" />
 
         {/* Documents panel */}
-        <ProjectDocumentsPanel projectId={project.id} />
+        <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
 
         {/* Messages */}
         <ProjectMessages projectId={project.id} role="reviewer" />
@@ -708,7 +708,7 @@ export default function ReviewPage() {
       {modeBadge}
 
       {/* Documents list */}
-      <ProjectDocumentsPanel projectId={project.id} />
+      <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
 
       {/* Messages */}
       <ProjectMessages projectId={project.id} role="reviewer" />

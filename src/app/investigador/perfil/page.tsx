@@ -8,6 +8,7 @@ import {
   AlertCircle, FileSearch, PlusCircle, Award, Download,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
+import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 import { getThemeLabel } from "@/lib/themes";
 
 type ProjectSummary = {
@@ -236,6 +237,12 @@ export default function InvestigadorPerfil() {
                       style={{ width: `${p.progress}%` }}
                     />
                   </div>
+                </div>
+
+                {/* Documentos: ver, reemplazar y eliminar los propios. El
+                    servidor decide si son gestionables según el estado. */}
+                <div className="mt-4">
+                  <ProjectDocumentsPanel projectId={p.id} manage defaultOpen={false} />
                 </div>
               </div>
             ))}
