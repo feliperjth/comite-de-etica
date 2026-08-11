@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { safeStorageName } from "@/lib/storage";
-import { docLabel } from "@/lib/documents";
+import { docLabel, formatFechaDoc } from "@/lib/documents";
 import {
   etiquetaRondaInvestigador, etiquetaRondaRevisor, type GrupoDocumento,
 } from "@/lib/documentRounds";
@@ -18,6 +18,8 @@ type Doc = {
   file_name: string;
   file_path: string | null;
   url: string | null;
+  /** Cuándo se subió. Null en los documentos que no la tienen registrada. */
+  created_at?: string | null;
   /** Quién lo aportó, y a qué ronda pertenece. Lo resuelve el servidor. */
   grupo: GrupoDocumento;
   ronda: number;
@@ -40,6 +42,13 @@ function rutaReemplazo(projectId: string, doc: Doc, fileName: string): string {
   const corte   = doc.file_path?.lastIndexOf("/") ?? -1;
   const carpeta = corte > 0 ? doc.file_path!.slice(0, corte) : `${projectId}/${doc.doc_type}`;
   return `${carpeta}/${Date.now()}_${safeStorageName(fileName)}`;
+}
+
+/** "· Subido el 4 ago 2026, 16:06". Nada si el documento no la tiene. */
+function FechaSubida({ iso }: { iso?: string | null }) {
+  const fecha = formatFechaDoc(iso);
+  if (!fecha) return null;
+  return <span className="shrink-0 whitespace-nowrap">· Subido el {fecha}</span>;
 }
 
 /** Agrupa por grupo y, dentro, por ronda, conservando el orden del servidor. */
@@ -181,7 +190,11 @@ export default function ProjectDocumentsPanel({
             <p className="text-sm font-medium text-slate-700 truncate">
               {docLabel(doc.doc_type)}
             </p>
-            <p className="text-xs text-slate-400 truncate">{doc.file_name}</p>
+            {/* El nombre cede el espacio; la fecha no se recorta nunca. */}
+            <p className="text-xs text-slate-400 flex items-center gap-1.5 min-w-0">
+              <span className="truncate">{doc.file_name}</span>
+              <FechaSubida iso={doc.created_at} />
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">

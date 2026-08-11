@@ -157,6 +157,9 @@ export async function GET(
         file_path: d.file_path ?? null,
         url,
         uploaded_by: d.uploaded_by ?? null,
+        // Cuándo entró al expediente. En un reemplazo es la fecha del archivo
+        // nuevo: la fila del anterior queda archivada aparte, con la suya.
+        created_at: d.created_at ?? null,
         // Grupo y ronda los resuelve el servidor: el panel los pinta tal cual
         // en vez de volver a interpretar las rutas de Storage por su cuenta.
         grupo: grupoDeDocumento(d),

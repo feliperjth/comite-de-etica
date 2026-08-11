@@ -84,6 +84,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
     sections: { label: string; standardComments: string[]; customComment: string }[];
     feedbackUrl: string | null;
     feedbackName: string | null;
+    feedbackDate: string | null;
   }[] = [];
 
   if (isCorrections) {
@@ -99,7 +100,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
     // prefixed with the reviewer's name at upload time)
     const { data: fbDocs } = await supabase
       .from("documents")
-      .select("file_name, file_path")
+      .select("file_name, file_path, created_at")
       .eq("project_id", project.id)
       .eq("doc_type", "review_feedback")
       .like("file_path", `%/review-feedback/r${round}/%`);
@@ -109,6 +110,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
       .map((d) => ({
         filename: d.file_name,
         url: supabase.storage.from("documents").getPublicUrl(d.file_path!).data.publicUrl,
+        createdAt: d.created_at as string | null,
       }));
 
     if (reviews && reviews.length > 0) {
@@ -134,6 +136,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
             .filter((s) => s.standardComments.length > 0 || s.customComment),
           feedbackUrl: myDoc?.url ?? null,
           feedbackName: myDoc?.filename ?? null,
+          feedbackDate: myDoc?.createdAt ?? null,
         };
       }).filter((r) => r.sections.length > 0 || r.feedbackUrl);
     }
@@ -146,6 +149,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         sections: [],
         feedbackUrl: d.url,
         feedbackName: d.filename,
+        feedbackDate: d.createdAt,
       }));
     }
   }
@@ -299,6 +303,9 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-[#1A1A1A] truncate">Documento con comentarios del revisor</p>
                             <p className="text-xs text-slate-400 truncate">{r.feedbackName ?? "Descargar documento"}</p>
+                            {r.feedbackDate && (
+                              <p className="text-xs text-slate-400">Subido el {formatDate(r.feedbackDate)}</p>
+                            )}
                           </div>
                         </div>
                         <Download className="w-4 h-4 text-[#CC5200] shrink-0 ml-3" />
