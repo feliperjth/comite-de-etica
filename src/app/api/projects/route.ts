@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
+import { isProjectType } from "@/lib/projectTypes";
 
 /**
  * Alta de un proyecto desde el formulario público de /submit.
@@ -13,7 +14,6 @@ import { getSupabaseServer } from "@/lib/supabase";
  * podría darse por aprobado.
  */
 
-const TIPOS   = ["pregrado", "magister", "doctorado", "fondecyt", "academico", "otro"];
 const CHARS   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const MAX_LEN = 300;
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ error: "El correo no es válido." }, { status: 400 });
   }
-  if (!TIPOS.includes(project_type)) {
+  if (!isProjectType(project_type)) {
     return NextResponse.json({ error: "Tipo de proyecto no reconocido." }, { status: 400 });
   }
 

@@ -7,6 +7,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { themes } from "@/lib/themes";
+import type { ProjectType } from "@/lib/projectTypes";
 import {
   BarChart2, FolderOpen, CheckCircle, AlertCircle, Clock, XCircle,
   TrendingUp, BookOpen, DollarSign, Upload, Trash2, FileText, RefreshCw,
@@ -38,7 +39,10 @@ const STATUS_LABELS: Record<string, string> = {
   approved:    "Aprobado",
   rejected:    "Rechazado",
 };
-const TYPE_LABELS: Record<string, string> = {
+// Etiquetas cortas para gráficos. El Record<ProjectType, …> es a propósito:
+// si se agrega un tipo en @/lib/projectTypes, TypeScript obliga a etiquetarlo
+// aquí en vez de dejarlo fuera de las estadísticas en silencio.
+const TYPE_LABELS: Record<ProjectType, string> = {
   pregrado:  "Pregrado",
   magister:  "Magíster",
   doctorado: "Doctorado",
@@ -46,6 +50,10 @@ const TYPE_LABELS: Record<string, string> = {
   fondecyt:  "Fondecyt",
   externo:   "Externo",
 };
+
+/** Etiqueta corta tolerante: un project_type antiguo se muestra tal cual. */
+const typeLabel = (v: string): string =>
+  (TYPE_LABELS as Record<string, string>)[v] ?? v;
 
 // ─── Type ──────────────────────────────────────────────────────────────────
 
@@ -787,7 +795,7 @@ export default function CoordinadorStats() {
             { tag: "Actividad", label: "Promedio mensual",   value: avgPerMonth,   unit: "proyectos / mes",                           color: "#3b82f6", icon: TrendingUp },
             { tag: "Calidad",   label: "Correcciones",       value: `${correctionRate}%`, unit: "de proyectos requirieron ajustes",   color: "#f59e0b", icon: AlertCircle },
             { tag: "Tendencia", label: "Mes más activo",     value: peakMonth?.name ?? "—", unit: `${peakMonth?.value ?? 0} envíos`, color: "#10b981", icon: Calendar },
-            { tag: "Tipo",      label: "Tipo predominante",  value: topTypeEntry ? TYPE_LABELS[topTypeEntry[0]] : "—", unit: topTypeEntry ? `${topTypeEntry[1]} proyectos` : "sin datos", color: "#8b5cf6", icon: Layers },
+            { tag: "Tipo",      label: "Tipo predominante",  value: topTypeEntry ? typeLabel(topTypeEntry[0]) : "—", unit: topTypeEntry ? `${topTypeEntry[1]} proyectos` : "sin datos", color: "#8b5cf6", icon: Layers },
           ].map((ins) => (
             <div key={ins.label} className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-5"
               style={{ borderLeftWidth: 3, borderLeftColor: ins.color }}>

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isThesisType, projectTypeLabel } from "@/lib/projectTypes";
 
 export type EmailAttachment = { filename: string; path: string };
 
@@ -331,19 +332,6 @@ type MacarenaProject = {
   project_type?: string | null;
 };
 
-/** Etiquetas legibles del tipo de proyecto (valores que guarda el formulario). */
-const PROJECT_TYPE_LABELS: Record<string, string> = {
-  pregrado:  "Tesis de pregrado",
-  magister:  "Tesis de magíster",
-  doctorado: "Tesis de doctorado",
-  docente:   "Proyecto de investigación docente",
-  fondecyt:  "Proyecto Fondecyt",
-  externo:   "Consultoría / Estudio externo",
-};
-
-/** Tipos de proyecto que corresponden a una tesis (llevan profesor/a guía). */
-const THESIS_TYPES = ["pregrado", "magister", "doctorado"];
-
 /** Etiquetas legibles del rol del investigador. */
 const ROLE_LABELS: Record<string, string> = {
   estudiante_pregrado:  "Estudiante de pregrado",
@@ -362,10 +350,8 @@ export function buildMacarenaEmail(
   const confirmUrl = `${origin}/api/certify?id=${project.id}&token=${certToken}`;
 
   // Tipo de proyecto y relación con tesis (ambos derivados de project_type).
-  const typeLabel = project.project_type
-    ? (PROJECT_TYPE_LABELS[project.project_type] ?? project.project_type)
-    : "—";
-  const isThesis = !!project.project_type && THESIS_TYPES.includes(project.project_type);
+  const typeLabel = projectTypeLabel(project.project_type);
+  const isThesis  = !!project.project_type && isThesisType(project.project_type);
   const thesisText = isThesis
     ? `Sí — corresponde a una ${typeLabel.toLowerCase()}`
     : "No — no corresponde a una tesis";

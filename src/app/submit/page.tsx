@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import { Check, Upload, Sparkles, Send, ChevronRight, ChevronLeft, FileText, X, Loader2, ArrowRight, Download } from "lucide-react";
 import Link from "next/link";
 import { themes } from "@/lib/themes";
+import { PROJECT_TYPES, PROJECT_TYPE_LABELS, isThesisType, projectTypeLabel, type ProjectType } from "@/lib/projectTypes";
 import { isConfigured, getSupabase } from "@/lib/supabase";
 import { safeStorageName } from "@/lib/storage";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
 
-type ProjectType = "pregrado" | "magister" | "doctorado" | "docente" | "fondecyt" | "externo" | "";
+/** Igual que ProjectType, más el "" del selector cuando aún no se elige. */
+type ProjectTypeOrEmpty = ProjectType | "";
 type FileMap = Record<string, File | null>;
 
 type FundingType = "none" | "fondecyt" | "grant_uai" | "";
@@ -19,7 +21,7 @@ interface FormData {
   email: string;
   role: string;
   projectTitle: string;
-  projectType: ProjectType;
+  projectType: ProjectTypeOrEmpty;
   abstract: string;
   advisorName: string;
   fundingType: FundingType;
@@ -99,6 +101,7 @@ const PROFESSORS = [
   "Isidora Paiva",
   "Agustín Ibáñez",
   "Claudia Durán-Aniotz",
+  "Luis Sebastián Contreras",
 ];
 
 export default function SubmitPage() {
@@ -137,9 +140,9 @@ export default function SubmitPage() {
   // El/la profesor/a guía es obligatorio/a para tesis (pregrado/magíster/doctorado)
   // y también para estudiantes (pre/postgrado) aunque su proyecto NO sea una tesis y
   // figuren como investigador/a principal: un trabajo estudiantil siempre lleva guía UAI.
-  const isThesisType  = ["pregrado", "magister", "doctorado"].includes(form.projectType);
+  const isThesis      = isThesisType(form.projectType);
   const isStudentRole = ["estudiante_pregrado", "estudiante_postgrado"].includes(form.role);
-  const needsAdvisor  = isThesisType || isStudentRole;
+  const needsAdvisor  = isThesis || isStudentRole;
   const canAdvance1 = !!(
     form.name && form.email && form.projectTitle && form.projectType &&
     (!needsAdvisor || form.advisorName.trim())
@@ -390,14 +393,11 @@ export default function SubmitPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de proyecto <span className="text-red-400">*</span></label>
-                <select value={form.projectType} onChange={(e) => update("projectType", e.target.value as ProjectType)} className={inputClass}>
+                <select value={form.projectType} onChange={(e) => update("projectType", e.target.value as ProjectTypeOrEmpty)} className={inputClass}>
                   <option value="">Seleccionar...</option>
-                  <option value="pregrado">Tesis de pregrado</option>
-                  <option value="magister">Tesis de magíster</option>
-                  <option value="doctorado">Tesis de doctorado</option>
-                  <option value="docente">Proyecto de investigación docente</option>
-                  <option value="fondecyt">Proyecto Fondecyt</option>
-                  <option value="externo">Consultoría / Estudio externo</option>
+                  {PROJECT_TYPES.map((t) => (
+                    <option key={t} value={t}>{PROJECT_TYPE_LABELS[t]}</option>
+                  ))}
                 </select>
               </div>
               <div className="md:col-span-2">
@@ -436,7 +436,7 @@ export default function SubmitPage() {
                   )}
                   <p className="text-xs text-slate-400 mt-1.5">
                     Nombre del profesor/a guía asociado/a a la UAI.
-                    {isStudentRole && !isThesisType && " Obligatorio para estudiantes, aunque figures como investigador/a principal."}
+                    {isStudentRole && !isThesis && " Obligatorio para estudiantes, aunque figures como investigador/a principal."}
                   </p>
                   {needsAdvisor && !form.advisorName.trim() && (
                     <p className="text-amber-600 text-xs mt-1.5 flex items-center gap-1.5">
@@ -447,7 +447,7 @@ export default function SubmitPage() {
               )}
 
               {/* Funding — only for thesis types */}
-              {["pregrado", "magister", "doctorado"].includes(form.projectType) && (
+              {isThesis && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     ¿Esta tesis está asociada a un proyecto de financiamiento?
@@ -667,7 +667,7 @@ export default function SubmitPage() {
               <div className="bg-slate-50 rounded-2xl p-5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Proyecto</h3>
                 <p className="font-semibold text-slate-800">{form.projectTitle}</p>
-                <p className="text-slate-500 text-sm">{themes.find((t) => t.id === selectedTheme)?.label} · {form.projectType}</p>
+                <p className="text-slate-500 text-sm">{themes.find((t) => t.id === selectedTheme)?.label} · {projectTypeLabel(form.projectType)}</p>
               </div>
               <div className="bg-slate-50 rounded-2xl p-5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Documentos</h3>
