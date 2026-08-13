@@ -6,6 +6,8 @@ import RepairMissingDocs from "@/components/RepairMissingDocs";
 import { CheckCircle, Clock, FileSearch, AlertCircle, XCircle, ArrowRight, ClipboardList, Award, Users, Download } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
+import TrackNotFound from "@/components/TrackNotFound";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
 import ProjectMessages from "@/components/ProjectMessages";
@@ -29,15 +31,11 @@ function formatDate(iso: string) {
 export default async function TrackPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
 
+  // No es un 404: el código puede existir perfectamente, es el servidor el que
+  // está mal configurado. Por eso no llama a notFound().
   if (!isConfigured) {
-    return <NotFound code={code} message="Base de datos no configurada." />;
+    return <TrackNotFound code={code} message="Base de datos no configurada." />;
   }
-
-  const cookieStore = await cookies();
-  const isReviewer = !!cookieStore.get("comite_email")?.value || !!cookieStore.get("reviewer_email")?.value;
-  const investigadorEmailCookie = cookieStore.get("investigador_email")?.value ?? null;
-  const messageRole: "investigador" | "reviewer" | null =
-    isReviewer ? "reviewer" : investigadorEmailCookie ? "investigador" : null;
 
   // Server component: va con la service-role. Con RLS cerrada la clave anónima
   // no lee `projects` y la página respondía "Código no encontrado" a todos.
@@ -49,7 +47,15 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
     .eq("tracking_code", code.toUpperCase())
     .single();
 
-  if (!project) return <NotFound code={code} />;
+  // Va antes de cookies(): si la respuesta ya empezó a transmitirse, las
+  // cabeceras se fueron y el 404 quedaría clavado en 200.
+  if (!project) notFound();
+
+  const cookieStore = await cookies();
+  const isReviewer = !!cookieStore.get("comite_email")?.value || !!cookieStore.get("reviewer_email")?.value;
+  const investigadorEmailCookie = cookieStore.get("investigador_email")?.value ?? null;
+  const messageRole: "investigador" | "reviewer" | null =
+    isReviewer ? "reviewer" : investigadorEmailCookie ? "investigador" : null;
 
   const isRejected    = project.status === "rejected";
   const isCorrections = project.status === "corrections";
@@ -410,21 +416,3 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   );
 }
 
-function NotFound({ code, message }: { code: string; message?: string }) {
-  return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="text-center max-w-sm">
-        <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-          <FileSearch className="w-8 h-8 text-slate-300" />
-        </div>
-        <h1 className="text-xl font-bold text-[#1A1A1A] mb-2">Código no encontrado</h1>
-        <p className="text-slate-400 text-sm mb-8">
-          {message ?? `No existe ningún proyecto con el código "${code.toUpperCase()}".`}
-        </p>
-        <Link href="/" className="bg-[#1A1A1A] text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-black transition-colors inline-block">
-          Ir al portal
-        </Link>
-      </div>
-    </div>
-  );
-}
