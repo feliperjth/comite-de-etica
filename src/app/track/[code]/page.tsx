@@ -84,6 +84,22 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
     reviewCount = count ?? 0;
   }
 
+  /**
+   * Ventana para completar el reenvío.
+   *
+   * Al enviar las correcciones el proyecto pasa a "reviewing" y el formulario
+   * desaparecía en el acto: si el investigador olvidaba un anexo, ya no tenía
+   * dónde subirlo y había que pedírselo a la coordinación. Se mantiene abierto
+   * mientras NINGÚN revisor haya entregado su evaluación de la ronda nueva —
+   * en cuanto llega la primera, el expediente vuelve a congelarse.
+   *
+   * Solo a partir de la ronda 2: en la 1 el proyecto está en su envío inicial,
+   * que tiene su propio formulario.
+   */
+  const rondaActual    = project.current_round ?? 1;
+  const puedeCompletar =
+    project.status === "reviewing" && rondaActual > 1 && reviewersAssigned && reviewCount === 0;
+
   // Fetch reviewer corrections if status is 'corrections'
   let correctionsByReviewer: {
     reviewer_name: string;
@@ -351,12 +367,13 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         )}
 
         {/* Re-upload section */}
-        {isCorrections && (
+        {(isCorrections || puedeCompletar) && (
           <div className="mb-6">
             <ResubmitForm
               projectId={project.id}
               code={(project.tracking_code ?? code).toUpperCase()}
-              currentRound={project.current_round ?? 1}
+              currentRound={rondaActual}
+              modo={isCorrections ? "reenvio" : "completar"}
             />
           </div>
         )}

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { canAccessProject, getSession } from "@/lib/auth";
-import { sendEmail, buildResubmitNotificationEmail } from "@/lib/email";
+import { sendEmail, buildResubmitNotificationEmail, buildDocumentoAnadidoEmail } from "@/lib/email";
 
 /**
  * Cierra la ronda del investigador: pasa el proyecto a la siguiente y avisa a
  * los revisores de que hay correcciones que evaluar.
+ *
+ * Con `soloAviso` no mueve la ronda: es el investigador añadiendo un documento
+ * que olvidó, a la ronda que YA está abierta. Sin esa distinción, cada anexo
+ * empujaría el proyecto una ronda más y el expediente contaría rondas que
+ * ningún revisor evaluó.
  *
  * Autoriza igual que el registro de documentos, porque es el segundo paso del
  * mismo reenvío: por sesión, o por el código de seguimiento cuando se llega a
@@ -19,7 +24,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { round, code } = await req.json();
+    const { round, code, soloAviso } = await req.json();
     const supabase = getSupabaseServer();
 
     const { data: project } = await supabase
@@ -41,13 +46,16 @@ export async function POST(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const soloNotificar = soloAviso === true;
     const nextRound = (round ?? project.current_round ?? 1) + 1;
 
     // Update project to new round, back to reviewing
-    await supabase
-      .from("projects")
-      .update({ status: "reviewing", progress: 60, current_round: nextRound })
-      .eq("id", id);
+    if (!soloNotificar) {
+      await supabase
+        .from("projects")
+        .update({ status: "reviewing", progress: 60, current_round: nextRound })
+        .eq("id", id);
+    }
 
     // Se avisa a los revisores ASIGNADOS al proyecto, no a quienes firmaron la
     // ronda anterior: si la coordinación cerró esa ronda en su nombre, no hay
@@ -83,8 +91,12 @@ export async function POST(
     for (const [email, name] of recipients) {
       await sendEmail(
         email,
-        `Correcciones incorporadas · ${project.title}`,
-        buildResubmitNotificationEmail(project, name),
+        soloNotificar
+          ? `Documento añadido · ${project.title}`
+          : `Correcciones incorporadas · ${project.title}`,
+        soloNotificar
+          ? buildDocumentoAnadidoEmail(project, name)
+          : buildResubmitNotificationEmail(project, name),
       ).catch(() => {});
     }
 

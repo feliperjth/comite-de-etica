@@ -6,17 +6,26 @@ import { getSupabase } from "@/lib/supabase";
 import { safeStorageName } from "@/lib/storage";
 import { TIPOS_REENVIO, TIPO_ADICIONAL, docLabel } from "@/lib/documents";
 
+/**
+ * `reenvio`   — el proyecto está con observaciones: se responde a los revisores
+ *               y eso abre una ronda nueva.
+ * `completar` — la ronda nueva ya está abierta y nadie ha evaluado todavía: se
+ *               añade lo que faltó, sin mover el proyecto de ronda.
+ */
+type Modo = "reenvio" | "completar";
+
 interface Props {
   projectId: string;
   /** Código de seguimiento: autoriza el registro cuando no hay sesión. */
   code: string;
   currentRound: number;
+  modo: Modo;
 }
 
 /** Un archivo listo para subir, ya con su tipo y su ruta de Storage. */
 type Pendiente = { docType: string; file: File; path: string };
 
-export default function ResubmitForm({ projectId, code, currentRound }: Props) {
+export default function ResubmitForm({ projectId, code, currentRound, modo }: Props) {
   // Una casilla por categoría, más una lista libre para lo adicional.
   const [porTipo, setPorTipo]   = useState<Record<string, File>>({});
   const [extras, setExtras]     = useState<File[]>([]);
@@ -25,7 +34,10 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
   const [done, setDone]         = useState(false);
   const [error, setError]       = useState("");
 
-  const ronda = currentRound + 1;
+  const completando = modo === "completar";
+  // Al reenviar se abre la ronda siguiente; al completar se escribe en la que
+  // ya está abierta, que es donde el revisor va a mirar.
+  const ronda = completando ? currentRound : currentRound + 1;
   const total = Object.keys(porTipo).length + extras.length;
 
   /**
@@ -37,11 +49,15 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
    */
   function armarPendientes(): Pendiente[] {
     const base = `${projectId}/revision-${ronda}`;
+    // Completando ya hay archivos en esta carpeta: si el añadido se llama igual
+    // que uno de ellos, `upsert` lo sobrescribiría en silencio. El sello de
+    // tiempo hace que se sume en vez de sustituir.
+    const sello = completando ? `${Date.now()}_` : "";
     const lista: Pendiente[] = [];
 
     for (const tipo of TIPOS_REENVIO) {
       const file = porTipo[tipo];
-      if (file) lista.push({ docType: tipo, file, path: `${base}/${tipo}/${safeStorageName(file.name)}` });
+      if (file) lista.push({ docType: tipo, file, path: `${base}/${tipo}/${sello}${safeStorageName(file.name)}` });
     }
     // Van numerados: dos adjuntos distintos pueden llamarse igual y, con
     // `upsert`, el segundo borraría al primero.
@@ -49,7 +65,7 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
       lista.push({
         docType: TIPO_ADICIONAL,
         file,
-        path: `${base}/${TIPO_ADICIONAL}/${i + 1}_${safeStorageName(file.name)}`,
+        path: `${base}/${TIPO_ADICIONAL}/${sello}${i + 1}_${safeStorageName(file.name)}`,
       });
     });
     return lista;
@@ -93,10 +109,11 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
       // Una sola vez, al final: cierra la ronda y avisa a los revisores. Si
       // fuera por archivo, cada uno dispararía su propia tanda de correos.
       // Mismo código: este endpoint también autoriza por sesión o por código.
+      // Completando solo avisa: la ronda ya está abierta y no debe avanzar.
       await fetch(`/api/projects/${projectId}/resubmit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ round: currentRound, code }),
+        body: JSON.stringify({ round: currentRound, code, soloAviso: completando }),
       });
 
       setDone(true);
@@ -117,7 +134,11 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
               ? "Documento enviado exitosamente"
               : `${progreso.total} documentos enviados exitosamente`}
           </p>
-          <p className="text-emerald-600 text-xs mt-0.5">Los revisores fueron notificados y realizarán una nueva evaluación.</p>
+          <p className="text-emerald-600 text-xs mt-0.5">
+            {completando
+              ? "Se añadió a tu reenvío y los revisores fueron avisados. Recarga la página para verlo en el expediente."
+              : "Los revisores fueron notificados y realizarán una nueva evaluación."}
+          </p>
         </div>
       </div>
     );
@@ -125,11 +146,23 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
 
   return (
     <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
-      <p className="text-sm font-bold text-[#CC5200] uppercase tracking-wide mb-1">Subir documentos corregidos</p>
+      <p className="text-sm font-bold text-[#CC5200] uppercase tracking-wide mb-1">
+        {completando ? "¿Olvidaste algún documento?" : "Subir documentos corregidos"}
+      </p>
       <p className="text-slate-500 text-xs mb-4 leading-relaxed">
-        Incorpora las correcciones solicitadas y sube los documentos actualizados.
-        Sube solo los que hayas modificado; puedes añadir todos los que necesites.
-        Ambos revisores serán notificados automáticamente.
+        {completando ? (
+          <>
+            Tus correcciones ya están enviadas y ningún revisor ha empezado a evaluarlas todavía,
+            así que aún puedes añadir lo que falte. Se sumará al mismo reenvío, sin abrir una ronda
+            nueva. Esta opción se cierra en cuanto llegue la primera evaluación.
+          </>
+        ) : (
+          <>
+            Incorpora las correcciones solicitadas y sube los documentos actualizados.
+            Sube solo los que hayas modificado; puedes añadir todos los que necesites.
+            Ambos revisores serán notificados automáticamente.
+          </>
+        )}
       </p>
 
       <div className="space-y-2.5 mb-4">
@@ -250,7 +283,7 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
       >
         {uploading
           ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando… ({progreso.hechos}/{progreso.total})</>
-          : <><Upload className="w-4 h-4" /> Enviar correcciones{total > 0 && ` (${total})`}</>}
+          : <><Upload className="w-4 h-4" /> {completando ? "Añadir al reenvío" : "Enviar correcciones"}{total > 0 && ` (${total})`}</>}
       </button>
 
       {total === 0 && (

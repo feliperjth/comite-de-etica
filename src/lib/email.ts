@@ -289,6 +289,31 @@ export function buildResubmitNotificationEmail(
   return wrap(body);
 }
 
+/* ── Email: documento añadido a una ronda ya abierta ─────────── */
+/**
+ * El investigador subió algo que había olvidado, sin abrir una ronda nueva.
+ * Va aparte del aviso de correcciones a propósito: si dijera "incorporó
+ * correcciones" el revisor pensaría que le toca evaluar otra vez, cuando lo
+ * único que cambió es que hay un archivo más en la misma ronda.
+ */
+export function buildDocumentoAnadidoEmail(
+  project: { title: string; researcher_name: string },
+  reviewerName: string,
+) {
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Se añadió un documento al expediente</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Estimada/o <strong>${reviewerName}</strong>, el investigador añadió documentación a la ronda que ya tienes en revisión. No es una ronda nueva: si aún no habías empezado, tenlo en cuenta antes de evaluar.
+    </p>
+    <div style="background:#f9f9f9;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">Proyecto</p>
+      <p style="margin:0 0 4px;font-size:15px;color:#1A1A1A;font-weight:600;">${project.title}</p>
+      <p style="margin:0;font-size:13px;color:#888;">Investigador/a: ${project.researcher_name}</p>
+    </div>
+    <p style="font-size:13px;color:#555;">Encontrarás el expediente completo en el <strong>Panel de Revisores</strong>.</p>`;
+  return wrap(body);
+}
+
 /* ── Email: documentos faltantes (investigador) ──────────────── */
 export function buildMissingDocsEmail(
   project: { title: string; researcher_name: string; tracking_code: string | null },
