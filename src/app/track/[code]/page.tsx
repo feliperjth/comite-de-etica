@@ -355,6 +355,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
           <div className="mb-6">
             <ResubmitForm
               projectId={project.id}
+              code={(project.tracking_code ?? code).toUpperCase()}
               currentRound={project.current_round ?? 1}
             />
           </div>

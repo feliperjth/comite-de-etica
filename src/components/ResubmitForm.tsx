@@ -7,10 +7,12 @@ import { safeStorageName } from "@/lib/storage";
 
 interface Props {
   projectId: string;
+  /** Código de seguimiento: autoriza el registro cuando no hay sesión. */
+  code: string;
   currentRound: number;
 }
 
-export default function ResubmitForm({ projectId, currentRound }: Props) {
+export default function ResubmitForm({ projectId, code, currentRound }: Props) {
   const [file, setFile]       = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [done, setDone]       = useState(false);
@@ -32,11 +34,14 @@ export default function ResubmitForm({ projectId, currentRound }: Props) {
       if (uploadError) throw uploadError;
 
       // Registro por el servidor: `documents` ya no es escribible desde el
-      // navegador. Aquí hay sesión de investigador, así que autoriza sola.
+      // navegador. Va el código de seguimiento porque a /track se llega con el
+      // enlace del correo, sin iniciar sesión: la mayoría de investigadores no
+      // tiene cuenta, y sin `code` el registro respondía 403 y el archivo
+      // quedaba en Storage sin entrar al expediente.
       const res = await fetch(`/api/projects/${projectId}/documents`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doc_type: "revision", file_name: file.name, file_path: path }),
+        body: JSON.stringify({ doc_type: "revision", file_name: file.name, file_path: path, code }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
