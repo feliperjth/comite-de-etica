@@ -1,14 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
+import { canAccessProject, getSession } from "@/lib/auth";
 import { sendEmail, buildResubmitNotificationEmail } from "@/lib/email";
 
+/**
+ * Cierra la ronda del investigador: pasa el proyecto a la siguiente y avisa a
+ * los revisores de que hay correcciones que evaluar.
+ *
+ * Autoriza igual que el registro de documentos, porque es el segundo paso del
+ * mismo reenvío: por sesión, o por el código de seguimiento cuando se llega a
+ * /track desde el enlace del correo sin haber iniciado sesión. Antes no
+ * comprobaba nada, así que cualquiera podía saltar la ronda de un proyecto
+ * ajeno y disparar correos a sus revisores.
+ */
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const { round } = await req.json();
+    const { round, code } = await req.json();
     const supabase = getSupabaseServer();
 
     const { data: project } = await supabase
@@ -18,6 +29,17 @@ export async function POST(
       .single();
 
     if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+
+    const session = await getSession(req);
+    const porSesion = !!session && canAccessProject(session, project);
+    const porCodigo =
+      typeof code === "string" &&
+      !!code.trim() &&
+      project.tracking_code === code.trim().toUpperCase();
+
+    if (!porSesion && !porCodigo) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
 
     const nextRound = (round ?? project.current_round ?? 1) + 1;
 

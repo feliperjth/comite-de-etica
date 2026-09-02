@@ -48,11 +48,12 @@ export default function ResubmitForm({ projectId, code, currentRound }: Props) {
         throw new Error(d.error ?? "No se pudo registrar el documento.");
       }
 
-      // Notify reviewers + update project status
+      // Notify reviewers + update project status. Mismo código: este endpoint
+      // también autoriza por sesión o por código de seguimiento.
       await fetch(`/api/projects/${projectId}/resubmit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ round: currentRound }),
+        body: JSON.stringify({ round: currentRound, code }),
       });
 
       setDone(true);
