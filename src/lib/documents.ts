@@ -4,9 +4,28 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   consent:     "Consentimiento informado",
   assent:      "Asentimiento informado",
   instruments: "Instrumentos / tests a utilizar",
+  otros:       "Documento adicional",
   revision:    "Documento corregido (reenvío)",
   review_feedback: "Comentarios de revisión",
 };
+
+/**
+ * Casillas del reenvío de correcciones, en el orden en que se pintan.
+ *
+ * Son las mismas categorías del envío inicial: así la corrección entra al
+ * expediente etiquetada ("Protocolo de investigación · Segunda ronda") en vez
+ * de como un `revision` genérico que no dice qué se corrigió. Ninguna es
+ * obligatoria por separado — se corrige lo que el revisor pidió — pero hay que
+ * mandar al menos un archivo.
+ *
+ * `otros` es la válvula de escape: acepta varios archivos para lo que no cabe
+ * en las categorías fijas (una carta de autorización del colegio, un anexo
+ * nuevo, la carta de respuesta a los revisores).
+ */
+export const TIPOS_REENVIO = ["protocol", "consent", "assent", "instruments"] as const;
+
+/** Tipo bajo el que entran los archivos de la casilla libre. */
+export const TIPO_ADICIONAL = "otros";
 
 export function docLabel(docType: string): string {
   return DOC_TYPE_LABELS[docType] ?? docType;

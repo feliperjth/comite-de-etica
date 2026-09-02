@@ -7,10 +7,16 @@ import {
 } from "@/lib/documentRounds";
 
 // Canonical display order; unknown types go last, then by upload date
-const DOC_ORDER = ["protocol", "consent", "assent", "instruments", "revision"];
+const DOC_ORDER = ["protocol", "consent", "assent", "instruments", "otros", "revision"];
 
-/** Tipos que puede registrar el investigador desde el formulario público. */
-const TIPOS_INVESTIGADOR = ["protocol", "consent", "assent", "instruments", "revision"];
+/**
+ * Tipos que puede registrar el investigador desde el formulario público.
+ *
+ * `revision` es el reenvío genérico de antes, cuando la corrección solo admitía
+ * un archivo sin etiquetar; se mantiene por los que ya están en el expediente.
+ * `otros` es la casilla libre del reenvío por categorías.
+ */
+const TIPOS_INVESTIGADOR = ["protocol", "consent", "assent", "instruments", "otros", "revision"];
 
 /**
  * Registra un documento ya subido a Storage por el cliente.
