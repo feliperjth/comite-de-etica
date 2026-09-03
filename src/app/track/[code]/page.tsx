@@ -310,7 +310,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                           <p key={i} className="text-sm text-slate-600 ml-2 mb-1">• {c}</p>
                         ))}
                         {s.customComment && (
-                          <p className="text-sm text-slate-500 ml-2 italic mt-1">"{s.customComment}"</p>
+                          <p className="text-sm text-slate-500 ml-2 italic mt-1">“{s.customComment}”</p>
                         )}
                       </div>
                     ))}
