@@ -39,11 +39,6 @@ export function etiquetaRonda(ronda: number): string {
   return ORDINALES[ronda] ? `${ORDINALES[ronda]} ronda` : `Ronda ${ronda}`;
 }
 
-/** Encabezado del bloque del investigador: la 1 es el envío original. */
-export function etiquetaRondaInvestigador(ronda: number): string {
-  return ronda <= 1 ? "Envío inicial" : `Reenvío · ${etiquetaRonda(ronda).toLowerCase()}`;
-}
-
 export function etiquetaRondaRevisor(ronda: number): string {
   return `${etiquetaRonda(ronda)} de revisión`;
 }

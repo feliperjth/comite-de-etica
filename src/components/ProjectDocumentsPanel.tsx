@@ -8,9 +8,7 @@ import {
 import { getSupabase } from "@/lib/supabase";
 import { safeStorageName } from "@/lib/storage";
 import { docLabel, formatFechaDoc } from "@/lib/documents";
-import {
-  etiquetaRondaInvestigador, etiquetaRondaRevisor, type GrupoDocumento,
-} from "@/lib/documentRounds";
+import { etiquetaRonda, type GrupoDocumento } from "@/lib/documentRounds";
 
 type Doc = {
   id: string;
@@ -51,17 +49,35 @@ function FechaSubida({ iso }: { iso?: string | null }) {
   return <span className="shrink-0 whitespace-nowrap">· Subido el {fecha}</span>;
 }
 
-/** Agrupa por grupo y, dentro, por ronda, conservando el orden del servidor. */
-function agrupar(docs: Doc[]) {
-  const grupos: { grupo: GrupoDocumento; rondas: { ronda: number; docs: Doc[] }[] }[] = [];
+type BloqueAutor = { grupo: GrupoDocumento; docs: Doc[] };
+type BloqueRonda = { ronda: number; autores: BloqueAutor[] };
+
+/**
+ * Agrupa por RONDA y, dentro de cada una, por autor.
+ *
+ * La ronda manda porque así se lee la historia del proyecto: qué mandó el
+ * investigador, qué le respondieron los revisores, qué corrigió después.
+ * Agrupando primero por autor, las observaciones de la ronda 1 quedaban lejos
+ * de los documentos que las motivaron y había que ir saltando de un bloque a
+ * otro para saber qué contestaba a qué.
+ *
+ * Dentro de la ronda va primero el investigador: primero lo que se evalúa y
+ * luego lo que se dijo de ello. El orden dentro de cada autor es el que ya
+ * trae el servidor (orden canónico del expediente).
+ */
+function agrupar(docs: Doc[]): BloqueRonda[] {
+  const rondas: BloqueRonda[] = [];
   for (const doc of docs) {
-    let g = grupos.find((x) => x.grupo === doc.grupo);
-    if (!g) { g = { grupo: doc.grupo, rondas: [] }; grupos.push(g); }
-    let r = g.rondas.find((x) => x.ronda === doc.ronda);
-    if (!r) { r = { ronda: doc.ronda, docs: [] }; g.rondas.push(r); }
-    r.docs.push(doc);
+    let r = rondas.find((x) => x.ronda === doc.ronda);
+    if (!r) { r = { ronda: doc.ronda, autores: [] }; rondas.push(r); }
+    let a = r.autores.find((x) => x.grupo === doc.grupo);
+    if (!a) { a = { grupo: doc.grupo, docs: [] }; r.autores.push(a); }
+    a.docs.push(doc);
   }
-  return grupos;
+  rondas.sort((a, b) => a.ronda - b.ronda);
+  const peso = (g: GrupoDocumento) => (g === "investigador" ? 0 : 1);
+  for (const r of rondas) r.autores.sort((a, b) => peso(a.grupo) - peso(b.grupo));
+  return rondas;
 }
 
 type Props = {
@@ -97,7 +113,12 @@ export default function ProjectDocumentsPanel({
   const [pendiente, setPendiente] = useState<{ doc: Doc; file: File } | null>(null);
   /** Resultado del último reemplazo, para confirmar si salió el correo. */
   const [aviso, setAviso]         = useState<{ ok: boolean; texto: string } | null>(null);
+  /** Rondas recogidas. Las anteriores a la última arrancan así. */
+  const [plegadas, setPlegadas]   = useState<Set<number>>(new Set());
   const panelRef                  = useRef<HTMLDivElement>(null);
+  /** El plegado inicial se calcula una sola vez: recargar no debe recogerlo
+   *  todo otra vez y deshacer lo que quien revisa acaba de abrir. */
+  const plegadoInicial            = useRef(false);
 
   const cargar = useCallback(() => {
     return fetch(`/api/projects/${projectId}/documents${scopeAll ? "?scope=all" : ""}`)
@@ -176,7 +197,27 @@ export default function ProjectDocumentsPanel({
     return () => window.removeEventListener("popstate", onPop);
   }, [viewer, closeViewer]);
 
-  const grupos = agrupar(documents);
+  const bloques = agrupar(documents);
+  // La ronda más reciente con documentos: la que se está revisando ahora.
+  const ultimaRonda = bloques.length ? bloques[bloques.length - 1].ronda : 1;
+
+  // Al cargar, solo queda abierta la última ronda; las anteriores son historia
+  // y en un proyecto con tres o cuatro llenaban la pantalla.
+  useEffect(() => {
+    if (plegadoInicial.current || !loaded || documents.length === 0) return;
+    plegadoInicial.current = true;
+    const rondas = [...new Set(documents.map((d) => d.ronda))];
+    const actual = Math.max(...rondas);
+    setPlegadas(new Set(rondas.filter((r) => r !== actual)));
+  }, [loaded, documents]);
+
+  function alternarRonda(ronda: number) {
+    setPlegadas((p) => {
+      const siguiente = new Set(p);
+      if (!siguiente.delete(ronda)) siguiente.add(ronda);
+      return siguiente;
+    });
+  }
 
   /** Una fila de documento, con sus acciones. */
   const fila = (doc: Doc) => (
@@ -344,32 +385,55 @@ export default function ProjectDocumentsPanel({
               <p className="px-5 py-4 text-sm text-slate-400">Cargando documentos...</p>
             ) : documents.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-400">Sin documentos adjuntos.</p>
-            ) : grupos.map((g) => {
-              const esRevisor = g.grupo === "revisor";
-              // Los encabezados de ronda solo aportan si hay más de una.
-              const mostrarRondas = g.rondas.length > 1;
+            ) : bloques.map((bloque) => {
+              const plegada = plegadas.has(bloque.ronda);
+              const total   = bloque.autores.reduce((n, a) => n + a.docs.length, 0);
+              const esUltima = bloque.ronda === ultimaRonda;
+              const sinRevisores = !bloque.autores.some((a) => a.grupo === "revisor");
               return (
-                <div key={g.grupo} className="border-b border-slate-100 last:border-b-0">
-                  <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-50/80 border-b border-slate-100">
-                    {esRevisor
-                      ? <Users className="w-3.5 h-3.5 text-slate-500" />
-                      : <User className="w-3.5 h-3.5 text-slate-500" />}
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                      {esRevisor ? "Enviados por los revisores" : "Enviados por el investigador/a"}
+                <div key={bloque.ronda} className="border-b border-slate-100 last:border-b-0">
+                  <button
+                    onClick={() => alternarRonda(bloque.ronda)}
+                    className="w-full flex items-center justify-between gap-3 px-5 py-2.5 bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100/70 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-[#CC5200] uppercase tracking-wide">
+                      {etiquetaRonda(bloque.ronda)}
                     </span>
-                  </div>
-                  {g.rondas.map((r) => (
-                    <div key={r.ronda}>
-                      {mostrarRondas && (
-                        <p className="px-5 pt-3 pb-1 text-[11px] font-bold text-[#CC5200] uppercase tracking-wide">
-                          {esRevisor
-                            ? etiquetaRondaRevisor(r.ronda)
-                            : etiquetaRondaInvestigador(r.ronda)}
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className="bg-white border border-slate-200 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">
+                        {total}
+                      </span>
+                      {plegada
+                        ? <ChevronDown className="w-4 h-4 text-slate-400" />
+                        : <ChevronUp className="w-4 h-4 text-slate-400" />}
+                    </span>
+                  </button>
+
+                  {!plegada && (
+                    <>
+                      {bloque.autores.map((autor) => {
+                        const esRevisor = autor.grupo === "revisor";
+                        return (
+                          <div key={autor.grupo}>
+                            <p className="flex items-center gap-1.5 px-5 pt-3 pb-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+                              {esRevisor
+                                ? <Users className="w-3.5 h-3.5" />
+                                : <User className="w-3.5 h-3.5" />}
+                              {esRevisor ? "Enviados por los revisores" : "Enviados por el investigador/a"}
+                            </p>
+                            <div className="divide-y divide-slate-50">{autor.docs.map(fila)}</div>
+                          </div>
+                        );
+                      })}
+                      {/* Solo en la ronda en curso: en una cerrada, que no haya
+                          documento de comentarios no significa que falten. */}
+                      {esUltima && sinRevisores && (
+                        <p className="px-5 py-3 text-xs text-slate-400">
+                          Sin comentarios de revisión todavía.
                         </p>
                       )}
-                      <div className="divide-y divide-slate-50">{r.docs.map(fila)}</div>
-                    </div>
-                  ))}
+                    </>
+                  )}
                 </div>
               );
             })}
