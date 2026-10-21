@@ -32,7 +32,7 @@ const ESTADO_RONDA: Record<EstadoRonda, { label: string; cls: string }> = {
   corrections: { label: "Pidió correcciones",  cls: "bg-orange-50 text-[#CC5200] border-orange-200" },
   pending:     { label: "Pendiente",           cls: "bg-white text-slate-500 border-dashed border-slate-300" },
   carried:     { label: "Aprobación vigente",  cls: "bg-emerald-50/60 text-emerald-600 border-emerald-100" },
-  skipped:     { label: "Cerró coordinación",  cls: "bg-slate-50 text-slate-400 border-slate-200" },
+  skipped:     { label: "Ronda cerrada",       cls: "bg-slate-50 text-slate-400 border-slate-200" },
 };
 
 interface SectionState {

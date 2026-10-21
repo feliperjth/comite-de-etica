@@ -31,7 +31,7 @@ export type EstadoRonda =
   | "corrections"  // revisó en esta ronda y pidió correcciones
   | "pending"      // le toca y aún no revisa
   | "carried"      // ya había aprobado en una ronda anterior: no necesita revisar
-  | "skipped";     // ronda pasada en la que no revisó (la cerró la coordinación)
+  | "skipped";     // ronda pasada sin revisión individual suya (la cerró la coordinación o fue una revisión grupal antigua)
 
 export type RondaRevisor = { round: number; estado: EstadoRonda };
 
