@@ -3,8 +3,16 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   MessageSquare, Send, Loader2, ChevronDown, ChevronUp,
-  FileUp, CheckCircle, AlertCircle,
+  FileUp, CheckCircle, AlertCircle, HelpCircle, BellRing,
 } from "lucide-react";
+import { RESPUESTAS_RAPIDAS, esConsultaEstado, esRespuestaEstado } from "@/lib/statusRequest";
+
+interface StatusRequestInfo {
+  last: { at: string; respondida: boolean } | null;
+  canRequest: boolean;
+  inReview: boolean;
+  nextAllowedAt: string | null;
+}
 
 type SenderType = "investigador" | "revisor1" | "revisor2";
 
@@ -90,6 +98,16 @@ function EventoFila({ e, role }: { e: Evento; role: Props["role"] }) {
 function MensajeBurbuja({ m, role }: { m: Message; role: Props["role"] }) {
   const own = isOwnMessage(m.sender_type, role);
   const esRevision = m.sender_type !== "investigador";
+  const consulta = !esRevision && esConsultaEstado(m.body);
+  const estado = esRevision && esRespuestaEstado(m.body);
+  const etiqueta = consulta ? "Consulta de estado" : estado ? "Estado de revisión" : esRevision ? "Revisión" : "Respuesta";
+  const etiquetaCls = consulta
+    ? own ? "bg-violet-400/20 text-violet-200" : "bg-violet-100 text-violet-700"
+    : estado
+    ? own ? "bg-emerald-400/20 text-emerald-200" : "bg-emerald-100 text-emerald-700"
+    : esRevision
+    ? own ? "bg-[#CC5200]/20 text-orange-200" : "bg-orange-100 text-[#CC5200]"
+    : own ? "bg-sky-400/20 text-sky-200" : "bg-sky-100 text-sky-700";
   return (
     <div className={`flex ${own ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[82%] rounded-2xl px-4 py-3 ${
@@ -99,12 +117,8 @@ function MensajeBurbuja({ m, role }: { m: Message; role: Props["role"] }) {
           <span className={`text-[10px] font-bold uppercase tracking-wide ${own ? "text-[#CC5200]" : "text-slate-500"}`}>
             {quien(m.sender_type, role)}
           </span>
-          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-            esRevision
-              ? own ? "bg-[#CC5200]/20 text-orange-200" : "bg-orange-100 text-[#CC5200]"
-              : own ? "bg-sky-400/20 text-sky-200" : "bg-sky-100 text-sky-700"
-          }`}>
-            {esRevision ? "Revisión" : "Respuesta"}
+          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${etiquetaCls}`}>
+            {etiqueta}
           </span>
         </div>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.body}</p>
@@ -118,6 +132,9 @@ export default function ProjectMessages({ projectId, role }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [events, setEvents]     = useState<Evento[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
+  const [statusReq, setStatusReq] = useState<StatusRequestInfo | null>(null);
+  const [consultando, setConsultando] = useState(false);
+  const [aviso, setAviso] = useState("");
   const [loading, setLoading]   = useState(true);
   const [text, setText]         = useState("");
   const [sending, setSending]   = useState(false);
@@ -134,6 +151,7 @@ export default function ProjectMessages({ projectId, role }: Props) {
       setMessages(data.messages ?? []);
       setEvents(data.events ?? []);
       setCurrentRound(data.currentRound ?? 1);
+      setStatusReq(data.statusRequest ?? null);
     }
     setLoading(false);
   }, [projectId]);
@@ -145,17 +163,18 @@ export default function ProjectMessages({ projectId, role }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, abiertas]);
 
-  async function send() {
-    if (!text.trim() || sending) return;
+  async function send(cuerpo?: string) {
+    const contenido = (cuerpo ?? text).trim();
+    if (!contenido || sending) return;
     setSending(true);
     setError("");
     const res = await fetch(`/api/projects/${projectId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: text.trim() }),
+      body: JSON.stringify({ body: contenido }),
     });
     if (res.ok) {
-      setText("");
+      if (cuerpo === undefined) setText("");
       await loadMessages();
     } else {
       const d = await res.json();
@@ -163,6 +182,28 @@ export default function ProjectMessages({ projectId, role }: Props) {
     }
     setSending(false);
   }
+
+  async function consultarEstado() {
+    if (consultando) return;
+    setConsultando(true);
+    setError("");
+    setAviso("");
+    const res = await fetch(`/api/projects/${projectId}/status-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ origin: window.location.origin }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setAviso("Tu consulta fue enviada a los revisores encargados. Te avisaremos por correo cuando respondan.");
+      await loadMessages();
+    } else {
+      setError(d.error ?? "No se pudo enviar la consulta.");
+    }
+    setConsultando(false);
+  }
+
+  const consultaPendiente = !!statusReq?.last && !statusReq.last.respondida;
 
   const abiertasEfectivas = abiertas ?? new Set([currentRound]);
   function toggle(n: number) {
@@ -258,6 +299,68 @@ export default function ProjectMessages({ projectId, role }: Props) {
           </div>
         )}
 
+        {/* Investigador/a: consultar el estado de la revisión */}
+        {role === "investigador" && statusReq?.inReview && (
+          <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4 mb-5">
+            <div className="flex items-start gap-3">
+              <HelpCircle className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-violet-900">¿Quieres saber cómo va tu revisión?</p>
+                {statusReq.last && !statusReq.canRequest ? (
+                  <p className="text-xs text-violet-700 mt-1 leading-relaxed">
+                    {aviso || (statusReq.last.respondida
+                      ? `Enviaste una consulta el ${fecha(statusReq.last.at)} y los revisores ya respondieron (míralo en los mensajes).`
+                      : `Tu consulta fue enviada el ${fecha(statusReq.last.at)} a los revisores encargados. Te avisaremos por correo cuando respondan.`)}
+                    {statusReq.nextAllowedAt && <> Podrás volver a consultar desde el {fecha(statusReq.nextAllowedAt)}.</>}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-violet-700 mt-1 leading-relaxed">
+                      Envía una consulta tipo a tus revisores. Les llegará por correo y podrán responderte desde allí o desde el portal.
+                    </p>
+                    <button
+                      onClick={consultarEstado}
+                      disabled={consultando}
+                      className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors"
+                    >
+                      {consultando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      Consultar estado de revisión
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Revisor: consulta de estado sin responder */}
+        {role === "reviewer" && consultaPendiente && statusReq?.last && (
+          <div className="bg-violet-50 border-2 border-violet-200 rounded-2xl p-4 mb-5">
+            <div className="flex items-start gap-3">
+              <BellRing className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-violet-900">El investigador/a consultó el estado de la revisión</p>
+                <p className="text-xs text-violet-700 mt-1">
+                  Consulta del {fecha(statusReq.last.at)}. Responde con un clic o escribe tu propio mensaje abajo.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {RESPUESTAS_RAPIDAS.map((r) => (
+                    <button
+                      key={r.key}
+                      onClick={() => send(r.texto)}
+                      disabled={sending}
+                      title={r.texto}
+                      className="text-xs font-bold text-violet-700 bg-white border border-violet-200 hover:border-violet-400 hover:bg-violet-100 disabled:opacity-50 px-3 py-1.5 rounded-xl transition-colors"
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Send form */}
         {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
@@ -277,7 +380,7 @@ export default function ProjectMessages({ projectId, role }: Props) {
             className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#CC5200] resize-none"
           />
           <button
-            onClick={send}
+            onClick={() => send()}
             disabled={!text.trim() || sending}
             className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-40 px-4 py-2.5 rounded-xl transition-colors shrink-0"
           >

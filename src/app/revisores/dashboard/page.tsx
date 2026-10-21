@@ -103,20 +103,26 @@ export default function ReviewerDashboard() {
   const [resendingCert, setResendingCert] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [missingDocProjects, setMissingDocProjects] = useState<Set<string>>(new Set());
   const [closeStage, setCloseStage] = useState<CloseStageState | null>(null);
+  /** Proyectos con una consulta de estado del investigador sin responder. */
+  const [consultas, setConsultas] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
     // Todo por endpoints: la identidad sale de la sesión firmada y las tablas
     // `projects`, `documents` y `reviews` dejan de leerse desde el navegador.
-    const [listado, misRevisiones] = await Promise.all([
+    const [listado, misRevisiones, abiertas] = await Promise.all([
       fetch("/api/comite/projects")
         .then(r => r.ok ? r.json() : { projects: [], missingDocs: [] })
         .catch(() => ({ projects: [], missingDocs: [] })),
       fetch("/api/reviews")
         .then(r => r.ok ? r.json() : { reviews: [] })
         .catch(() => ({ reviews: [] })),
+      fetch("/api/status-requests")
+        .then(r => r.ok ? r.json() : { open: [] })
+        .catch(() => ({ open: [] })),
     ]);
+    setConsultas(new Set<string>((abiertas.open ?? []).map((o: { project_id: string }) => o.project_id)));
 
     const list: Project[] = listado.projects ?? [];
     setProjects(list);
@@ -668,6 +674,15 @@ export default function ReviewerDashboard() {
                           <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100">
                             Ronda {p.current_round}
                           </span>
+                        )}
+                        {(assigned || isAdmin) && consultas.has(p.id) && ["submitted", "reviewing"].includes(p.status) && (
+                          <button
+                            onClick={() => router.push(`/revisores/review/${p.id}`)}
+                            className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white font-bold px-3 py-1 rounded-full transition-colors"
+                            title="El investigador/a preguntó cómo va la revisión"
+                          >
+                            <Mail className="w-3 h-3" /> Consulta de estado
+                          </button>
                         )}
                         {assigned && (() => {
                           const ronda    = p.current_round ?? 1;

@@ -530,3 +530,39 @@ export function buildCoordinatorApprovalEmail(project: {
     </div>`;
   return wrap(body);
 }
+
+/* ── Email: consulta de estado de revisión (revisor) ───────────── */
+export function buildStatusRequestEmail(
+  project: { title: string; researcher_name: string },
+  recipientName: string,
+  round: number,
+  links: { label: string; url: string }[],
+  replyUrl: string,
+  portalUrl: string,
+) {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const botones = links
+    .map(
+      (l) => `<a href="${l.url}" style="display:inline-block;margin:4px;background:#fff;color:#CC5200;border:2px solid #CC5200;font-weight:700;font-size:13px;text-decoration:none;padding:9px 16px;border-radius:8px;">${esc(l.label)}</a>`,
+    )
+    .join("");
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Consulta de estado de revisión</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Estimada/o <strong>${esc(recipientName)}</strong>, el investigador/a consulta en qué etapa se encuentra la revisión de su proyecto (ronda ${round}).
+    </p>
+    <div style="background:#f9f9f9;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">Proyecto</p>
+      <p style="margin:0 0 6px;font-size:15px;color:#1A1A1A;font-weight:600;">${esc(project.title)}</p>
+      <p style="margin:0;font-size:13px;color:#888;">Investigador/a: ${esc(project.researcher_name)}</p>
+    </div>
+    <p style="font-size:13px;color:#555;margin:0 0 10px;font-weight:700;">Responde con un clic:</p>
+    <div style="text-align:center;margin-bottom:16px;">${botones}</div>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${replyUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:8px;">Escribir otra respuesta</a>
+    </div>
+    <p style="font-size:12px;color:#999;margin:0 0 6px;">Tu respuesta le llega al investigador/a como <strong>Revisor 1</strong> o <strong>Revisor 2</strong>: tu identidad no se revela. No respondas a este correo directamente.</p>
+    <p style="font-size:12px;color:#999;margin:0;">También puedes responder desde el <a href="${portalUrl}" style="color:#CC5200;">portal de revisión</a>.</p>`;
+  return wrap(body);
+}
