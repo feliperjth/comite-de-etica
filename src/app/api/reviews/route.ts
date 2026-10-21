@@ -11,6 +11,7 @@ import {
   buildCorrections,
   getFeedbackDocs,
 } from "@/lib/outcome";
+import { aproboAntesDe, evaluarCierre, mismoNombre } from "@/lib/rounds";
 
 interface SectionPayload {
   section_key: string;
@@ -44,8 +45,9 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("reviews")
-    .select("project_id, round")
-    .eq("reviewer_name", reviewer_name);
+    .select("project_id, round, overall_decision")
+    .eq("reviewer_name", reviewer_name)
+    .or("is_editorial.is.null,is_editorial.eq.false");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ reviews: data ?? [] });
@@ -83,17 +85,42 @@ export async function POST(req: NextRequest) {
     const reviewer_name  = reviewerRow?.name ?? session.name ?? session.email;
     const reviewer_email = session.email;
 
-    // 1. Check if this reviewer already submitted for this round
-    const { data: existing } = await supabase
-      .from("reviews")
-      .select("id")
-      .eq("project_id", project_id)
-      .eq("reviewer_name", reviewer_name)
-      .eq("round", round)
-      .maybeSingle();
+    const { data: project } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("id", project_id)
+      .single();
 
-    if (existing) {
+    if (!project) {
+      return NextResponse.json({ error: "Proyecto no encontrado." }, { status: 404 });
+    }
+
+    // La ronda la manda el proyecto, no el navegador: así una pestaña abierta
+    // desde la ronda anterior no puede firmar en una ronda que ya se cerró.
+    const currentRound = project.current_round ?? 1;
+    if (round !== currentRound) {
+      return NextResponse.json(
+        { error: `Este proyecto ya está en la ronda ${currentRound}. Recarga la página para revisar la ronda actual.` },
+        { status: 409 },
+      );
+    }
+
+    // 1. Revisiones previas del proyecto: ¿ya revisó esta ronda o ya aprobó antes?
+    const { data: previas } = await supabase
+      .from("reviews")
+      .select("reviewer_name, round, overall_decision, is_editorial")
+      .eq("project_id", project_id);
+
+    if ((previas ?? []).some((r) => !r.is_editorial && r.round === round && mismoNombre(r.reviewer_name, reviewer_name))) {
       return NextResponse.json({ error: "Ya enviaste tu revisión para esta ronda." }, { status: 400 });
+    }
+
+    const rondaAprobada = aproboAntesDe(previas ?? [], reviewer_name, round);
+    if (rondaAprobada !== null) {
+      return NextResponse.json(
+        { error: `Ya aprobaste este proyecto en la ronda ${rondaAprobada}; tu aprobación se mantiene y no necesitas volver a revisarlo.` },
+        { status: 400 },
+      );
     }
 
     // 2. Compute overall decision
@@ -129,51 +156,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: sectionError.message }, { status: 500 });
     }
 
-    // 5. Fetch all reviews for this project + round (to check if both reviewers done)
-    const { data: allReviews } = await supabase
+    // 5. Todas las revisiones del proyecto (todas las rondas): las aprobaciones
+    //    de rondas anteriores cuentan para el cierre de esta.
+    const { data: allProjectReviews } = await supabase
       .from("reviews")
-      .select("id, reviewer_name, reviewer_email, overall_decision, is_editorial")
-      .eq("project_id", project_id)
-      .eq("round", round);
+      .select("id, reviewer_name, reviewer_email, overall_decision, is_editorial, round")
+      .eq("project_id", project_id);
 
+    const roundReviews = (allProjectReviews ?? []).filter((r) => r.round === round);
     const feedbackDocs = await getFeedbackDocs(supabase, project_id, round);
 
-    const { data: project } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", project_id)
-      .single();
-
-    if (!project) throw new Error("Project not found");
-
-    // Update status to "reviewing" after first review
-    if ((allReviews?.length ?? 0) === 1) {
+    // Primera revisión de la ronda → "en revisión".
+    if (roundReviews.filter((r) => !r.is_editorial).length === 1) {
       await supabase
         .from("projects")
         .update({ status: "reviewing", progress: 60 })
         .eq("id", project_id);
     }
 
-    // 6. Decide outcome: 1 reviewer needed if reviewer2 is null, else 2.
-    //    Las decisiones de coordinación no cuentan para este total (cierran la
-    //    ronda por su cuenta), pero sí se incluyen en el detalle que se envía.
-    const reviewersNeeded = project.reviewer2 ? 2 : 1;
-    const reviewerReviews = (allReviews ?? []).filter((r) => !r.is_editorial);
+    // 6. ¿Se cierra la ronda? Solo cuentan los revisores que aún no habían
+    //    aprobado. Las decisiones de coordinación cierran la ronda por su cuenta
+    //    (close-stage), pero sí se incluyen en el detalle que se envía.
+    const cierre = evaluarCierre(project, allProjectReviews ?? [], round);
 
-    if (reviewerReviews.length >= reviewersNeeded) {
-      const allAccepted = reviewerReviews.every((r) => r.overall_decision === "accepted");
-
-      if (allAccepted) {
+    if (cierre.cerrada) {
+      if (cierre.aprobado) {
         await applyApproval(supabase, project, origin, feedbackDocs);
       } else {
-        const corrections = await buildCorrections(supabase, allReviews ?? [], feedbackDocs);
+        const corrections = await buildCorrections(supabase, roundReviews, feedbackDocs);
         await applyCorrections(supabase, project, origin, corrections, feedbackDocs);
       }
-    } else if (reviewersNeeded === 2 && reviewerReviews.length === 1) {
-      // Falta el segundo revisor → avisarle que su co-revisor ya completó.
-      const otherName = [project.reviewer, project.reviewer2]
-        .find((n) => n && n !== reviewer_name);
-      if (otherName) {
+    } else {
+      // Avisar a quien falta que su co-revisor ya entregó.
+      for (const otherName of cierre.pendientes) {
+        if (mismoNombre(otherName, reviewer_name)) continue;
         const { data: other } = await supabase
           .from("reviewers")
           .select("email")

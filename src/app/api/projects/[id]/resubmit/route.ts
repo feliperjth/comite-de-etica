@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { canAccessProject, getSession } from "@/lib/auth";
 import { sendEmail, buildResubmitNotificationEmail, buildDocumentoAnadidoEmail } from "@/lib/email";
+import { revisoresRequeridos } from "@/lib/rounds";
 
 /**
  * Cierra la ronda del investigador: pasa el proyecto a la siguiente y avisa a
@@ -57,14 +58,24 @@ export async function POST(
         .eq("id", id);
     }
 
-    // Se avisa a los revisores ASIGNADOS al proyecto, no a quienes firmaron la
-    // ronda anterior: si la coordinación cerró esa ronda en su nombre, no hay
-    // ninguna revisión suya y se quedarían sin enterarse de que les toca.
-    const assignedNames = [project.reviewer, project.reviewer2].filter(Boolean) as string[];
+    // Se avisa a los revisores ASIGNADOS que deben revisar la ronda que se abre,
+    // no a quienes firmaron la anterior: si la coordinación cerró esa ronda en
+    // su nombre, no hay ninguna revisión suya y se quedarían sin enterarse.
+    // Quien ya aprobó en una ronda anterior no vuelve a revisar: su aprobación
+    // se mantiene, así que tampoco se le avisa.
+    const prevRound = round ?? project.current_round ?? 1;
+    const rondaAbierta = soloNotificar ? prevRound : nextRound;
+
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select("reviewer_name, reviewer_email, overall_decision, is_editorial, round")
+      .eq("project_id", id);
+
+    const requiredNames = revisoresRequeridos(project, reviews ?? [], rondaAbierta);
 
     const recipients = new Map<string, string>(); // email → nombre
 
-    for (const name of assignedNames) {
+    for (const name of requiredNames) {
       const { data: reviewer } = await supabase
         .from("reviewers")
         .select("name, email")
@@ -74,16 +85,12 @@ export async function POST(
       if (reviewer?.email) recipients.set(reviewer.email, reviewer.name ?? name);
     }
 
-    // Además, quien haya revisado la ronda anterior sin figurar como asignado.
-    const { data: reviews } = await supabase
-      .from("reviews")
-      .select("reviewer_name, reviewer_email, is_editorial")
-      .eq("project_id", id)
-      .eq("round", round ?? project.current_round ?? 1);
-
+    // Además, quien haya pedido correcciones en la ronda anterior sin figurar
+    // como asignado (p. ej. tras una reasignación).
     for (const r of reviews ?? []) {
       // La coordinación no necesita el aviso: es quien gestiona el proceso.
-      if (r.reviewer_email && !r.is_editorial && !recipients.has(r.reviewer_email)) {
+      if (r.round !== prevRound || r.is_editorial || r.overall_decision === "accepted") continue;
+      if (r.reviewer_email && !recipients.has(r.reviewer_email)) {
         recipients.set(r.reviewer_email, r.reviewer_name);
       }
     }

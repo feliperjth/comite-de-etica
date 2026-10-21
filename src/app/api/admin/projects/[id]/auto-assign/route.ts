@@ -10,7 +10,8 @@ export async function POST(
   if (response) return response;
 
   const { id } = await params;
-  const { numReviewers, mode } = await req.json() as { numReviewers: 1 | 2; mode: "individual" | "group" };
+  // La revisión es siempre individual: cada revisor evalúa por separado.
+  const { numReviewers } = await req.json() as { numReviewers: 1 | 2 };
   const supabase = getSupabaseAdmin();
 
   // 1. Get project
@@ -70,7 +71,7 @@ export async function POST(
   const update: Record<string, string | null> = {
     reviewer:    picked[0]?.name ?? null,
     reviewer2:   numReviewers === 2 ? (picked[1]?.name ?? null) : null,
-    review_mode: mode,
+    review_mode: "individual",
     status:      "reviewing",
   };
 

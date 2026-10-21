@@ -194,11 +194,9 @@ export async function DELETE(
     (await supabase.from("reviews").select("id").eq("project_id", id)).data?.map((r) => r.id) ?? []
   );
   await supabase.from("reviews").delete().eq("project_id", id);
-  await supabase.from("group_draft_sections").delete().in(
-    "draft_id",
-    (await supabase.from("group_drafts").select("id").eq("project_id", id)).data?.map((d) => d.id) ?? []
-  );
-  await supabase.from("group_drafts").delete().eq("project_id", id);
+  // Borradores de la antigua revisión grupal (ya no se crean, pero pueden
+  // quedar de proyectos anteriores).
+  await supabase.from("group_review_drafts").delete().eq("project_id", id);
   await supabase.from("project_documents").delete().eq("project_id", id);
 
   const { error } = await supabase.from("projects").delete().eq("id", id);

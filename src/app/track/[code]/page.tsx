@@ -11,6 +11,7 @@ import TrackNotFound from "@/components/TrackNotFound";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
 import ProjectMessages from "@/components/ProjectMessages";
+import { revisoresPendientes, revisoresRequeridos } from "@/lib/rounds";
 
 const statusSteps = (reviewersAssigned: boolean, reviewCount: number, reviewersNeeded: number) => [
   { key: "submitted",   label: reviewersAssigned ? "Recibido · Revisores asignados" : "Recibido", icon: Clock },
@@ -72,16 +73,21 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
   const missingDocs = isRejected ? [] : (missingDocsRaw ?? []);
 
   const reviewersAssigned = !!(project.reviewer || project.reviewer2);
-  const reviewersNeeded   = project.reviewer2 ? 2 : 1;
+  // Quien ya aprobó en una ronda anterior no vuelve a revisar: en la ronda
+  // actual solo se cuentan los revisores que aún deben evaluar.
+  let reviewersNeeded = project.reviewer2 ? 2 : 1;
   let reviewCount = 0;
 
   if (reviewersAssigned && !["approved", "certified", "rejected"].includes(project.status)) {
-    const { count } = await supabase
+    const { data: allReviews } = await supabase
       .from("reviews")
-      .select("id", { count: "exact", head: true })
-      .eq("project_id", project.id)
-      .eq("round", project.current_round ?? 1);
-    reviewCount = count ?? 0;
+      .select("reviewer_name, round, overall_decision, is_editorial")
+      .eq("project_id", project.id);
+    const ronda      = project.current_round ?? 1;
+    const requeridos = revisoresRequeridos(project, allReviews ?? [], ronda);
+    const pendientes = revisoresPendientes(project, allReviews ?? [], ronda);
+    reviewersNeeded = Math.max(1, requeridos.length);
+    reviewCount     = requeridos.length - pendientes.length;
   }
 
   /**
@@ -256,6 +262,8 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                       ? "Los revisores asignados aún no han comenzado su evaluación"
                       : reviewCount < reviewersNeeded
                       ? `${reviewersNeeded - reviewCount} revisor${reviewersNeeded - reviewCount !== 1 ? "es" : ""} aún no ha${reviewersNeeded - reviewCount !== 1 ? "n" : ""} completado su evaluación`
+                      : reviewersNeeded === 1
+                      ? "El revisor ha enviado su evaluación"
                       : `Los ${reviewersNeeded} revisores han enviado su evaluación`}
                   </p>
                 </div>

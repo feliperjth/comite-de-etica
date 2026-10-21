@@ -45,7 +45,6 @@ type EditState = {
 
 type AutoAssignState = {
   numReviewers: 1 | 2;
-  mode: "individual" | "group";
   loading: boolean;
   result: string;
 };
@@ -87,7 +86,7 @@ export default function ReviewerDashboard() {
   const [savedId, setSavedId]     = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [isAdmin, setIsAdmin]           = useState(false);
-  const [myReviews, setMyReviews] = useState<{ project_id: string; round: number }[]>([]);
+  const [myReviews, setMyReviews] = useState<{ project_id: string; round: number; overall_decision?: string }[]>([]);
   const [autoAssign, setAutoAssign] = useState<Record<string, AutoAssignState>>({});
   const [reviewers, setReviewers]   = useState<Reviewer[]>([]);
   const [showReviewers, setShowReviewers] = useState(false);
@@ -96,7 +95,6 @@ export default function ReviewerDashboard() {
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ ok: number; errors: string[] } | null>(null);
   const [bulkNumReviewers, setBulkNumReviewers] = useState<1|2>(2);
-  const [bulkMode, setBulkMode] = useState<"individual"|"group">("individual");
   const [viewMode, setViewMode] = useState<"all"|"mine">("all");
   const [assignMode, setAssignMode] = useState<"manual"|"auto">("manual");
   const [assignModeLoading, setAssignModeLoading] = useState(false);
@@ -129,7 +127,7 @@ export default function ReviewerDashboard() {
     const initialAA: Record<string, AutoAssignState> = {};
     list.forEach((p) => {
       initial[p.id] = { status: p.status, reviewer: p.reviewer ?? "", reviewer2: p.reviewer2 ?? "", saving: false };
-      initialAA[p.id] = { numReviewers: 2, mode: "individual", loading: false, result: "" };
+      initialAA[p.id] = { numReviewers: 2, loading: false, result: "" };
     });
     setEdits(initial);
     setAutoAssign(initialAA);
@@ -174,6 +172,14 @@ export default function ReviewerDashboard() {
     return myReviews.some(
       (r) => r.project_id === p.id && r.round === (p.current_round ?? 1)
     );
+  }
+
+  /** Ronda en la que aprobé el proyecto: mi aprobación vale para las siguientes. */
+  function approvedRound(p: Project): number | null {
+    const rounds = myReviews
+      .filter((r) => r.project_id === p.id && r.overall_decision === "accepted")
+      .map((r) => r.round);
+    return rounds.length ? Math.min(...rounds) : null;
   }
 
   async function saveProject(id: string) {
@@ -264,7 +270,7 @@ export default function ReviewerDashboard() {
     const res = await fetch(`/api/admin/projects/${projectId}/auto-assign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ numReviewers: aa.numReviewers, mode: aa.mode }),
+      body: JSON.stringify({ numReviewers: aa.numReviewers }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -360,7 +366,7 @@ export default function ReviewerDashboard() {
       const res = await fetch(`/api/admin/projects/${p.id}/auto-assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numReviewers: bulkNumReviewers, mode: bulkMode }),
+        body: JSON.stringify({ numReviewers: bulkNumReviewers }),
       });
       if (res.ok) ok++;
       else { const d = await res.json(); errors.push(`${p.title.slice(0, 30)}: ${d.error}`); }
@@ -505,18 +511,6 @@ export default function ReviewerDashboard() {
             <option value={1}>1 revisor</option>
             <option value={2}>2 revisores</option>
           </select>
-          {bulkNumReviewers === 2 && (
-            <div className="flex gap-1">
-              <button onClick={() => setBulkMode("individual")}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${bulkMode === "individual" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200"}`}>
-                <User className="w-3 h-3" /> Separado
-              </button>
-              <button onClick={() => setBulkMode("group")}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${bulkMode === "group" ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200"}`}>
-                <Users className="w-3 h-3" /> Grupal
-              </button>
-            </div>
-          )}
           <button onClick={handleBulkAutoAssign} disabled={bulkAssigning}
             className="flex items-center gap-1.5 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors">
             {bulkAssigning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
@@ -675,23 +669,43 @@ export default function ReviewerDashboard() {
                             Ronda {p.current_round}
                           </span>
                         )}
-                        {p.review_mode === "group" && (
-                          <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100 flex items-center gap-1">
-                            <Users className="w-3 h-3" /> Grupal
-                          </span>
-                        )}
-                        {assigned && !reviewed && ["submitted","reviewing","corrections"].includes(p.status) && (
-                          <button
-                            onClick={() => router.push(p.review_mode === "group" ? `/revisores/review/${p.id}/group` : `/revisores/review/${p.id}`)}
-                            className="flex items-center gap-1.5 text-xs bg-[#CC5200] hover:bg-[#B34700] text-white font-bold px-3 py-1 rounded-full transition-colors"
-                          >
-                            <FileSearch className="w-3 h-3" />
-                            {p.review_mode === "group" ? "Revisión grupal" : "Revisar"}
-                          </button>
-                        )}
-                        {assigned && reviewed && (
-                          <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-100">✓ Revisado</span>
-                        )}
+                        {assigned && (() => {
+                          const ronda    = p.current_round ?? 1;
+                          const aprobada = approvedRound(p);
+                          if (aprobada !== null) {
+                            return (
+                              <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-100">
+                                ✓ Aprobaste en ronda {aprobada}
+                              </span>
+                            );
+                          }
+                          if (reviewed) {
+                            return (
+                              <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-100">
+                                ✓ Revisaste la ronda {ronda}
+                              </span>
+                            );
+                          }
+                          if (p.status === "corrections") {
+                            return (
+                              <span className="text-xs bg-slate-100 text-slate-500 font-medium px-2.5 py-0.5 rounded-full">
+                                Esperando correcciones del investigador
+                              </span>
+                            );
+                          }
+                          if (["submitted", "reviewing"].includes(p.status)) {
+                            return (
+                              <button
+                                onClick={() => router.push(`/revisores/review/${p.id}`)}
+                                className="flex items-center gap-1.5 text-xs bg-[#CC5200] hover:bg-[#B34700] text-white font-bold px-3 py-1 rounded-full transition-colors"
+                              >
+                                <FileSearch className="w-3 h-3" />
+                                Revisar ronda {ronda}
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         {/* Co-reviewer badge (visible to reviewer, not admin) */}
                         {!isAdmin && assigned && (() => {
                           const co = p.reviewer === reviewerName ? p.reviewer2 : p.reviewer2 === reviewerName ? p.reviewer : null;
@@ -748,24 +762,12 @@ export default function ReviewerDashboard() {
                         {aa && <>
                           <select
                             value={aa.numReviewers}
-                            onChange={(e) => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], numReviewers: Number(e.target.value) as 1|2, mode: Number(e.target.value) === 1 ? "individual" : prev[p.id].mode } }))}
+                            onChange={(e) => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], numReviewers: Number(e.target.value) as 1|2 } }))}
                             className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
                           >
                             <option value={1}>1 revisor</option>
                             <option value={2}>2 revisores</option>
                           </select>
-                          {aa.numReviewers === 2 && (
-                            <div className="flex gap-1">
-                              <button onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "individual" } }))}
-                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "individual" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200"}`}>
-                                <User className="w-3 h-3" /> Sep.
-                              </button>
-                              <button onClick={() => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], mode: "group" } }))}
-                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${aa.mode === "group" ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200"}`}>
-                                <Users className="w-3 h-3" /> Grup.
-                              </button>
-                            </div>
-                          )}
                           <button onClick={() => handleAutoAssign(p.id)} disabled={aa.loading}
                             className="flex items-center gap-1 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
                             {aa.loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />} Asignar

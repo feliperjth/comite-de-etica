@@ -7,15 +7,33 @@ import { safeStorageName } from "@/lib/storage";
 import { sections } from "@/lib/sections";
 import {
   CheckCircle, AlertCircle, ChevronDown, ChevronUp, Send, ArrowLeft,
-  Loader2, Monitor, FolderDown, ArrowRight, Users, UserCheck,
-  Upload, FileText, X,
+  Loader2, Monitor, FolderDown, Users, Upload, FileText, X, Clock,
 } from "lucide-react";
+import { mismoNombre, type ResumenRevisor, type EstadoRonda } from "@/lib/rounds";
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import ProjectMessages from "@/components/ProjectMessages";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 
 type Decision   = "accepted" | "corrections" | null;
-type ReviewMode = "platform" | "download" | null;
+type ReviewMode = "platform" | "download";
+
+/** Respuesta de /api/projects/[id]/rounds. */
+interface RoundsInfo {
+  me: string;
+  currentRound: number;
+  status: string;
+  reviewers: ResumenRevisor[];
+  required: string[];
+  pending: string[];
+}
+
+const ESTADO_RONDA: Record<EstadoRonda, { label: string; cls: string }> = {
+  accepted:    { label: "Aprobó",              cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  corrections: { label: "Pidió correcciones",  cls: "bg-orange-50 text-[#CC5200] border-orange-200" },
+  pending:     { label: "Pendiente",           cls: "bg-white text-slate-500 border-dashed border-slate-300" },
+  carried:     { label: "Aprobación vigente",  cls: "bg-emerald-50/60 text-emerald-600 border-emerald-100" },
+  skipped:     { label: "Cerró coordinación",  cls: "bg-slate-50 text-slate-400 border-slate-200" },
+};
 
 interface SectionState {
   decision: Decision;
@@ -56,11 +74,10 @@ export default function ReviewPage() {
   const [submitError, setSubmitError]   = useState("");
   const [done, setDone]                 = useState(false);
 
-  // Step 0: joint vs individual (null = not chosen yet)
-  const [jointChoice, setJointChoice] = useState<"joint" | "individual" | null>(null);
+  const [rounds, setRounds] = useState<RoundsInfo | null>(null);
 
-  // Mode & download-mode states
-  const [mode, setMode]                       = useState<ReviewMode>(null);
+  // Sistema de revisión: por defecto el documento comentado (recomendado).
+  const [mode, setMode]                       = useState<ReviewMode>("download");
   const [downloadDecision, setDownloadDecision] = useState<"accepted" | "corrections" | null>(null);
   const [downloadComment, setDownloadComment]   = useState("");
   const [feedbackFile, setFeedbackFile]         = useState<File | null>(null);
@@ -73,9 +90,13 @@ export default function ReviewPage() {
   const loadProject = useCallback(async () => {
     const supabase = getSupabase();
     // Por endpoint: `projects` deja de leerse desde el navegador.
-    const resProj = await fetch(`/api/projects/${projectId}`);
+    const [resProj, resRounds] = await Promise.all([
+      fetch(`/api/projects/${projectId}`),
+      fetch(`/api/projects/${projectId}/rounds`),
+    ]);
     const data = resProj.ok ? (await resProj.json()).project : null;
     setProject(data);
+    setRounds(resRounds.ok ? await resRounds.json() : null);
     setLoadingProject(false);
   }, [projectId]);
 
@@ -215,7 +236,8 @@ export default function ReviewPage() {
 
   // ── Done ──────────────────────────────────────────────────────────────────
   if (done) {
-    const hasCoReviewer = !!(project?.reviewer && project?.reviewer2);
+    const me = rounds?.me || reviewerName;
+    const faltan = (rounds?.pending ?? []).filter((n) => !mismoNombre(n, me));
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-12 max-w-md text-center">
@@ -224,9 +246,9 @@ export default function ReviewPage() {
           </div>
           <h2 className="text-2xl font-bold text-[#1A1A1A] mb-3">Revisión enviada</h2>
           <p className="text-slate-500 text-sm mb-8">
-            {hasCoReviewer
-              ? "Tu revisión fue registrada. El investigador será notificado cuando el otro revisor también complete su evaluación."
-              : "Tu revisión fue registrada. El investigador será notificado automáticamente."}
+            {faltan.length > 0
+              ? `Tu revisión de la ronda ${project?.current_round ?? 1} quedó registrada. El investigador/a recibirá el resultado cuando ${faltan.join(" y ")} también complete su evaluación.`
+              : `Tu revisión de la ronda ${project?.current_round ?? 1} quedó registrada. El investigador/a será notificado/a automáticamente.`}
           </p>
           <button
             onClick={() => router.push("/revisores/dashboard")}
@@ -265,11 +287,18 @@ export default function ReviewPage() {
     </button>
   );
 
+  const me = rounds?.me || reviewerName;
   const coReviewer =
-    project.reviewer === reviewerName  ? project.reviewer2 :
-    project.reviewer2 === reviewerName ? project.reviewer  : null;
+    mismoNombre(project.reviewer, me)  ? project.reviewer2 :
+    mismoNombre(project.reviewer2, me) ? project.reviewer  : null;
 
   const currentRound = project.current_round ?? 1;
+  const myResumen = rounds?.reviewers.find((r) => mismoNombre(r.name, me)) ?? null;
+  const coResumen = coReviewer
+    ? rounds?.reviewers.find((r) => mismoNombre(r.name, coReviewer)) ?? null
+    : null;
+  const myCurrent = myResumen?.rondas.find((r) => r.round === currentRound)?.estado ?? null;
+  const closedProject = ["approved", "certified", "rejected"].includes(project.status);
 
   const projectHeader = (
     <div className="bg-[#1A1A1A] rounded-2xl p-6 mb-8 text-white">
@@ -277,16 +306,13 @@ export default function ReviewPage() {
         <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest">
           Revisando como: {reviewerName}
         </p>
-        {currentRound > 1 && (
-          <span className="bg-violet-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-            Ronda {currentRound}
-          </span>
-        )}
+        <span className="bg-violet-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+          Ronda {currentRound}
+        </span>
       </div>
       <h1 className="font-bold text-lg leading-snug mb-2">{project.title}</h1>
       <p className="text-slate-400 text-sm">
         {project.researcher_name} · {project.project_type}
-        {currentRound > 1 && <span className="text-violet-400 font-semibold"> · Nueva revisión requerida (Ronda {currentRound})</span>}
       </p>
       {coReviewer && (
         <p className="text-slate-400 text-xs mt-1.5 flex items-center gap-1.5">
@@ -297,191 +323,150 @@ export default function ReviewPage() {
     </div>
   );
 
-  // ── Mode selector badge (shown while in a mode) ───────────────────────────
-  const modeBadge = mode && (
-    <div className="flex items-center gap-2 mb-6 flex-wrap">
-      <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
-        mode === "download"
-          ? "bg-orange-50 border-orange-200 text-[#CC5200]"
-          : "bg-slate-100 border-slate-200 text-slate-600"
-      }`}>
-        {mode === "download" ? <FolderDown className="w-3.5 h-3.5" /> : <Monitor className="w-3.5 h-3.5" />}
-        {mode === "download" ? "Sistema 1 · Documento comentado" : "Sistema 2 · Pauta en plataforma"}
+  // ── Historial de rondas: qué hizo cada revisor en cada ronda ──────────────
+  const filaRevisor = (r: ResumenRevisor, label: string) => (
+    <div className="flex items-center gap-3 flex-wrap">
+      <span className="text-xs font-semibold text-slate-500 w-36 shrink-0 truncate" title={r.name}>{label}</span>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {r.rondas.map((rr) => {
+          const e = ESTADO_RONDA[rr.estado];
+          const actual = rr.round === currentRound;
+          return (
+            <span
+              key={rr.round}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border ${e.cls} ${actual ? "ring-2 ring-violet-200" : ""}`}
+            >
+              R{rr.round} · {rr.estado === "pending" && actual && mismoNombre(r.name, me) ? "Te toca" : e.label}
+            </span>
+          );
+        })}
       </div>
-      <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
-        <UserCheck className="w-3.5 h-3.5" /> Individual
+    </div>
+  );
+
+  const roundTracker = rounds && rounds.reviewers.length > 0 && (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-6">
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Rondas de revisión</p>
+      <div className="space-y-2.5">
+        {myResumen && filaRevisor(myResumen, "Tú")}
+        {rounds.reviewers
+          .filter((r) => r !== myResumen)
+          .map((r) => <div key={r.name}>{filaRevisor(r, r.name)}</div>)}
       </div>
-      <button
-        onClick={() => setMode(null)}
-        className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
-      >
-        Cambiar modo
-      </button>
-      {coReviewer && (
-        <button
-          onClick={() => { setMode(null); setJointChoice(null); }}
-          className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
-        >
-          Cambiar modalidad
-        </button>
+      {coResumen?.approvedRound != null && myResumen?.approvedRound == null && (
+        <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 mt-4">
+          {coResumen.name} ya aprobó en la ronda {coResumen.approvedRound}. Su aprobación se mantiene: en esta ronda solo falta tu evaluación.
+        </p>
       )}
     </div>
   );
 
+  // ── Aviso según si el co-revisor sigue revisando o ya aprobó ──────────────
+  const coPending = !!coReviewer && (rounds?.pending ?? []).some((n) => mismoNombre(n, coReviewer));
+  const coNotice = coReviewer && (
+    <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6 flex items-start gap-3">
+      <Users className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+      <p className="text-xs text-blue-600 leading-relaxed">
+        {coResumen?.approvedRound != null
+          ? <><strong>{coReviewer}</strong> ya aprobó en la ronda {coResumen.approvedRound}. Tu evaluación de esta ronda define el resultado que recibe el investigador/a.</>
+          : coPending
+          ? <>Revisión individual: el investigador/a recibirá el resultado cuando <strong>{coReviewer}</strong> también envíe su evaluación de la ronda {currentRound}.</>
+          : <><strong>{coReviewer}</strong> ya envió su evaluación de la ronda {currentRound}. Al enviar la tuya, el investigador/a recibirá el resultado.</>}
+      </p>
+    </div>
+  );
+
   // ══════════════════════════════════════════════════════════════════════════
-  // STEP 0: JOINT VS INDIVIDUAL (only when co-reviewer exists)
+  // ESTADO: no hay nada que revisar ahora (ya aprobó, ya revisó o ronda cerrada)
   // ══════════════════════════════════════════════════════════════════════════
-  if (coReviewer && jointChoice === null) {
+  let aviso: { titulo: string; texto: string } | null = null;
+  const faltanOtros = (rounds?.pending ?? []).filter((n) => !mismoNombre(n, me));
+
+  if (closedProject) {
+    aviso = {
+      titulo: "Proyecto con resultado final",
+      texto: project.status === "rejected"
+        ? "Este proyecto fue cerrado como no aprobado. No hay revisiones pendientes."
+        : "Este proyecto ya fue aprobado. No hay revisiones pendientes.",
+    };
+  } else if (myResumen?.approvedRound != null) {
+    aviso = {
+      titulo: `Aprobaste este proyecto en la ronda ${myResumen.approvedRound}`,
+      texto: faltanOtros.length > 0
+        ? `Tu aprobación se mantiene en las rondas siguientes, así que no necesitas volver a revisarlo. En la ronda ${currentRound} solo falta la evaluación de ${faltanOtros.join(" y ")}.`
+        : "Tu aprobación se mantiene en las rondas siguientes, así que no necesitas volver a revisarlo.",
+    };
+  } else if (myCurrent === "accepted" || myCurrent === "corrections") {
+    aviso = {
+      titulo: `Ya enviaste tu revisión de la ronda ${currentRound}`,
+      texto: project.status === "corrections"
+        ? "La ronda está cerrada y el investigador/a está preparando sus correcciones. Te avisaremos por correo cuando las envíe para la siguiente ronda."
+        : faltanOtros.length > 0
+        ? `Falta la evaluación de ${faltanOtros.join(" y ")} para cerrar la ronda.`
+        : "La ronda se está cerrando.",
+    };
+  } else if (project.status === "corrections") {
+    aviso = {
+      titulo: `La ronda ${currentRound} ya está cerrada`,
+      texto: "El investigador/a está preparando sus correcciones. Te avisaremos por correo cuando las envíe para la siguiente ronda.",
+    };
+  }
+
+  if (aviso) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-10">
         {nav}
         {projectHeader}
-
-        {/* Documents always available, from the very first step */}
-        <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
-
-        <div className="text-center mb-8">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-            Modalidad de revisión{currentRound > 1 ? ` · Ronda ${currentRound}` : ""}
-          </p>
-          <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo quieren revisar este proyecto?</h2>
-          <p className="text-slate-400 text-sm mt-2">
-            Coordínate con tu co-revisor/a <strong className="text-slate-600">{coReviewer}</strong> antes de elegir
-          </p>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6 flex items-start gap-4">
+          <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shrink-0 border border-emerald-100">
+            {project.status === "corrections" && myResumen?.approvedRound == null
+              ? <Clock className="w-5 h-5 text-emerald-600" />
+              : <CheckCircle className="w-5 h-5 text-emerald-600" />}
+          </div>
+          <div>
+            <h2 className="font-bold text-emerald-900 text-base mb-1">{aviso.titulo}</h2>
+            <p className="text-sm text-emerald-800/80 leading-relaxed">{aviso.texto}</p>
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Joint review */}
-          <button
-            onClick={() => router.push(`/revisores/review/${project.id}/group`)}
-            className="group bg-white border-2 border-slate-100 hover:border-emerald-400 rounded-2xl p-6 text-left transition-all hover:shadow-md"
-          >
-            <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
-              <Users className="w-6 h-6 text-emerald-600" />
-            </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar juntos</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-5">
-              Ambos revisores evalúan en tiempo real en un espacio compartido. Las decisiones se consensúan sección por sección y la revisión final se envía cuando ambos confirman.
-            </p>
-            <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold">
-              Revisión conjunta <ArrowRight className="w-4 h-4" />
-            </div>
-          </button>
-
-          {/* Individual review */}
-          <button
-            onClick={() => setJointChoice("individual")}
-            className="group bg-white border-2 border-slate-100 hover:border-[#CC5200] rounded-2xl p-6 text-left transition-all hover:shadow-md"
-          >
-            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
-              <UserCheck className="w-6 h-6 text-[#CC5200]" />
-            </div>
-            <h3 className="font-bold text-[#1A1A1A] text-base mb-2">Revisar por separado</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-5">
-              Cada revisor evalúa de forma independiente. El resultado solo se notifica al investigador/a cuando <strong>ambos revisores</strong> hayan completado su evaluación.
-            </p>
-            <div className="flex items-center gap-1.5 text-[#CC5200] text-sm font-semibold">
-              Revisión individual <ArrowRight className="w-4 h-4" />
-            </div>
-          </button>
-        </div>
-
-        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4">
-          <p className="text-xs text-blue-600 leading-relaxed">
-            <strong>Modo separado:</strong> el investigador/a no recibirá ninguna notificación hasta que tanto tú como <strong>{coReviewer}</strong> hayan enviado sus evaluaciones individuales.
-          </p>
-        </div>
+        {roundTracker}
+        <ProjectDocumentsPanel projectId={project.id} manage scopeAll defaultOpen={false} />
+        <ProjectMessages projectId={project.id} role="reviewer" />
       </div>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // MODE SELECTION SCREEN
-  // ══════════════════════════════════════════════════════════════════════════
-  if (mode === null) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        {nav}
-        {projectHeader}
-
-        {/* Documents panel — always visible before choosing mode */}
-        <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
-
-        {coReviewer && (
-          <div className="flex items-center gap-2 mb-6">
-            <div className="flex items-center gap-1.5 text-xs bg-orange-50 border border-orange-200 text-[#CC5200] font-semibold px-3 py-1.5 rounded-lg">
-              <UserCheck className="w-3.5 h-3.5" /> Revisión individual
-            </div>
-            <button
-              onClick={() => setJointChoice(null)}
-              className="text-xs text-slate-400 hover:text-[#CC5200] font-medium transition-colors"
-            >
-              Cambiar modalidad
-            </button>
-          </div>
-        )}
-
-        <div className="text-center mb-10">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sistemas de revisión</p>
-          <h2 className="text-xl font-bold text-[#1A1A1A]">¿Cómo quieres revisar este proyecto?</h2>
-          <p className="text-slate-400 text-sm mt-2 max-w-xl mx-auto">
-            Elige uno de los dos sistemas para entregar tu evaluación.
-          </p>
-        </div>
-
-        {/* Sistema 1 — documento comentado (recomendado) */}
+  // ── Selector de sistema, dentro del formulario de la ronda ────────────────
+  const modeTabs = (
+    <div className="mb-6">
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+        Tu evaluación de la ronda {currentRound}
+      </p>
+      <div className="grid grid-cols-2 gap-2 bg-slate-100 rounded-2xl p-1.5">
         <button
           onClick={() => setMode("download")}
-          className="group relative w-full text-left bg-gradient-to-br from-orange-50 via-white to-white border-2 border-[#CC5200] rounded-3xl p-7 mb-5 shadow-lg shadow-orange-100/70 hover:shadow-xl hover:shadow-orange-100 hover:-translate-y-0.5 transition-all"
+          className={`flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
+            mode === "download" ? "bg-white text-[#CC5200] shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
         >
-          <span className="absolute -top-3 left-7 bg-[#CC5200] text-white text-[10px] font-bold uppercase tracking-widest px-3.5 py-1 rounded-full shadow-sm">
-            ★ Recomendado
-          </span>
-          <div className="flex items-start gap-5">
-            <div className="w-14 h-14 bg-[#CC5200] rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-orange-200 group-hover:scale-105 transition-transform">
-              <FolderDown className="w-7 h-7 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <h3 className="font-bold text-[#1A1A1A] text-lg">Documento comentado</h3>
-                <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-[#CC5200] px-2.5 py-1 rounded-full">Sistema 1</span>
-              </div>
-              <p className="text-slate-500 text-sm leading-relaxed mb-4">
-                Descarga los documentos del proyecto, revísalos en tu equipo y sube un documento con tus comentarios. Se enviará automáticamente al investigador/a junto con tu evaluación.
-              </p>
-              <div className="inline-flex items-center gap-1.5 bg-[#CC5200] group-hover:bg-[#B34700] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors">
-                Revisar con documento <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
+          <FolderDown className="w-4 h-4" /> Documento comentado
+          <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide text-[#CC5200]/70">· Recomendado</span>
         </button>
-
-        {/* Sistema 2 — pauta en la plataforma (alternativa) */}
         <button
           onClick={() => setMode("platform")}
-          className="group w-full text-left bg-white border-2 border-slate-100 hover:border-slate-300 rounded-3xl p-6 transition-all hover:shadow-md"
+          className={`flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
+            mode === "platform" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
         >
-          <div className="flex items-start gap-5">
-            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors">
-              <Monitor className="w-6 h-6 text-slate-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <h3 className="font-bold text-[#1A1A1A] text-base">Pauta en la plataforma</h3>
-                <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">Sistema 2 · Alternativa</span>
-              </div>
-              <p className="text-slate-400 text-sm leading-relaxed mb-3">
-                Evalúa sección por sección el formulario UAI directamente en el sistema, con criterios y correcciones estándar para cada sección de la pauta.
-              </p>
-              <div className="flex items-center gap-1.5 text-slate-500 group-hover:text-slate-700 text-sm font-semibold transition-colors">
-                Revisar con la pauta <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
+          <Monitor className="w-4 h-4" /> Pauta en la plataforma
         </button>
       </div>
-    );
-  }
+      <p className="text-xs text-slate-400 mt-2 px-1">
+        {mode === "download"
+          ? "Descarga los documentos, revísalos en tu equipo y sube un archivo con tus comentarios. Se enviará al investigador/a junto con tu evaluación."
+          : "Evalúa sección por sección el formulario UAI, con criterios y correcciones estándar para cada sección."}
+      </p>
+    </div>
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // PLATFORM MODE — section-by-section review
@@ -491,7 +476,7 @@ export default function ReviewPage() {
       <div className="max-w-3xl mx-auto px-4 py-10">
         {nav}
         {projectHeader}
-        {modeBadge}
+        {roundTracker}
 
         {/* AI Analysis */}
         <AiAnalysisPanel title={project.title} abstract={project.abstract} mode="revisor" />
@@ -501,6 +486,8 @@ export default function ReviewPage() {
 
         {/* Messages */}
         <ProjectMessages projectId={project.id} role="reviewer" />
+
+        {modeTabs}
 
         {/* Progress */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-8">
@@ -663,15 +650,7 @@ export default function ReviewPage() {
           })}
         </div>
 
-        {/* Co-reviewer notice for individual mode */}
-        {coReviewer && (
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6 flex items-start gap-3">
-            <Users className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-600 leading-relaxed">
-              Revisión <strong>individual</strong>: el investigador/a recibirá el resultado solo cuando <strong>{coReviewer}</strong> también envíe su evaluación.
-            </p>
-          </div>
-        )}
+        {coNotice}
 
         {/* Submit */}
         {submitError && (
@@ -705,13 +684,15 @@ export default function ReviewPage() {
     <div className="max-w-3xl mx-auto px-4 py-10">
       {nav}
       {projectHeader}
-      {modeBadge}
+      {roundTracker}
 
       {/* Documents list */}
       <ProjectDocumentsPanel projectId={project.id} manage scopeAll />
 
       {/* Messages */}
       <ProjectMessages projectId={project.id} role="reviewer" />
+
+      {modeTabs}
 
       {/* Simplified decision form */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
@@ -819,15 +800,7 @@ export default function ReviewPage() {
         )}
       </div>
 
-      {/* Co-reviewer notice for individual mode */}
-      {coReviewer && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 mb-6 flex items-start gap-3">
-          <Users className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-600 leading-relaxed">
-            Revisión <strong>individual</strong>: el investigador/a recibirá el resultado solo cuando <strong>{coReviewer}</strong> también envíe su evaluación.
-          </p>
-        </div>
-      )}
+      {coNotice}
 
       {/* Submit */}
       {submitError && (

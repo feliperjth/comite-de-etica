@@ -324,9 +324,14 @@ export default function ComitePerfil() {
           </div>
           <div className="divide-y divide-slate-50">
             {assignedProjects.map((p) => {
+              const ronda = p.current_round ?? 1;
               const alreadyReviewed = reviews.some(
-                (r) => r.project_id === p.id && r.round === (p.current_round ?? 1)
+                (r) => r.project_id === p.id && r.round === ronda
               );
+              // Una aprobación se mantiene en las rondas siguientes.
+              const aprobadaEn = reviews
+                .filter((r) => r.project_id === p.id && r.overall_decision === "accepted")
+                .reduce<number | null>((min, r) => (min === null || r.round < min ? r.round : min), null);
               return (
                 <div key={p.id} className="p-6 flex items-center justify-between gap-4">
                   <div>
@@ -341,16 +346,24 @@ export default function ComitePerfil() {
                       )}
                     </div>
                   </div>
-                  {alreadyReviewed ? (
+                  {aprobadaEn !== null ? (
                     <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-full border border-emerald-100 shrink-0">
-                      ✓ Ya revisado
+                      ✓ Aprobaste en ronda {aprobadaEn}
+                    </span>
+                  ) : alreadyReviewed ? (
+                    <span className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-full border border-emerald-100 shrink-0">
+                      ✓ Revisaste la ronda {ronda}
+                    </span>
+                  ) : p.status === "corrections" ? (
+                    <span className="text-xs bg-slate-100 text-slate-500 font-medium px-3 py-1.5 rounded-full shrink-0">
+                      Esperando correcciones
                     </span>
                   ) : (
                     <Link
                       href={`/revisores/review/${p.id}`}
                       className="flex items-center gap-1.5 text-xs bg-[#CC5200] hover:bg-[#B34700] text-white font-bold px-4 py-2 rounded-full transition-colors shrink-0"
                     >
-                      <FileSearch className="w-3.5 h-3.5" /> Revisar
+                      <FileSearch className="w-3.5 h-3.5" /> Revisar ronda {ronda}
                     </Link>
                   )}
                 </div>
