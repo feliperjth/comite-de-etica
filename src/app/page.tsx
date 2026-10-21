@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getHomeStats } from "@/lib/stats";
-import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, FileSearch } from "lucide-react";
+import { FileText, Bot, BarChart3, Users, Heart, Shield, ArrowRight, CheckCircle, ExternalLink, BookOpen, FileSearch, Zap, CalendarClock, MessagesSquare, BellRing, Sparkles } from "lucide-react";
+import SubmitTutorial from "@/components/SubmitTutorial";
 
 const features = [
   {
@@ -50,11 +51,33 @@ const pillars = [
   },
 ];
 
-const steps = [
-  { num: "01", title: "Registra tu proyecto", desc: "Completa la información básica y selecciona la temática de tu investigación." },
-  { num: "02", title: "Sube tus documentos", desc: "Adjunta el protocolo, consentimiento informado y demás documentos requeridos." },
-  { num: "03", title: "Revisión IA previa", desc: "Identifica aspectos éticos a reforzar antes del envío formal, sin costo." },
-  { num: "04", title: "Envío y seguimiento", desc: "Envía al comité y sigue el progreso de tu revisión en tiempo real." },
+/** Novedades del portal. Al publicar nuevas, actualizar también la fecha. */
+const NOVEDADES_FECHA = "Octubre 2026";
+const novedades = [
+  {
+    icon: Zap,
+    title: "Revisión por vía rápida",
+    desc: "Si postulas a Fondecyt u otro concurso con fecha cercana, puedes pedir una revisión acotada a los puntos éticos críticos.",
+    href: "/submit",
+    cta: "Solicitar al enviar",
+  },
+  {
+    icon: CalendarClock,
+    title: "Fecha estimada de respuesta",
+    desc: "Cada ronda de revisión tiene un plazo de 3 semanas. En tu seguimiento ves la fecha en que esperamos responderte.",
+    href: "/track",
+    cta: "Ver mi seguimiento",
+  },
+  {
+    icon: MessagesSquare,
+    title: "Mensajes ordenados por ronda",
+    desc: "La conversación con tus revisores se agrupa por ronda, y cada mensaje indica si es una revisión o tu respuesta.",
+  },
+  {
+    icon: BellRing,
+    title: "Consulta el estado de tu revisión",
+    desc: "Desde la sección de mensajes puedes preguntar cómo va tu revisión. Los revisores responden en el mismo portal.",
+  },
 ];
 
 
@@ -173,6 +196,49 @@ export default async function Home() {
         </section>
       )}
 
+      {/* Novedades */}
+      <section className="py-16 px-4 bg-white border-b border-slate-100">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8">
+            <div>
+              <p className="inline-flex items-center gap-2 text-sm font-bold text-amber-600 uppercase tracking-widest mb-3">
+                <Sparkles className="w-4 h-4" /> Novedades del portal
+              </p>
+              <h2 className="text-3xl font-bold text-uai-navy">Lo nuevo para investigadores/as</h2>
+            </div>
+            <span className="self-start sm:self-auto text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">
+              Actualización · {NOVEDADES_FECHA}
+            </span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {novedades.map((n, i) => (
+              <div
+                key={n.title}
+                className="ce-entrada relative flex gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-5 hover:bg-white hover:shadow-lg hover:border-slate-200 transition-all"
+                style={{ animationDelay: `${0.1 + i * 0.08}s` }}
+              >
+                <span className="w-11 h-11 rounded-xl bg-uai-gold-light text-uai-gold flex items-center justify-center shrink-0">
+                  <n.icon className="w-5 h-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-uai-navy">{n.title}</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-white bg-uai-gold rounded-full px-2 py-0.5">Nuevo</span>
+                  </div>
+                  <p className="text-slate-500 text-sm leading-relaxed">{n.desc}</p>
+                  {n.href && (
+                    <Link href={n.href} className="group mt-2 inline-flex items-center gap-1 text-sm font-semibold text-uai-gold hover:text-uai-gold-hover">
+                      {n.cta}
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* INDH + Tres pilares */}
       <section className="py-20 px-4 bg-slate-50">
         <div className="max-w-5xl mx-auto">
@@ -266,25 +332,25 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Cómo funciona */}
-      <section className="py-20 px-4 bg-slate-50">
-        <div className="max-w-4xl mx-auto">
+      {/* Cómo funciona: tutorial animado del envío */}
+      <section id="como-enviar" className="py-20 px-4 bg-slate-50 scroll-mt-20">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <p className="text-sm font-bold text-amber-600 uppercase tracking-widest mb-3">Proceso</p>
-            <h2 className="text-3xl font-bold text-uai-navy">¿Cómo funciona?</h2>
+            <p className="text-sm font-bold text-amber-600 uppercase tracking-widest mb-3">Tutorial</p>
+            <h2 className="text-3xl font-bold text-uai-navy">¿Cómo se envía un proyecto?</h2>
+            <p className="text-slate-500 mt-3 max-w-xl mx-auto text-sm leading-relaxed">
+              Cinco pasos, en menos de 10 minutos. Después sigues tu revisión con el código que te llega por correo.
+            </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            {steps.map((step) => (
-              <div key={step.num} className="flex gap-5 group">
-                <div className="w-12 h-12 rounded-xl bg-uai-navy text-uai-gold font-bold text-sm flex items-center justify-center shrink-0">
-                  {step.num}
-                </div>
-                <div className="pt-1">
-                  <h3 className="font-bold text-uai-navy mb-1.5">{step.title}</h3>
-                  <p className="text-slate-500 text-sm leading-relaxed">{step.desc}</p>
-                </div>
-              </div>
-            ))}
+          <SubmitTutorial />
+          <div className="text-center mt-12">
+            <Link
+              href="/submit"
+              className="group inline-flex items-center gap-2 bg-uai-gold hover:bg-uai-gold-hover text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-[#CC5200]/20 hover:-translate-y-0.5"
+            >
+              Enviar mi proyecto
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         </div>
       </section>

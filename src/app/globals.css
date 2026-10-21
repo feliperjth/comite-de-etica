@@ -95,3 +95,43 @@ html { scroll-behavior: smooth; }
   .ce-trazo { stroke-dashoffset: 0; }
   .ce-aura  { opacity: 0.08; }
 }
+
+/* ── Portada: tutorial de envío (SubmitTutorial) ───────────────────────────
+   Cada escena se vuelve a montar al cambiar de paso, así que las animaciones
+   arrancan de cero. Con menos movimiento se muestra el estado final. */
+
+@keyframes tut-aparece { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes tut-escribe { from { width: 0; } to { width: var(--tut-ch); } }
+@keyframes tut-progreso { from { width: 0; } to { width: 100%; } }
+@keyframes tut-carga { from { width: 0; } to { width: 100%; } }
+@keyframes tut-barra { from { width: 0; } to { width: var(--tut-w); } }
+@keyframes tut-marca {
+  from { background: transparent; border-color: #cbd5e1; transform: scale(0.85); }
+  60%  { transform: scale(1.15); }
+  to   { background: #059669; border-color: #059669; transform: scale(1); }
+}
+@keyframes tut-elige {
+  to { border-color: #CC5200; background: #FFF3EB; color: #1A1A1A; box-shadow: 0 0 0 4px rgba(204, 82, 0, 0.12); }
+}
+@keyframes tut-presiona {
+  0%, 55% { transform: scale(1); box-shadow: 0 0 0 0 rgba(204, 82, 0, 0.35); }
+  65%     { transform: scale(0.94); }
+  80%     { transform: scale(1); box-shadow: 0 0 0 10px rgba(204, 82, 0, 0); }
+  100%    { transform: scale(1); }
+}
+@keyframes tut-exito { from { opacity: 0; transform: scale(0.96); visibility: visible; } to { opacity: 1; transform: none; visibility: visible; } }
+
+.tut-aparece  { animation: tut-aparece 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.tut-escribe  { width: 0; animation: tut-escribe 0.6s forwards; }
+.tut-progreso { width: 0; animation-name: tut-progreso; animation-timing-function: linear; animation-fill-mode: forwards; }
+.tut-carga    { width: 0; animation: tut-carga 0.9s ease-out forwards; }
+.tut-barra    { width: 0; animation: tut-barra 1s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.tut-marca    { border: 2px solid #cbd5e1; animation: tut-marca 0.45s ease-out forwards; }
+.tut-elige    { border-color: #e2e8f0; color: #475569; animation: tut-elige 0.4s ease-out 1.4s forwards; }
+.tut-presiona { animation: tut-presiona 2.2s ease-out forwards; }
+.tut-exito    { opacity: 0; visibility: hidden; animation: tut-exito 0.5s ease-out 2.1s forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tut-aparece, .tut-escribe, .tut-progreso, .tut-carga, .tut-barra,
+  .tut-marca, .tut-elige, .tut-presiona, .tut-exito { animation-duration: 1ms !important; animation-delay: 0s !important; }
+}
