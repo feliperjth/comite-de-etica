@@ -145,3 +145,62 @@ export function resumenRevisor(project: ProjectLike, reviews: ReviewLike[], name
 export function resumenRondas(project: ProjectLike, reviews: ReviewLike[]): ResumenRevisor[] {
   return revisoresAsignados(project).map((n) => resumenRevisor(project, reviews, n));
 }
+
+// ── Fechas de cada ronda ────────────────────────────────────────────────────
+//
+// Las rondas no guardan fecha de inicio. Se deducen de lo que sí queda
+// registrado: la ronda 1 empieza con el envío del proyecto y la ronda N (N ≥ 2)
+// cuando el investigador sube sus correcciones a `{proyecto}/revision-N/`. Si
+// esa subida no está (p. ej. reenvío sin archivos), se usa el momento en que
+// se cerró la ronda anterior: la última revisión entregada en ella.
+
+export type DocConFecha = { file_path?: string | null; created_at?: string | null };
+export type ReviewConFecha = { round: number; submitted_at?: string | null };
+
+function ms(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Inicio de cada ronda en milisegundos; índice 0 = ronda 1. Nunca decrece. */
+export function iniciosDeRonda(opts: {
+  createdAt: string | null | undefined;
+  currentRound: number;
+  docs: DocConFecha[];
+  reviews: ReviewConFecha[];
+}): number[] {
+  const actual = Math.max(1, opts.currentRound);
+  const inicios: number[] = [ms(opts.createdAt) ?? 0];
+
+  for (let n = 2; n <= actual; n++) {
+    const marca = `/revision-${n}/`;
+    const porDocs = opts.docs
+      .filter((d) => (d.file_path ?? "").includes(marca))
+      .map((d) => ms(d.created_at))
+      .filter((t): t is number => t !== null);
+    const porCierre = opts.reviews
+      .filter((r) => r.round === n - 1)
+      .map((r) => ms(r.submitted_at))
+      .filter((t): t is number => t !== null);
+
+    const candidato = porDocs.length
+      ? Math.min(...porDocs)
+      : porCierre.length
+      ? Math.max(...porCierre)
+      : inicios[inicios.length - 1];
+    inicios.push(Math.max(candidato, inicios[inicios.length - 1]));
+  }
+  return inicios;
+}
+
+/** Ronda a la que pertenece un momento dado, según los inicios calculados. */
+export function rondaDeFecha(inicios: number[], iso: string | null | undefined): number {
+  const t = ms(iso);
+  if (t === null || inicios.length === 0) return Math.max(1, inicios.length);
+  let ronda = 1;
+  for (let i = 0; i < inicios.length; i++) {
+    if (t >= inicios[i]) ronda = i + 1;
+  }
+  return ronda;
+}

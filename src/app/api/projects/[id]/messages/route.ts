@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { canAccessProject, getSession } from "@/lib/auth";
+import { iniciosDeRonda, mismoNombre, rondaDeFecha } from "@/lib/rounds";
+
+/** Hito de la conversación que no es un mensaje: envíos y evaluaciones. */
+type Evento =
+  | { kind: "submitted"; round: number; at: string }
+  | { kind: "resubmitted"; round: number; at: string }
+  | {
+      kind: "review";
+      round: number;
+      at: string;
+      who: "revisor1" | "revisor2" | "coordinacion";
+      decision: "accepted" | "corrections";
+    };
 
 export async function GET(
   req: NextRequest,
@@ -17,7 +30,7 @@ export async function GET(
   // Un investigador solo puede leer la conversación de sus propios proyectos.
   const { data: project } = await supabase
     .from("projects")
-    .select("researcher_email")
+    .select("researcher_email, created_at, current_round, status, reviewer, reviewer2")
     .eq("id", id)
     .maybeSingle();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
@@ -25,13 +38,66 @@ export async function GET(
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { data } = await supabase
-    .from("project_messages")
-    .select("id, sender_type, body, created_at")
-    .eq("project_id", id)
-    .order("created_at", { ascending: true });
+  const [{ data: mensajes }, { data: docs }, { data: reviews }] = await Promise.all([
+    supabase
+      .from("project_messages")
+      .select("id, sender_type, body, created_at")
+      .eq("project_id", id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("documents")
+      .select("file_path, created_at")
+      .eq("project_id", id)
+      .like("file_path", "%/revision-%"),
+    supabase
+      .from("reviews")
+      .select("reviewer_name, round, overall_decision, is_editorial, submitted_at")
+      .eq("project_id", id),
+  ]);
 
-  return NextResponse.json({ messages: data ?? [] });
+  // Los mensajes no guardan su ronda: se deduce por la fecha (ver rounds.ts).
+  const currentRound = project.current_round ?? 1;
+  const inicios = iniciosDeRonda({
+    createdAt: project.created_at,
+    currentRound,
+    docs: docs ?? [],
+    reviews: reviews ?? [],
+  });
+
+  const messages = (mensajes ?? []).map((m) => ({
+    ...m,
+    round: rondaDeFecha(inicios, m.created_at),
+  }));
+
+  const eventos: Evento[] = [];
+  if (project.created_at) eventos.push({ kind: "submitted", round: 1, at: project.created_at });
+  for (let n = 2; n <= currentRound; n++) {
+    eventos.push({ kind: "resubmitted", round: n, at: new Date(inicios[n - 1]).toISOString() });
+  }
+
+  // El investigador recibe el resultado cuando la ronda se cierra: antes de
+  // eso no se le muestra qué decidió cada revisor.
+  const cerrado = ["corrections", "approved", "rejected", "certified"].includes(project.status ?? "");
+  const esInvestigador = session.role === "investigador";
+
+  for (const r of reviews ?? []) {
+    if (!r.submitted_at) continue;
+    if (esInvestigador && r.round >= currentRound && !cerrado) continue;
+    const who: "revisor1" | "revisor2" | "coordinacion" = r.is_editorial
+      ? "coordinacion"
+      : mismoNombre(r.reviewer_name, project.reviewer2) && !mismoNombre(r.reviewer_name, project.reviewer)
+      ? "revisor2"
+      : "revisor1";
+    eventos.push({
+      kind: "review",
+      round: r.round,
+      at: r.submitted_at,
+      who,
+      decision: r.overall_decision === "accepted" ? "accepted" : "corrections",
+    });
+  }
+
+  return NextResponse.json({ messages, events: eventos, currentRound });
 }
 
 export async function POST(
