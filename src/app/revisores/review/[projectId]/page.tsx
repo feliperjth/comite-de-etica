@@ -14,6 +14,8 @@ import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import ProjectMessages from "@/components/ProjectMessages";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 import FastTrackBadge from "@/components/FastTrackBadge";
+import PlazoBadge from "@/components/PlazoBadge";
+import type { Plazo } from "@/lib/deadlines";
 
 type Decision   = "accepted" | "corrections" | null;
 type ReviewMode = "platform" | "download";
@@ -21,6 +23,7 @@ type ReviewMode = "platform" | "download";
 /** Respuesta de /api/projects/[id]/rounds. */
 interface RoundsInfo {
   me: string;
+  plazo: Plazo | null;
   currentRound: number;
   status: string;
   reviewers: ResumenRevisor[];
@@ -309,6 +312,7 @@ export default function ReviewPage() {
         </p>
         <span className="flex items-center gap-2">
           {!closedProject && <FastTrackBadge project={project} dark />}
+          {rounds?.plazo && !rounds.plazo.viaRapida && <PlazoBadge plazo={rounds.plazo} dark />}
           <span className="bg-violet-500 text-white text-xs font-bold px-3 py-1 rounded-full">
             Ronda {currentRound}
           </span>

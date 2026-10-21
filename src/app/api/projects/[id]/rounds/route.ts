@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { requireStaff } from "@/lib/auth";
 import { resumenRondas, revisoresPendientes, revisoresRequeridos } from "@/lib/rounds";
+import { plazosDeProyectos } from "@/lib/deadlinesServer";
 
 /**
  * Historial de rondas de un proyecto para la pantalla de revisión: qué hizo
@@ -19,7 +20,7 @@ export async function GET(
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, reviewer, reviewer2, current_round, status")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
   if (!project) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
@@ -42,8 +43,11 @@ export async function GET(
   const round = project.current_round ?? 1;
   const all = reviews ?? [];
 
+  const plazos = await plazosDeProyectos(supabase, [project]).catch(() => ({} as Record<string, never>));
+
   return NextResponse.json({
     me,
+    plazo: plazos[project.id] ?? null,
     currentRound: round,
     status: project.status,
     reviewers: resumenRondas(project, all),

@@ -15,6 +15,8 @@ import {
 import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
 import FastTrackBadge from "@/components/FastTrackBadge";
+import PlazoBadge from "@/components/PlazoBadge";
+import type { Plazo } from "@/lib/deadlines";
 
 /** Debe coincidir con COORDINATION_NAME en /api/projects/[id]/close-stage. */
 const COORDINATION_NAME = "Coordinación del Comité";
@@ -106,6 +108,8 @@ export default function ReviewerDashboard() {
   const [closeStage, setCloseStage] = useState<CloseStageState | null>(null);
   /** Proyectos con una consulta de estado del investigador sin responder. */
   const [consultas, setConsultas] = useState<Set<string>>(new Set());
+  /** Plazo de la ronda actual por proyecto (solo los que están en revisión). */
+  const [plazos, setPlazos] = useState<Record<string, Plazo>>({});
   const router = useRouter();
 
   const loadProjects = useCallback(async () => {
@@ -135,6 +139,7 @@ export default function ReviewerDashboard() {
     setProjects(list);
     setMyReviews(misRevisiones.reviews ?? []);
     setMissingDocProjects(new Set<string>(listado.missingDocs ?? []));
+    setPlazos(listado.plazos ?? {});
 
     const initial: Record<string, EditState> = {};
     const initialAA: Record<string, AutoAssignState> = {};
@@ -678,6 +683,7 @@ export default function ReviewerDashboard() {
                       <div className="flex items-center gap-2 flex-wrap mt-1.5">
                         <ProjectState status={p.status} certificateUrl={p.certificate_url} />
                         {["submitted", "reviewing", "corrections"].includes(p.status) && <FastTrackBadge project={p} />}
+                        {plazos[p.id] && !plazos[p.id].viaRapida && <PlazoBadge plazo={plazos[p.id]} />}
                         {p.current_round && p.current_round > 1 && (
                           <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100">
                             Ronda {p.current_round}

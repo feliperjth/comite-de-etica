@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 import { requireStaff } from "@/lib/auth";
+import { plazosDeProyectos } from "@/lib/deadlinesServer";
 
 export async function GET(req: NextRequest) {
   const { response } = await requireStaff(req);
@@ -24,8 +25,12 @@ export async function GET(req: NextRequest) {
     .is("file_path", null)
     .neq("doc_type", "review_feedback");
 
+  // Plazo de revisión de la ronda actual (3 semanas, o la fecha de la vía rápida).
+  const plazos = await plazosDeProyectos(supabase, data ?? []).catch(() => ({}));
+
   return NextResponse.json({
     projects: data ?? [],
+    plazos,
     missingDocs: [...new Set((faltantes ?? []).map((d) => d.project_id))],
   });
 }

@@ -12,6 +12,8 @@ import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
 import ProjectMessages from "@/components/ProjectMessages";
 import { revisoresPendientes, revisoresRequeridos } from "@/lib/rounds";
+import { plazosDeProyectos } from "@/lib/deadlinesServer";
+import { fechaLarga } from "@/lib/deadlines";
 import FastTrackBadge from "@/components/FastTrackBadge";
 
 const statusSteps = (reviewersAssigned: boolean, reviewCount: number, reviewersNeeded: number) => [
@@ -103,6 +105,11 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
    * Solo a partir de la ronda 2: en la 1 el proyecto está en su envío inicial,
    * que tiene su propio formulario.
    */
+  // Fecha estimada de respuesta: fin del plazo de revisión de la ronda.
+  const plazo = reviewersAssigned
+    ? (await plazosDeProyectos(supabase, [project]).catch(() => ({} as Record<string, never>)))[project.id] ?? null
+    : null;
+
   const rondaActual    = project.current_round ?? 1;
   const puedeCompletar =
     project.status === "reviewing" && rondaActual > 1 && reviewersAssigned && reviewCount === 0;
@@ -269,6 +276,26 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                       : reviewersNeeded === 1
                       ? "El revisor ha enviado su evaluación"
                       : `Los ${reviewersNeeded} revisores han enviado su evaluación`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {plazo && (
+              <div className="flex items-start gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
+                <div className="w-8 h-8 bg-white border border-slate-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock className="w-4 h-4 text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700">
+                    Fecha estimada de respuesta: {fechaLarga(plazo.limite)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {plazo.vencido
+                      ? "La revisión está tomando más de lo previsto. Puedes consultar su estado a los revisores desde la sección de mensajes."
+                      : plazo.viaRapida
+                      ? "Tu proyecto está en vía rápida: los revisores trabajan con la fecha límite de tu concurso."
+                      : "Los revisores tienen 3 semanas para evaluar cada ronda. Te avisaremos por correo cuando haya un resultado."}
                   </p>
                 </div>
               </div>

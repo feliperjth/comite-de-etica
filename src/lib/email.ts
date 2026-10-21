@@ -593,3 +593,48 @@ export function buildFastTrackRequestEmail(
     </div>`;
   return wrap(body);
 }
+
+/* ── Email: recordatorio de revisión (revisor) ─────────────────── */
+export function buildReviewReminderEmail(opts: {
+  reviewerName: string;
+  title: string;
+  researcherName: string;
+  round: number;
+  limite: string;        // fecha legible
+  diasTranscurridos: number;
+  diasRestantes: number; // negativo si venció
+  viaRapida: boolean;
+  reviewUrl: string;
+}) {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const vencido = opts.diasRestantes < 0;
+  const n = Math.abs(opts.diasRestantes);
+  const titulo = vencido
+    ? "El plazo de revisión está vencido"
+    : opts.viaRapida
+    ? "Recordatorio: revisión por vía rápida"
+    : "Recordatorio de revisión pendiente";
+  const estado = vencido
+    ? `El plazo venció el <strong>${esc(opts.limite)}</strong> (hace ${n} día${n !== 1 ? "s" : ""}).`
+    : opts.diasRestantes === 0
+    ? `El plazo vence <strong>hoy</strong> (${esc(opts.limite)}).`
+    : `El plazo vence el <strong>${esc(opts.limite)}</strong>: quedan ${n} día${n !== 1 ? "s" : ""}.`;
+  const color = vencido ? "#dc2626" : opts.viaRapida ? "#CC5200" : "#CC5200";
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">${titulo}</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
+      Estimada/o <strong>${esc(opts.reviewerName)}</strong>, tienes pendiente la revisión de la ronda ${opts.round} de este proyecto.
+      Han pasado ${opts.diasTranscurridos} día${opts.diasTranscurridos !== 1 ? "s" : ""} desde que comenzó la ronda. ${estado}
+    </p>
+    <div style="background:#f9f9f9;border-radius:8px;padding:20px;border-left:4px solid ${color};margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">${opts.viaRapida ? "Vía rápida · plazo del concurso" : "Plazo de 3 semanas por ronda"}</p>
+      <p style="margin:0 0 6px;font-size:15px;color:#1A1A1A;font-weight:600;">${esc(opts.title)}</p>
+      <p style="margin:0;font-size:13px;color:#888;">Investigador/a: ${esc(opts.researcherName)}</p>
+    </div>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${opts.reviewUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 32px;border-radius:8px;">Ir a la revisión</a>
+    </div>
+    <p style="font-size:12px;color:#999;margin:0;">Si ya estás trabajando en ella, puedes ignorar este mensaje. Si no podrás completarla, avisa a la coordinación del comité para reasignarla.${vencido ? " Este aviso se envía con copia a la coordinación." : ""}</p>`;
+  return wrap(body);
+}
