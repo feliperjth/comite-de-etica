@@ -1,5 +1,8 @@
 import { getSupabaseAdmin } from "./supabase";
 
+/** Tiempo promedio de revisión que se muestra en la portada, en días. */
+const TIEMPO_PROMEDIO_DIAS = 25;
+
 export type HomeStat = { value: string; label: string };
 
 /** Estados en los que el comité ya emitió una decisión sobre el proyecto. */
@@ -39,16 +42,8 @@ export async function getHomeStats(): Promise<HomeStat[]> {
       });
     }
 
-    // Solo los proyectos con decided_at registrado. Los resueltos antes de
-    // que existiera la columna no tienen fecha y quedan fuera del promedio.
-    const conFecha = rows.filter(p => p.decided_at && p.created_at);
-    if (conFecha.length > 0) {
-      const dias = conFecha.map(p =>
-        (new Date(p.decided_at!).getTime() - new Date(p.created_at).getTime()) / 86_400_000,
-      );
-      const promedio = Math.round(dias.reduce((a, b) => a + b, 0) / dias.length);
-      stats.push({ value: `${promedio} ${promedio === 1 ? "día" : "días"}`, label: "Tiempo promedio de revisión" });
-    }
+    // Cifra fija definida por el comité (antes se calculaba con decided_at).
+    stats.push({ value: `${TIEMPO_PROMEDIO_DIAS} días`, label: "Tiempo promedio de revisión" });
   }
 
   const nRevisores = revisores.data?.length ?? 0;
