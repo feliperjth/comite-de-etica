@@ -41,17 +41,29 @@
 
 ## Variables de entorno (.env.local)
 
-El archivo `.env.local` debe estar en la raíz del proyecto con estas variables:
+El archivo `.env.local` debe estar en la raíz del proyecto (nunca se sube a GitHub).
+La lista completa de variables, con una descripción de cada una, está en
+[`.env.example`](.env.example).
+
+**Opción rápida (recomendada):** descargar las variables que ya están en Vercel:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=        # URL de tu proyecto Supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Clave anon de Supabase
-REVIEWER_PASSWORD=               # Clave de acceso para revisores
-REVIEWER_SESSION_TOKEN=          # Token secreto de sesión (cualquier string largo)
-GMAIL_USER=                      # Correo Gmail para enviar notificaciones
-GMAIL_PASS=                      # Contraseña de aplicación de Gmail (no la clave normal)
-COORDINATOR_EMAIL=               # Email de Macarena Cárdenas (coordinadora)
+npx vercel link
+npx vercel env pull .env.local
 ```
+
+**Opción manual:** copiar la plantilla y completar los valores
+(se encuentran en Vercel → Settings → Environment Variables):
+
+```
+copy .env.example .env.local      # Windows
+cp .env.example .env.local        # macOS / Linux
+```
+
+Variables principales: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `REVIEWER_PASSWORD`, `REVIEWER_SESSION_TOKEN`,
+`EMAIL_USER`, `EMAIL_PASS`, `COORDINATOR_EMAIL`, `MACARENA_EMAIL`, más las de
+Google Drive y `GEMINI_API_KEY`.
 
 > Para obtener la contraseña de aplicación de Gmail:
 > Google Account → Seguridad → Verificación en 2 pasos → Contraseñas de aplicación
