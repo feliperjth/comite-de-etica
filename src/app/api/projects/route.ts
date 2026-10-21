@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
-import { isProjectType } from "@/lib/projectTypes";
+import { isProjectType, projectTypeLabel } from "@/lib/projectTypes";
+import { sendEmail, buildFastTrackRequestEmail } from "@/lib/email";
+import { diasHastaLimite } from "@/lib/fastTrack";
 
 /**
  * Alta de un proyecto desde el formulario público de /submit.
@@ -53,6 +55,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Tipo de proyecto no reconocido." }, { status: 400 });
   }
 
+  // Vía rápida: requiere una fecha límite válida y que no haya pasado.
+  const fast_track = body.fast_track === true;
+  let fast_track_deadline: string | null = null;
+  if (fast_track) {
+    const f = texto(body.fast_track_deadline, 10);
+    const dias = diasHastaLimite(f);
+    if (!f || !/^\d{4}-\d{2}-\d{2}$/.test(f) || dias === null) {
+      return NextResponse.json({ error: "Indica la fecha límite del concurso para la vía rápida." }, { status: 400 });
+    }
+    if (dias < 0) {
+      return NextResponse.json({ error: "La fecha límite del concurso ya pasó." }, { status: 400 });
+    }
+    fast_track_deadline = f;
+  }
+
   const supabase = getSupabaseServer();
 
   // El código lo genera el servidor y se comprueba que esté libre: si lo
@@ -69,9 +86,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No se pudo generar un código único." }, { status: 500 });
   }
 
-  const { data, error } = await supabase
-    .from("projects")
-    .insert({
+  const fila: Record<string, unknown> = {
       title,
       researcher_name,
       researcher_email: email.toLowerCase(),
@@ -88,11 +103,49 @@ export async function POST(req: NextRequest) {
       status:   "submitted",
       progress: 10,
       tracking_code,
-    })
+  };
+  if (fast_track) {
+    fila.fast_track = true;
+    fila.fast_track_deadline = fast_track_deadline;
+  }
+
+  let { data, error } = await supabase
+    .from("projects")
+    .insert(fila)
     .select("id, tracking_code")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Si la migración projects_fast_track aún no se aplicó, las columnas no
+  // existen: se guarda igual y la solicitud queda anotada en funding_detail
+  // para no perderla.
+  if (error && fast_track && /fast_track/.test(error.message)) {
+    delete fila.fast_track;
+    delete fila.fast_track_deadline;
+    const nota = `[Vía rápida solicitada · fecha límite ${fast_track_deadline}]`;
+    fila.funding_detail = [nota, fila.funding_detail].filter(Boolean).join(" ").slice(0, 500);
+    ({ data, error } = await supabase
+      .from("projects")
+      .insert(fila)
+      .select("id, tracking_code")
+      .single());
+  }
+
+  if (error || !data) return NextResponse.json({ error: error?.message ?? "No se pudo registrar el proyecto." }, { status: 500 });
+
+  // La vía rápida necesita el acuerdo de la coordinación: se le avisa en el acto.
+  const coordinador = process.env.COORDINATOR_EMAIL;
+  if (fast_track && coordinador) {
+    const origin = req.nextUrl.origin;
+    await sendEmail(
+      coordinador,
+      `Solicitud de vía rápida · ${title}`,
+      buildFastTrackRequestEmail(
+        { title, researcher_name, researcher_email: email, project_type: projectTypeLabel(project_type), tracking_code: data.tracking_code },
+        fast_track_deadline!,
+        `${origin}/revisores/dashboard`,
+      ),
+    ).catch(() => {});
+  }
 
   return NextResponse.json({ id: data.id, tracking_code: data.tracking_code });
 }

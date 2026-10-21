@@ -84,6 +84,18 @@ const SQL_MIGRATIONS: Migration[] = [
         ON documents(project_id) WHERE archived_at IS NULL;
     `.trim(),
   },
+  {
+    // Vía rápida: proyectos con plazo de concurso acotado (Fondecyt u otros).
+    // El investigador/a la solicita al enviar e indica la fecha límite.
+    name: "projects_fast_track",
+    table: "projects",
+    column: "fast_track",
+    sql: `
+      ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS fast_track boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS fast_track_deadline date;
+    `.trim(),
+  },
 ];
 
 // ── Try pg direct connection ──────────────────────────────────────────────────

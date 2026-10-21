@@ -23,6 +23,7 @@ const DOC_DEFINITIONS = [
   { id: "consent",     label: "Consentimiento informado",            required: true  },
   { id: "assent",      label: "Asentimiento informado (menores)",    required: false },
   { id: "instruments", label: "Instrumentos / tests a utilizar",     required: false },
+  { id: "fast_track",  label: "Formulario abreviado (vía rápida)",   required: false },
 ];
 const ADMIN_EMAIL = "felipe.rojast@uai.cl";
 const STATUS_COLORS: Record<string, string> = {

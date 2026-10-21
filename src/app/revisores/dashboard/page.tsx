@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
+import FastTrackBadge from "@/components/FastTrackBadge";
 
 /** Debe coincidir con COORDINATION_NAME en /api/projects/[id]/close-stage. */
 const COORDINATION_NAME = "Coordinación del Comité";
@@ -124,7 +125,13 @@ export default function ReviewerDashboard() {
     ]);
     setConsultas(new Set<string>((abiertas.open ?? []).map((o: { project_id: string }) => o.project_id)));
 
-    const list: Project[] = listado.projects ?? [];
+    // Vía rápida activa primero, por fecha límite; el resto en su orden.
+    const activa = (p: Project) => !!p.fast_track && ["submitted", "reviewing", "corrections"].includes(p.status);
+    const list: Project[] = [...(listado.projects ?? [])].sort((x: Project, y: Project) => {
+      if (activa(x) !== activa(y)) return activa(x) ? -1 : 1;
+      if (activa(x) && activa(y)) return (x.fast_track_deadline ?? "").localeCompare(y.fast_track_deadline ?? "");
+      return 0;
+    });
     setProjects(list);
     setMyReviews(misRevisiones.reviews ?? []);
     setMissingDocProjects(new Set<string>(listado.missingDocs ?? []));
@@ -670,6 +677,7 @@ export default function ReviewerDashboard() {
                       </p>
                       <div className="flex items-center gap-2 flex-wrap mt-1.5">
                         <ProjectState status={p.status} certificateUrl={p.certificate_url} />
+                        {["submitted", "reviewing", "corrections"].includes(p.status) && <FastTrackBadge project={p} />}
                         {p.current_round && p.current_round > 1 && (
                           <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100">
                             Ronda {p.current_round}

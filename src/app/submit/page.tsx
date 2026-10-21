@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Upload, Sparkles, Send, ChevronRight, ChevronLeft, FileText, X, Loader2, ArrowRight, Download } from "lucide-react";
+import { Check, Upload, Sparkles, Send, ChevronRight, ChevronLeft, FileText, X, Loader2, ArrowRight, Download, Zap } from "lucide-react";
+import { diasHastaLimite, fechaLimiteLegible, FAST_TRACK_LABEL } from "@/lib/fastTrack";
 import Link from "next/link";
 import { themes } from "@/lib/themes";
 import { PROJECT_TYPES, PROJECT_TYPE_LABELS, isThesisType, projectTypeLabel, type ProjectType } from "@/lib/projectTypes";
@@ -122,6 +123,9 @@ export default function SubmitPage() {
   const [submitted, setSubmitted] = useState(false);
   const [trackingCode, setTrackingCode] = useState("");
   const [missingWarning, setMissingWarning] = useState<string[]>([]);
+  // Vía rápida: plazo de concurso acotado (ver src/lib/fastTrack.ts).
+  const [fastTrack, setFastTrack]           = useState(false);
+  const [fastDeadline, setFastDeadline]     = useState("");
 
   const update = (field: keyof FormData, value: string) => setForm((p) => ({ ...p, [field]: value }));
   const handleFile = (id: string, file: File | null) => setFiles((p) => ({ ...p, [id]: file }));
@@ -145,9 +149,11 @@ export default function SubmitPage() {
   const isThesis      = isThesisType(form.projectType);
   const isStudentRole = ["estudiante_pregrado", "estudiante_postgrado"].includes(form.role);
   const needsAdvisor  = isThesis || isStudentRole;
+  const diasLimite  = diasHastaLimite(fastDeadline);
+  const fastOk      = !fastTrack || (diasLimite !== null && diasLimite >= 0);
   const canAdvance1 = !!(
     form.name && form.email && form.projectTitle && form.projectType &&
-    (!needsAdvisor || form.advisorName.trim())
+    (!needsAdvisor || form.advisorName.trim()) && fastOk
   );
   const canAdvance2 = selectedTheme !== "";
   const requiredUploaded = !!files["protocol"] && (!!files["consent"] || !!files["assent"]);
@@ -201,6 +207,8 @@ export default function SubmitPage() {
             funding_type:     form.fundingType   || null,
             funding_folio:    form.fundingFolio  || null,
             funding_detail:   form.fundingDetail || null,
+            fast_track:          fastTrack,
+            fast_track_deadline: fastTrack ? fastDeadline : null,
           }),
         });
         const creado = await resProyecto.json().catch(() => ({}));
@@ -491,6 +499,50 @@ export default function SubmitPage() {
                 </div>
               )}
 
+              {/* Vía rápida */}
+              <div className="md:col-span-2">
+                <div className={`rounded-2xl border-2 p-4 transition-all ${fastTrack ? "border-[#CC5200] bg-orange-50/50" : "border-slate-200 bg-white"}`}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fastTrack}
+                      onChange={(e) => setFastTrack(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-[#CC5200] shrink-0"
+                    />
+                    <span>
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                        <Zap className="w-4 h-4 text-[#CC5200]" /> Solicitar revisión por vía rápida
+                      </span>
+                      <span className="block text-xs text-slate-500 mt-1 leading-relaxed">
+                        Solo para plazos muy acotados, principalmente postulaciones a Fondecyt u otros concursos con fecha cercana. Requiere el acuerdo de la coordinación del comité. En vez del protocolo completo, sube el <strong>{FAST_TRACK_LABEL.toLowerCase()}</strong>, disponible en{" "}
+                        <Link href="/documentos" target="_blank" className="text-[#CC5200] font-semibold hover:underline">Documentos</Link>.
+                      </span>
+                    </span>
+                  </label>
+                  {fastTrack && (
+                    <div className="mt-4 pl-7">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                        Fecha límite del concurso <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={fastDeadline}
+                        onChange={(e) => setFastDeadline(e.target.value)}
+                        className={`${inputClass} max-w-xs`}
+                      />
+                      {fastDeadline && diasLimite !== null && diasLimite < 0 && (
+                        <p className="text-red-500 text-xs mt-1.5">La fecha límite ya pasó.</p>
+                      )}
+                      {!fastDeadline && (
+                        <p className="text-amber-600 text-xs mt-1.5 flex items-center gap-1.5">
+                          <span>⚠</span> Indica la fecha límite para continuar.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Resumen del proyecto</label>
                 <textarea value={form.abstract} onChange={(e) => update("abstract", e.target.value)} rows={4} placeholder="Describe brevemente los objetivos, participantes y metodología..." className={`${inputClass} resize-none`} />
@@ -541,6 +593,14 @@ export default function SubmitPage() {
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-uai-navy group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
+            {fastTrack && (
+              <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4 mb-6">
+                <Zap className="w-5 h-5 text-[#CC5200] shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <strong className="text-[#CC5200]">Vía rápida:</strong> en «Protocolo de investigación» sube el <strong>{FAST_TRACK_LABEL.toLowerCase()}</strong> completo. Recuerda adjuntar el consentimiento informado y, en lo posible, las bases del concurso con la fecha límite.
+                </p>
+              </div>
+            )}
             <div className="space-y-3">
               {requiredDocs.map((doc) => (
                 <div key={doc.id} className={`border rounded-2xl p-4 transition-all ${files[doc.id] ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
@@ -670,6 +730,11 @@ export default function SubmitPage() {
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Proyecto</h3>
                 <p className="font-semibold text-slate-800">{form.projectTitle}</p>
                 <p className="text-slate-500 text-sm">{themes.find((t) => t.id === selectedTheme)?.label} · {projectTypeLabel(form.projectType)}</p>
+                {fastTrack && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#CC5200] bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+                    <Zap className="w-3.5 h-3.5" /> Vía rápida · fecha límite {fechaLimiteLegible(fastDeadline)}
+                  </p>
+                )}
               </div>
               <div className="bg-slate-50 rounded-2xl p-5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Documentos</h3>

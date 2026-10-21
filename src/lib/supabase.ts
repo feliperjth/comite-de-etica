@@ -34,6 +34,9 @@ export type Project = {
   funding_detail: string | null;
   researcher_rut: string | null;
   review_mode: "individual" | "group" | null;
+  /** Vía rápida (columnas de la migración projects_fast_track). */
+  fast_track?: boolean | null;
+  fast_track_deadline?: string | null;
   certificate_url: string | null;
 };
 

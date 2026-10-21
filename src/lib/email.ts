@@ -566,3 +566,30 @@ export function buildStatusRequestEmail(
     <p style="font-size:12px;color:#999;margin:0;">También puedes responder desde el <a href="${portalUrl}" style="color:#CC5200;">portal de revisión</a>.</p>`;
   return wrap(body);
 }
+
+/* ── Email: solicitud de vía rápida (coordinación) ─────────────── */
+export function buildFastTrackRequestEmail(
+  project: { title: string; researcher_name: string; researcher_email: string; project_type: string; tracking_code: string },
+  deadline: string,
+  dashboardUrl: string,
+) {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const [y, m, d] = deadline.split("-").map(Number);
+  const fecha = new Date(y, m - 1, d).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" });
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Nueva solicitud de vía rápida</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Un proyecto fue enviado solicitando <strong>revisión por vía rápida</strong>. Requiere el acuerdo de la coordinación y una asignación prioritaria de revisores.
+    </p>
+    <div style="background:#fff7ed;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;color:#CC5200;text-transform:uppercase;font-weight:700;">Fecha límite del concurso: ${esc(fecha)}</p>
+      <p style="margin:0 0 6px;font-size:15px;color:#1A1A1A;font-weight:600;">${esc(project.title)}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#888;">${esc(project.researcher_name)} · ${esc(project.researcher_email)}</p>
+      <p style="margin:0;font-size:13px;color:#888;">${esc(project.project_type)} · Código ${esc(project.tracking_code)}</p>
+    </div>
+    <div style="text-align:center;margin-bottom:8px;">
+      <a href="${dashboardUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 32px;border-radius:8px;">Ir al panel de revisores</a>
+    </div>`;
+  return wrap(body);
+}

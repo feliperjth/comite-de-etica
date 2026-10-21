@@ -1,4 +1,5 @@
-import { Download, FileText, FileCheck, Users, ClipboardList, BarChart2, UserCircle } from "lucide-react";
+import { Download, FileText, FileCheck, Users, ClipboardList, BarChart2, UserCircle, Zap } from "lucide-react";
+import { FAST_TRACK_TEMPLATE_FALLBACK } from "@/lib/fastTrack";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,19 @@ const docDefinitions = [
     required: true,
     icon: UserCircle,
   },
+  {
+    id: "fast_track",
+    label: "Formulario abreviado (vía rápida)",
+    description: "Solo para plazos muy acotados (Fondecyt u otros concursos), con acuerdo de la coordinación. Reemplaza al protocolo completo y se sube como protocolo de investigación.",
+    required: false,
+    icon: Zap,
+  },
 ];
+
+/** Plantillas incluidas en el sitio, por si aún no se subió una propia. */
+const FALLBACK_URLS: Record<string, string> = {
+  fast_track: FAST_TRACK_TEMPLATE_FALLBACK,
+};
 
 async function getDocumentUrls(): Promise<Record<string, string>> {
   try {
@@ -82,7 +95,7 @@ export default async function DocumentosPage() {
 
   const docs: DocTemplate[] = docDefinitions.map((d) => ({
     ...d,
-    url: urls[d.id] ?? null,
+    url: urls[d.id] ?? FALLBACK_URLS[d.id] ?? null,
   }));
 
   const available = docs.filter((d) => d.url).length;

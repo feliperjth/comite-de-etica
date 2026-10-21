@@ -13,6 +13,7 @@ import { mismoNombre, type ResumenRevisor, type EstadoRonda } from "@/lib/rounds
 import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import ProjectMessages from "@/components/ProjectMessages";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
+import FastTrackBadge from "@/components/FastTrackBadge";
 
 type Decision   = "accepted" | "corrections" | null;
 type ReviewMode = "platform" | "download";
@@ -306,8 +307,11 @@ export default function ReviewPage() {
         <p className="text-[#CC5200] text-xs font-bold uppercase tracking-widest">
           Revisando como: {reviewerName}
         </p>
-        <span className="bg-violet-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-          Ronda {currentRound}
+        <span className="flex items-center gap-2">
+          {!closedProject && <FastTrackBadge project={project} dark />}
+          <span className="bg-violet-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+            Ronda {currentRound}
+          </span>
         </span>
       </div>
       <h1 className="font-bold text-lg leading-snug mb-2">{project.title}</h1>

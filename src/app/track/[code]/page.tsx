@@ -12,6 +12,7 @@ import AiAnalysisPanel from "@/components/AiAnalysisPanel";
 import AiSectionReviewer from "@/components/AiSectionReviewer";
 import ProjectMessages from "@/components/ProjectMessages";
 import { revisoresPendientes, revisoresRequeridos } from "@/lib/rounds";
+import FastTrackBadge from "@/components/FastTrackBadge";
 
 const statusSteps = (reviewersAssigned: boolean, reviewCount: number, reviewersNeeded: number) => [
   { key: "submitted",   label: reviewersAssigned ? "Recibido · Revisores asignados" : "Recibido", icon: Clock },
@@ -228,7 +229,10 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
             )}
 
             <div className="flex items-center justify-between mb-2">
-              <StatusBadge status={project.status} />
+              <span className="flex items-center gap-2 flex-wrap">
+                <StatusBadge status={project.status} />
+                {["submitted", "reviewing", "corrections"].includes(project.status) && <FastTrackBadge project={project} />}
+              </span>
               <span className="text-sm font-bold text-slate-500">{project.progress}%</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2 mb-8">
