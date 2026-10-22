@@ -638,3 +638,49 @@ export function buildReviewReminderEmail(opts: {
     <p style="font-size:12px;color:#999;margin:0;">Si ya estás trabajando en ella, puedes ignorar este mensaje. Si no podrás completarla, avisa a la coordinación del comité para reasignarla.${vencido ? " Este aviso se envía con copia a la coordinación." : ""}</p>`;
   return wrap(body);
 }
+
+/* ── Email: propuestas diarias de asignación (coordinación) ───────── */
+export function buildAssignmentProposalsEmail(opts: {
+  propuestas: {
+    title: string;
+    theme: string | null;
+    fastTrack: boolean;
+    yaAsignados: string[];
+    propuestos: { name: string; area: boolean; activos: number }[];
+    avisos: string[];
+  }[];
+  maxActivos: number;
+  panelUrl: string;
+}) {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const n = opts.propuestas.length;
+  const filas = opts.propuestas.map((p) => {
+    const revisores = [
+      ...p.yaAsignados.map((r) => `<span style="color:#888;">${esc(r)} (ya asignado/a)</span>`),
+      ...p.propuestos.map((c) =>
+        `<strong>${esc(c.name)}</strong> <span style="color:#888;">· ${c.area ? "área ✓" : "otra área"} · ${c.activos}/${opts.maxActivos} activos</span>`),
+    ].join("<br>") || `<span style="color:#dc2626;">Sin revisores disponibles</span>`;
+    const avisos = p.avisos.map((a) => `<p style="margin:6px 0 0;font-size:12px;color:#b45309;">⚠ ${esc(a)}</p>`).join("");
+    return `
+      <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px;${p.fastTrack ? "border-left:4px solid #CC5200;" : ""}">
+        <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1A1A1A;">${esc(p.title)}</p>
+        <p style="margin:0 0 8px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">${p.fastTrack ? "Vía rápida · " : ""}${esc(p.theme ?? "Sin temática")}</p>
+        <p style="margin:0;font-size:13px;line-height:1.6;color:#333;">${revisores}</p>
+        ${avisos}
+      </div>`;
+  }).join("");
+  const body = `
+    <p style="font-size:16px;font-weight:700;color:#1A1A1A;margin:0 0 8px;">Propuesta de asignación de revisores</p>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
+      ${n === 1 ? "Hay 1 proyecto esperando revisores." : `Hay ${n} proyectos esperando revisores.`}
+      Esta es la propuesta según área, carga actual y reparto de los últimos 6 meses.
+      Nada se asigna hasta que la confirmes en el panel.
+    </p>
+    ${filas}
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${opts.panelUrl}" style="display:inline-block;background:#CC5200;color:#fff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 32px;border-radius:8px;">Revisar y confirmar</a>
+    </div>
+    <p style="font-size:12px;color:#999;margin:0;">Puedes cambiar a cualquier revisor antes de confirmar. Al confirmar, cada revisor recibe el aviso de asignación.</p>`;
+  return wrap(body);
+}

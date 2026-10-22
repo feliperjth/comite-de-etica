@@ -9,12 +9,12 @@ import ProjectState from "@/components/ProjectState";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 import {
   LogOut, RefreshCw, ClipboardList, Clock, CheckCircle,
-  AlertCircle, XCircle, Save, ChevronDown, FileSearch, Zap, Users, User, BookOpen, ChevronUp,
+  AlertCircle, XCircle, Save, ChevronDown, FileSearch, Users, User, BookOpen,
   Trash2, AlertTriangle, X, Settings, Mail, Award, Gavel, Upload, Send,
 } from "lucide-react";
-import { themes } from "@/lib/themes";
 import type { Reviewer } from "@/lib/supabase";
 import FastTrackBadge from "@/components/FastTrackBadge";
+import AssignmentPanel from "@/components/AssignmentPanel";
 import PlazoBadge from "@/components/PlazoBadge";
 import type { Plazo } from "@/lib/deadlines";
 
@@ -44,12 +44,6 @@ type EditState = {
   reviewer: string;
   reviewer2: string;
   saving: boolean;
-};
-
-type AutoAssignState = {
-  numReviewers: 1 | 2;
-  loading: boolean;
-  result: string;
 };
 
 /** Cierre de etapa por la coordinación (ver /api/projects/[id]/close-stage). */
@@ -90,17 +84,10 @@ export default function ReviewerDashboard() {
   const [reviewerName, setReviewerName] = useState("");
   const [isAdmin, setIsAdmin]           = useState(false);
   const [myReviews, setMyReviews] = useState<{ project_id: string; round: number; overall_decision?: string }[]>([]);
-  const [autoAssign, setAutoAssign] = useState<Record<string, AutoAssignState>>({});
   const [reviewers, setReviewers]   = useState<Reviewer[]>([]);
-  const [showReviewers, setShowReviewers] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [bulkAssigning, setBulkAssigning] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ ok: number; errors: string[] } | null>(null);
-  const [bulkNumReviewers, setBulkNumReviewers] = useState<1|2>(2);
   const [viewMode, setViewMode] = useState<"all"|"mine">("all");
-  const [assignMode, setAssignMode] = useState<"manual"|"auto">("manual");
-  const [assignModeLoading, setAssignModeLoading] = useState(false);
   const [notifying, setNotifying] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [notifyingMissing, setNotifyingMissing] = useState<Record<string, { loading: boolean; msg: string }>>({});
   const [resendingCert, setResendingCert] = useState<Record<string, { loading: boolean; msg: string }>>({});
@@ -142,13 +129,10 @@ export default function ReviewerDashboard() {
     setPlazos(listado.plazos ?? {});
 
     const initial: Record<string, EditState> = {};
-    const initialAA: Record<string, AutoAssignState> = {};
     list.forEach((p) => {
       initial[p.id] = { status: p.status, reviewer: p.reviewer ?? "", reviewer2: p.reviewer2 ?? "", saving: false };
-      initialAA[p.id] = { numReviewers: 2, loading: false, result: "" };
     });
     setEdits(initial);
-    setAutoAssign(initialAA);
     setLoading(false);
   }, []);
 
@@ -171,9 +155,6 @@ export default function ReviewerDashboard() {
       loadProjects();
       if (admin) {
         fetch("/api/reviewers").then((r) => r.json()).then(setReviewers);
-        fetch("/api/admin/settings").then((r) => r.json()).then((s) => {
-          if (s.reviewer_assignment_mode) setAssignMode(s.reviewer_assignment_mode);
-        });
       }
     });
   }, [loadProjects, router]);
@@ -281,27 +262,6 @@ export default function ReviewerDashboard() {
     setTimeout(() => setResendingCert((prev) => ({ ...prev, [id]: { loading: false, msg: "" } })), 5000);
   }
 
-  async function handleAutoAssign(projectId: string) {
-    const aa = autoAssign[projectId];
-    if (!aa) return;
-    setAutoAssign((prev) => ({ ...prev, [projectId]: { ...prev[projectId], loading: true, result: "" } }));
-    const res = await fetch(`/api/admin/projects/${projectId}/auto-assign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ numReviewers: aa.numReviewers }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      const names = data.assigned.map((a: { name: string; fromExpertise: boolean }) =>
-        `${a.name}${a.fromExpertise ? " ✓" : " (fallback)"}`
-      ).join(", ");
-      setAutoAssign((prev) => ({ ...prev, [projectId]: { ...prev[projectId], loading: false, result: `Asignado: ${names}` } }));
-      loadProjects();
-    } else {
-      setAutoAssign((prev) => ({ ...prev, [projectId]: { ...prev[projectId], loading: false, result: `Error: ${data.error}` } }));
-    }
-  }
-
   async function handleDeleteProject(id: string) {
     setDeletingId(id);
     await fetch(`/api/projects/${id}`, { method: "DELETE" });
@@ -371,39 +331,6 @@ export default function ReviewerDashboard() {
 
     setCloseStage(null);
     await loadProjects();
-  }
-
-  async function handleBulkAutoAssign() {
-    const unassigned = projects.filter((p) => !p.reviewer && !p.reviewer2 && ["submitted","reviewing","corrections"].includes(p.status));
-    if (!unassigned.length) { setBulkResult({ ok: 0, errors: ["No hay proyectos sin asignar"] }); return; }
-    setBulkAssigning(true);
-    setBulkResult(null);
-    let ok = 0;
-    const errors: string[] = [];
-    for (const p of unassigned) {
-      const res = await fetch(`/api/admin/projects/${p.id}/auto-assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numReviewers: bulkNumReviewers }),
-      });
-      if (res.ok) ok++;
-      else { const d = await res.json(); errors.push(`${p.title.slice(0, 30)}: ${d.error}`); }
-    }
-    setBulkResult({ ok, errors });
-    setBulkAssigning(false);
-    loadProjects();
-  }
-
-  async function toggleAssignMode() {
-    const next = assignMode === "manual" ? "auto" : "manual";
-    setAssignModeLoading(true);
-    await fetch("/api/admin/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "reviewer_assignment_mode", value: next }),
-    });
-    setAssignMode(next);
-    setAssignModeLoading(false);
   }
 
   async function handleLogout() {
@@ -497,122 +424,9 @@ export default function ReviewerDashboard() {
         ))}
       </div>
 
-      {/* ── Acciones globales (solo admin) ── */}
+      {/* Asignación de revisores (solo admin) */}
       {isAdmin && (
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-[#CC5200]" />
-            <span className="font-semibold text-slate-700">Acciones globales</span>
-            <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-0.5 rounded-full ml-1">
-              {projects.filter(p => !p.reviewer && !p.reviewer2 && ["submitted","reviewing","corrections"].includes(p.status)).length} sin asignar
-            </span>
-          </div>
-          {/* Auto/Manual toggle */}
-          <button
-            onClick={toggleAssignMode}
-            disabled={assignModeLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-              assignMode === "auto"
-                ? "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600"
-                : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            {assignModeLoading ? "Guardando..." : assignMode === "auto" ? "Asignación automática ✓" : "Asignación manual"}
-          </button>
-        </div>
-        <div className="px-6 py-4 flex flex-wrap items-center gap-3">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Asignar todos los no asignados:</span>
-          <select value={bulkNumReviewers} onChange={e => setBulkNumReviewers(Number(e.target.value) as 1|2)}
-            className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
-            <option value={1}>1 revisor</option>
-            <option value={2}>2 revisores</option>
-          </select>
-          <button onClick={handleBulkAutoAssign} disabled={bulkAssigning}
-            className="flex items-center gap-1.5 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors">
-            {bulkAssigning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            {bulkAssigning ? "Asignando..." : "Asignar todos"}
-          </button>
-          {bulkResult && (
-            <span className={`text-xs font-medium flex items-center gap-1 ${bulkResult.errors.length && !bulkResult.ok ? "text-red-500" : "text-emerald-600"}`}>
-              <CheckCircle className="w-3.5 h-3.5" />
-              {bulkResult.ok} asignados{bulkResult.errors.length ? `, ${bulkResult.errors.length} errores` : ""}
-            </span>
-          )}
-        </div>
-      </div>
-      )}
-
-      {/* Reviewers panel (solo admin) */}
-      {isAdmin && (
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
-        <button
-          onClick={() => setShowReviewers((v) => !v)}
-          className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <Users className="w-5 h-5 text-slate-400" />
-            <span className="font-semibold text-slate-700">Revisores registrados</span>
-            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{reviewers.length}</span>
-          </div>
-          {showReviewers ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-        </button>
-
-        {showReviewers && (
-          <div className="border-t border-slate-100">
-            {reviewers.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 text-sm">
-                <Users className="w-8 h-8 mx-auto mb-2 text-slate-200" />
-                No hay revisores registrados aún.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-50">
-                {reviewers.map((r) => {
-                  const active = projects.filter(
-                    (p) => (p.reviewer === r.name || p.reviewer2 === r.name) &&
-                    ["submitted", "reviewing", "corrections"].includes(p.status)
-                  ).length;
-                  return (
-                    <div key={r.email} className="px-6 py-4 flex items-center gap-5">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-500 shrink-0">
-                        {r.name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-800 text-sm">{r.name}</div>
-                        <div className="text-xs text-slate-400">{r.email}</div>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {(r.expertise ?? []).map((id) => {
-                            const t = themes.find((th) => th.id === id);
-                            return t ? (
-                              <span key={id} className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 text-xs font-medium px-2.5 py-1 rounded-full border border-orange-100">
-                                {t.emoji} {t.label.split(" ").slice(0, 2).join(" ")}
-                              </span>
-                            ) : null;
-                          })}
-                          {(!r.expertise || r.expertise.length === 0) && (
-                            <span className="text-xs text-slate-300 italic">Sin áreas definidas</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className={`text-lg font-bold ${active >= 3 ? "text-red-500" : active >= 2 ? "text-amber-500" : "text-emerald-600"}`}>
-                          {active}
-                        </div>
-                        <div className="text-xs text-slate-400">activos</div>
-                        <div className={`text-xs font-semibold mt-0.5 ${active >= 3 ? "text-red-400" : "text-emerald-500"}`}>
-                          {active >= 3 ? "Sin cupo" : `${3 - active} disponible${3 - active !== 1 ? "s" : ""}`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
+        <AssignmentPanel projects={projects} reviewers={reviewers} onChanged={loadProjects} />
       )}
 
       {/* Table */}
@@ -749,7 +563,6 @@ export default function ReviewerDashboard() {
 
                   {/* ── Fila 2: controles de edición (solo admin) ── */}
                   {isAdmin && (() => {
-                    const aa = autoAssign[p.id];
                     return (
                       <div className="ml-12 mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
                         {/* Estado */}
@@ -784,26 +597,6 @@ export default function ReviewerDashboard() {
                             <option key={r.email} value={r.name}>{r.name}</option>
                           ))}
                         </select>
-                        {/* Separador visual */}
-                        <span className="text-slate-200 select-none">|</span>
-                        {/* Auto-asignar */}
-                        {aa && <>
-                          <select
-                            value={aa.numReviewers}
-                            onChange={(e) => setAutoAssign((prev) => ({ ...prev, [p.id]: { ...prev[p.id], numReviewers: Number(e.target.value) as 1|2 } }))}
-                            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
-                          >
-                            <option value={1}>1 revisor</option>
-                            <option value={2}>2 revisores</option>
-                          </select>
-                          <button onClick={() => handleAutoAssign(p.id)} disabled={aa.loading}
-                            className="flex items-center gap-1 bg-[#CC5200] hover:bg-[#B34700] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-                            {aa.loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />} Asignar
-                          </button>
-                          {aa.result && (
-                            <span className={`text-xs font-medium ${aa.result.startsWith("Error") ? "text-red-500" : "text-emerald-600"}`}>{aa.result}</span>
-                          )}
-                        </>}
                         {/* Avisar / Guardar / Eliminar — empujados a la derecha */}
                         <div className="ml-auto flex items-center gap-2">
                           {missingDocProjects.has(p.id) && (

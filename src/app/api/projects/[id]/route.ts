@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase";
 import {
   sendEmail,
   buildRejectedEmail,
-  buildReviewerAssignedEmail,
   buildApprovalEmail,
   buildCertRequestEmail,
   buildCoordinatorApprovalEmail,
@@ -119,60 +118,10 @@ export async function PATCH(
     ).catch(() => {});
   }
 
-  // ── Trigger: asignación automática cuando status → reviewing ────
-  if (
-    prev && body.status === "reviewing" && prev.status !== "reviewing" &&
-    !body.reviewer && !body.reviewer2 && !data.reviewer && !data.reviewer2
-  ) {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data: settings } = await supabaseAdmin
-      .from("app_settings")
-      .select("value")
-      .eq("key", "reviewer_assignment_mode")
-      .maybeSingle();
-
-    if (settings?.value === "auto") {
-      const { data: allReviewers } = await supabaseAdmin
-        .from("reviewers").select("id, name, email, expertise");
-      const { data: activeProjects } = await supabaseAdmin
-        .from("projects").select("reviewer, reviewer2")
-        .in("status", ["submitted", "reviewing", "corrections"]);
-
-      const activeCount: Record<string, number> = {};
-      for (const p of activeProjects ?? []) {
-        if (p.reviewer)  activeCount[p.reviewer]  = (activeCount[p.reviewer]  ?? 0) + 1;
-        if (p.reviewer2) activeCount[p.reviewer2] = (activeCount[p.reviewer2] ?? 0) + 1;
-      }
-
-      const eligible = (allReviewers ?? []).filter(
-        (r) => r.expertise?.includes(data.theme) && (activeCount[r.name] ?? 0) < 5
-      );
-      const fallback = (allReviewers ?? []).filter(
-        (r) => (activeCount[r.name] ?? 0) < 5 && !eligible.find((e) => e.email === r.email)
-      );
-      const pool = [...eligible, ...fallback].sort(() => Math.random() - 0.5);
-
-      if (pool.length >= 2) {
-        const [r1, r2] = pool;
-        await supabaseAdmin.from("projects").update({
-          reviewer: r1.name, reviewer2: r2.name,
-        }).eq("id", id);
-
-        for (const rv of [r1, r2]) {
-          sendEmail(
-            rv.email,
-            `Proyecto asignado para revisión · ${data.title}`,
-            buildReviewerAssignedEmail({ ...data, reviewer: r1.name, reviewer2: r2.name }, rv.name, origin),
-          ).catch(() => {});
-        }
-      }
-    }
-  }
-
   // Nota: al asignar revisores manualmente NO se envía correo automático; el
   // coordinador avisa explícitamente con el botón "Avisar" del dashboard, que
-  // llama a POST /api/projects/[id]/notify-reviewer. (La asignación automática
-  // de arriba sí notifica, por ser un envío sin intervención del coordinador.)
+  // llama a POST /api/projects/[id]/notify-reviewer. La asignación automática
+  // se confirma desde el panel (POST /api/admin/assignments), que sí avisa.
 
   return NextResponse.json(data);
 }
