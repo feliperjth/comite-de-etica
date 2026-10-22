@@ -1,5 +1,5 @@
 import { Download, FileText, FileCheck, Users, ClipboardList, BarChart2, UserCircle, Zap } from "lucide-react";
-import { FAST_TRACK_TEMPLATE_FALLBACK } from "@/lib/fastTrack";
+import { FAST_TRACK_TEMPLATE_DATE, FAST_TRACK_TEMPLATE_FALLBACK } from "@/lib/fastTrack";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ const docDefinitions = [
   {
     id: "fast_track",
     label: "Formulario abreviado (vía rápida)",
-    description: "Solo para plazos muy acotados (Fondecyt u otros concursos), con acuerdo de la coordinación. Reemplaza al protocolo completo y se sube como protocolo de investigación.",
+    description: "Solo cuando el plazo es muy acotado, principalmente en proyectos de Tesis u otros concursos tipo licitaciones con fecha de postulación cercana, y con acuerdo previo de la coordinación del comité. Reemplaza al protocolo completo: pide únicamente la información crítica para evaluar la protección de las personas participantes. Se sube en la plataforma como «Protocolo de investigación».",
     required: false,
     icon: Zap,
   },
@@ -68,6 +68,11 @@ const docDefinitions = [
 /** Plantillas incluidas en el sitio, por si aún no se subió una propia. */
 const FALLBACK_URLS: Record<string, string> = {
   fast_track: FAST_TRACK_TEMPLATE_FALLBACK,
+};
+
+/** Fecha de cada copia incluida: una subida al bucket anterior a ella se ignora. */
+const FALLBACK_DATES: Record<string, string> = {
+  fast_track: FAST_TRACK_TEMPLATE_DATE,
 };
 
 async function getDocumentUrls(): Promise<Record<string, string>> {
@@ -80,8 +85,12 @@ async function getDocumentUrls(): Promise<Record<string, string>> {
     const urls: Record<string, string> = {};
     for (const f of data) {
       if (f.name.startsWith(".")) continue;
+      const id = f.name.replace(/\.[^.]+$/, "");
+      const subida = f.updated_at ?? f.created_at;
+      const copiaSitio = FALLBACK_DATES[id];
+      if (copiaSitio && (!subida || Date.parse(subida) < Date.parse(copiaSitio))) continue;
       const { data: urlData } = supabase.storage.from("templates").getPublicUrl(f.name);
-      urls[f.name.replace(/\.[^.]+$/, "")] = urlData.publicUrl;
+      urls[id] = urlData.publicUrl;
     }
     return urls;
   } catch (e) {

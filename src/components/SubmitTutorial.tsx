@@ -18,7 +18,7 @@ type Paso = { titulo: string; corto: string; texto: string; icon: typeof FileTex
 
 const PASOS: Paso[] = [
   { corto: "Información", titulo: "Completa la información", icon: User,
-    texto: "Tus datos, el título y el tipo de proyecto. Si postulas a un concurso con fecha cercana, puedes pedir la vía rápida." },
+    texto: "Tus datos, el título y el tipo de proyecto. Si tu plazo de postulación es muy acotado (por ejemplo, una tesis), puedes pedir la vía rápida." },
   { corto: "Temática", titulo: "Elige la temática", icon: FileSearch,
     texto: "Selecciona el área de tu investigación: así se asignan los revisores más adecuados." },
   { corto: "Documentos", titulo: "Sube tus documentos", icon: Upload,
@@ -208,7 +208,7 @@ function EscenaInformacion() {
           <span className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5">
             <Zap className="w-4 h-4 text-[#CC5200]" /> Solicitar revisión por vía rápida
           </span>
-          <span className="ml-auto text-[11px] text-slate-500 hidden sm:inline">Concurso: 15 nov</span>
+          <span className="ml-auto text-[11px] text-slate-500 hidden sm:inline">Postulación: 15 nov</span>
         </div>
       </div>
     </div>

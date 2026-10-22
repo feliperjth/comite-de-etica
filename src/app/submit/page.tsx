@@ -123,7 +123,7 @@ export default function SubmitPage() {
   const [submitted, setSubmitted] = useState(false);
   const [trackingCode, setTrackingCode] = useState("");
   const [missingWarning, setMissingWarning] = useState<string[]>([]);
-  // Vía rápida: plazo de concurso acotado (ver src/lib/fastTrack.ts).
+  // Vía rápida: plazo de postulación acotado (ver src/lib/fastTrack.ts).
   const [fastTrack, setFastTrack]           = useState(false);
   const [fastDeadline, setFastDeadline]     = useState("");
 
@@ -514,7 +514,7 @@ export default function SubmitPage() {
                         <Zap className="w-4 h-4 text-[#CC5200]" /> Solicitar revisión por vía rápida
                       </span>
                       <span className="block text-xs text-slate-500 mt-1 leading-relaxed">
-                        Solo para plazos muy acotados, principalmente postulaciones a Fondecyt u otros concursos con fecha cercana. Requiere el acuerdo de la coordinación del comité. En vez del protocolo completo, sube el <strong>{FAST_TRACK_LABEL.toLowerCase()}</strong>, disponible en{" "}
+                        Solo cuando el plazo es muy acotado, principalmente en proyectos de Tesis u otros concursos tipo licitaciones con fecha de postulación cercana, y con acuerdo previo de la coordinación del comité. Reemplaza al protocolo completo: en su lugar sube el <strong>{FAST_TRACK_LABEL.toLowerCase()}</strong>, que pide únicamente la información crítica para evaluar la protección de las personas participantes. Está disponible en{" "}
                         <Link href="/documentos" target="_blank" className="text-[#CC5200] font-semibold hover:underline">Documentos</Link>.
                       </span>
                     </span>
@@ -522,7 +522,7 @@ export default function SubmitPage() {
                   {fastTrack && (
                     <div className="mt-4 pl-7">
                       <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                        Fecha límite del concurso <span className="text-red-400">*</span>
+                        Fecha límite de postulación <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="date"
@@ -597,7 +597,7 @@ export default function SubmitPage() {
               <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4 mb-6">
                 <Zap className="w-5 h-5 text-[#CC5200] shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-[#CC5200]">Vía rápida:</strong> en «Protocolo de investigación» sube el <strong>{FAST_TRACK_LABEL.toLowerCase()}</strong> completo. Recuerda adjuntar el consentimiento informado y, en lo posible, las bases del concurso con la fecha límite.
+                  <strong className="text-[#CC5200]">Vía rápida:</strong> en «Protocolo de investigación» sube el <strong>{FAST_TRACK_LABEL.toLowerCase()}</strong> completo. Adjunta también los anexos de su sección V: consentimiento informado, instrumentos y el documento que indique la fecha límite de postulación (bases del concurso o calendario de la tesis), más los que apliquen.
                 </p>
               </div>
             )}

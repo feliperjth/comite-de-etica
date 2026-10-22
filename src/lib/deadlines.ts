@@ -3,7 +3,7 @@
  *
  * Cada ronda tiene 3 semanas de plazo desde que empieza (envío del proyecto
  * en la 1; reenvío de correcciones en las siguientes, ver iniciosDeRonda). Los
- * proyectos en vía rápida usan como plazo la fecha límite de su concurso.
+ * proyectos en vía rápida usan como plazo su fecha límite de postulación.
  *
  * Lógica pura: la usan el panel, la página de seguimiento y el envío
  * automático de recordatorios (/api/cron/reminders).

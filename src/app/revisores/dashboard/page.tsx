@@ -680,24 +680,12 @@ export default function ReviewerDashboard() {
                       <p className="text-xs text-slate-400 mt-0.5">
                         {p.researcher_name} · {p.project_type} · {getThemeLabel(p.theme)}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                        <ProjectState status={p.status} certificateUrl={p.certificate_url} />
-                        {["submitted", "reviewing", "corrections"].includes(p.status) && <FastTrackBadge project={p} />}
-                        {plazos[p.id] && !plazos[p.id].viaRapida && <PlazoBadge plazo={plazos[p.id]} />}
-                        {p.current_round && p.current_round > 1 && (
-                          <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-0.5 rounded-full border border-violet-100">
-                            Ronda {p.current_round}
-                          </span>
-                        )}
-                        {(assigned || isAdmin) && consultas.has(p.id) && ["submitted", "reviewing"].includes(p.status) && (
-                          <button
-                            onClick={() => router.push(`/revisores/review/${p.id}`)}
-                            className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white font-bold px-3 py-1 rounded-full transition-colors"
-                            title="El investigador/a preguntó cómo va la revisión"
-                          >
-                            <Mail className="w-3 h-3" /> Consulta de estado
-                          </button>
-                        )}
+                      {/* Estado: etapas siempre en el mismo orden */}
+                      <div className="mt-2">
+                        <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
+                      </div>
+                      {/* Avisos, en orden fijo: tu parte → plazo → consulta → co-revisor */}
+                      <div className="flex items-center gap-2 flex-wrap mt-1.5 empty:hidden">
                         {assigned && (() => {
                           const ronda    = p.current_round ?? 1;
                           const aprobada = approvedRound(p);
@@ -735,6 +723,17 @@ export default function ReviewerDashboard() {
                           }
                           return null;
                         })()}
+                        {["submitted", "reviewing", "corrections"].includes(p.status) && <FastTrackBadge project={p} />}
+                        {plazos[p.id] && !plazos[p.id].viaRapida && <PlazoBadge plazo={plazos[p.id]} />}
+                        {(assigned || isAdmin) && consultas.has(p.id) && ["submitted", "reviewing"].includes(p.status) && (
+                          <button
+                            onClick={() => router.push(`/revisores/review/${p.id}`)}
+                            className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white font-bold px-3 py-1 rounded-full transition-colors"
+                            title="El investigador/a preguntó cómo va la revisión"
+                          >
+                            <Mail className="w-3 h-3" /> Consulta de estado
+                          </button>
+                        )}
                         {/* Co-reviewer badge (visible to reviewer, not admin) */}
                         {!isAdmin && assigned && (() => {
                           const co = p.reviewer === reviewerName ? p.reviewer2 : p.reviewer2 === reviewerName ? p.reviewer : null;

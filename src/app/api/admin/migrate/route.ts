@@ -85,7 +85,7 @@ const SQL_MIGRATIONS: Migration[] = [
     `.trim(),
   },
   {
-    // Vía rápida: proyectos con plazo de concurso acotado (Fondecyt u otros).
+    // Vía rápida: proyectos con plazo de postulación acotado (tesis u otros).
     // El investigador/a la solicita al enviar e indica la fecha límite.
     name: "projects_fast_track",
     table: "projects",

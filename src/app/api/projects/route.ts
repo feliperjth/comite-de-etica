@@ -62,10 +62,10 @@ export async function POST(req: NextRequest) {
     const f = texto(body.fast_track_deadline, 10);
     const dias = diasHastaLimite(f);
     if (!f || !/^\d{4}-\d{2}-\d{2}$/.test(f) || dias === null) {
-      return NextResponse.json({ error: "Indica la fecha límite del concurso para la vía rápida." }, { status: 400 });
+      return NextResponse.json({ error: "Indica la fecha límite de postulación para la vía rápida." }, { status: 400 });
     }
     if (dias < 0) {
-      return NextResponse.json({ error: "La fecha límite del concurso ya pasó." }, { status: 400 });
+      return NextResponse.json({ error: "La fecha límite de postulación ya pasó." }, { status: 400 });
     }
     fast_track_deadline = f;
   }

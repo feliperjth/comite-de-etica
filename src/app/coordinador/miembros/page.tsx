@@ -47,6 +47,7 @@ type ProjectBrief = {
   id: string; title: string; status: string;
   project_type: string; theme: string; created_at?: string;
   certificate_url?: string | null;
+  current_round?: number | null;
 };
 
 type Researcher = {
@@ -120,7 +121,7 @@ function ResearcherCard({ r, onDelete }: { r: Researcher; onDelete: () => void }
                 <div key={p.id} className="flex items-center gap-2 py-1.5 px-2 rounded-xl hover:bg-slate-50 transition-colors">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: THEME_COLORS[p.theme] ?? "#94a3b8" }} />
                   <span className="text-xs text-slate-700 flex-1 truncate">{p.title}</span>
-                  <ProjectState status={p.status} certificateUrl={p.certificate_url} />
+                  <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
                 </div>
               ))}
             </div>
@@ -217,7 +218,7 @@ function ReviewerCard({ r, onDelete }: { r: Reviewer; onDelete: () => void }) {
                 <div key={p.id} className="flex items-center gap-2 py-1.5 px-2 rounded-xl hover:bg-slate-50 transition-colors">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: THEME_COLORS[p.theme] ?? "#94a3b8" }} />
                   <span className="text-xs text-slate-700 flex-1 truncate">{p.title}</span>
-                  <ProjectState status={p.status} certificateUrl={p.certificate_url} />
+                  <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
                 </div>
               ))}
             </div>

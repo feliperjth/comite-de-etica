@@ -7,7 +7,7 @@ import {
   LogOut, RefreshCw, ClipboardList, CheckCircle,
   AlertCircle, FileSearch, PlusCircle, Award, Download,
 } from "lucide-react";
-import StatusBadge from "@/components/StatusBadge";
+import ProjectState from "@/components/ProjectState";
 import ProjectDocumentsPanel from "@/components/ProjectDocumentsPanel";
 import { getThemeLabel } from "@/lib/themes";
 
@@ -170,13 +170,10 @@ export default function InvestigadorPerfil() {
                       <span>·</span>
                       <span>{new Date(p.created_at).toLocaleDateString("es-CL")}</span>
                     </div>
+                    <div className="mb-2">
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
+                    </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <StatusBadge status={p.status} />
-                      {p.current_round && p.current_round > 1 && (
-                        <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-1 rounded-full border border-violet-100">
-                          Ronda {p.current_round}
-                        </span>
-                      )}
                       {/* Reviewer assignment badges — no names shown */}
                       {p.reviewer ? (
                         <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full border border-emerald-200">

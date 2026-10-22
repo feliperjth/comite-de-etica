@@ -294,7 +294,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
                     {plazo.vencido
                       ? "La revisión está tomando más de lo previsto. Puedes consultar su estado a los revisores desde la sección de mensajes."
                       : plazo.viaRapida
-                      ? "Tu proyecto está en vía rápida: los revisores trabajan con la fecha límite de tu concurso."
+                      ? "Tu proyecto está en vía rápida: los revisores trabajan con tu fecha límite de postulación."
                       : "Los revisores tienen 3 semanas para evaluar cada ronda. Te avisaremos por correo cuando haya un resultado."}
                   </p>
                 </div>

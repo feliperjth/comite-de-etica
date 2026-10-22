@@ -18,7 +18,7 @@ export default function FastTrackBadge({
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full ${cls}`}
-      title={project.fast_track_deadline ? `Fecha límite del concurso: ${fechaLimiteLegible(project.fast_track_deadline)}` : undefined}
+      title={project.fast_track_deadline ? `Fecha límite de postulación: ${fechaLimiteLegible(project.fast_track_deadline)}` : undefined}
     >
       <Zap className="w-3 h-3" /> {texto}
     </span>

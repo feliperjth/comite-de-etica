@@ -57,7 +57,7 @@ const novedades = [
   {
     icon: Zap,
     title: "Revisión por vía rápida",
-    desc: "Si postulas a Fondecyt u otro concurso con fecha cercana, puedes pedir una revisión acotada a los puntos éticos críticos.",
+    desc: "Para tesis u otros concursos tipo licitaciones con fecha de postulación cercana, y con acuerdo previo de la coordinación: un formulario abreviado con solo la información crítica para proteger a las personas participantes.",
     href: "/submit",
     cta: "Solicitar al enviar",
   },

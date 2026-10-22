@@ -338,7 +338,7 @@ export default function ComitePerfil() {
                     <h3 className="font-semibold text-slate-800 mb-1 leading-snug">{p.title}</h3>
                     <p className="text-xs text-slate-400 mb-2">{p.researcher_name}</p>
                     <div className="flex items-center gap-2">
-                      <ProjectState status={p.status} certificateUrl={p.certificate_url} />
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
                       {p.current_round && p.current_round > 1 && (
                         <span className="text-xs bg-violet-50 text-violet-600 font-semibold px-2.5 py-1 rounded-full border border-violet-100">
                           Ronda {p.current_round}
@@ -417,7 +417,7 @@ export default function ComitePerfil() {
                             <AlertCircle className="w-3.5 h-3.5" /> Con correcciones
                           </span>
                         )}
-                        {proj && <ProjectState status={proj.status} certificateUrl={proj.certificate_url} />}
+                        {proj && <ProjectState status={proj.status} certificateUrl={proj.certificate_url} round={proj.current_round} />}
                       </div>
                     </div>
                     {proj && (

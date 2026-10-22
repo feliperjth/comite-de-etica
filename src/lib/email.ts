@@ -583,7 +583,7 @@ export function buildFastTrackRequestEmail(
       Un proyecto fue enviado solicitando <strong>revisión por vía rápida</strong>. Requiere el acuerdo de la coordinación y una asignación prioritaria de revisores.
     </p>
     <div style="background:#fff7ed;border-radius:8px;padding:20px;border-left:4px solid #CC5200;margin-bottom:24px;">
-      <p style="margin:0 0 6px;font-size:11px;color:#CC5200;text-transform:uppercase;font-weight:700;">Fecha límite del concurso: ${esc(fecha)}</p>
+      <p style="margin:0 0 6px;font-size:11px;color:#CC5200;text-transform:uppercase;font-weight:700;">Fecha límite de postulación: ${esc(fecha)}</p>
       <p style="margin:0 0 6px;font-size:15px;color:#1A1A1A;font-weight:600;">${esc(project.title)}</p>
       <p style="margin:0 0 4px;font-size:13px;color:#888;">${esc(project.researcher_name)} · ${esc(project.researcher_email)}</p>
       <p style="margin:0;font-size:13px;color:#888;">${esc(project.project_type)} · Código ${esc(project.tracking_code)}</p>
@@ -628,7 +628,7 @@ export function buildReviewReminderEmail(opts: {
       Han pasado ${opts.diasTranscurridos} día${opts.diasTranscurridos !== 1 ? "s" : ""} desde que comenzó la ronda. ${estado}
     </p>
     <div style="background:#f9f9f9;border-radius:8px;padding:20px;border-left:4px solid ${color};margin-bottom:24px;">
-      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">${opts.viaRapida ? "Vía rápida · plazo del concurso" : "Plazo de 3 semanas por ronda"}</p>
+      <p style="margin:0 0 6px;font-size:11px;color:#999;text-transform:uppercase;font-weight:700;">${opts.viaRapida ? "Vía rápida · fecha límite de postulación" : "Plazo de 3 semanas por ronda"}</p>
       <p style="margin:0 0 6px;font-size:15px;color:#1A1A1A;font-weight:600;">${esc(opts.title)}</p>
       <p style="margin:0;font-size:13px;color:#888;">Investigador/a: ${esc(opts.researcherName)}</p>
     </div>

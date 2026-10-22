@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       .order("name"),
     supabase
       .from("projects")
-      .select("id, title, status, project_type, theme, researcher_email, researcher_name, reviewer, reviewer2, created_at, certificate_url")
+      .select("id, title, status, project_type, theme, researcher_email, researcher_name, reviewer, reviewer2, created_at, certificate_url, current_round")
       .order("created_at", { ascending: false }),
     supabase
       .from("reviewers")

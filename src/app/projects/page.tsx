@@ -293,7 +293,7 @@ export default function ProjectsPage() {
                     <p className="font-semibold text-slate-800 text-sm leading-snug truncate">{p.title}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{p.researcher_name}{p.researcher_email ? ` · ${p.researcher_email}` : ""}</p>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <ProjectState status={p.status} certificateUrl={p.certificate_url} />
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
                       {TYPE_LABELS[p.project_type] && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600">
                           {TYPE_LABELS[p.project_type]}
@@ -534,7 +534,7 @@ export default function ProjectsPage() {
                       {formatDate(p.created_at)}
                     </td>
                     <td className="px-6 py-4">
-                      <ProjectState status={p.status} certificateUrl={p.certificate_url} />
+                      <ProjectState status={p.status} certificateUrl={p.certificate_url} round={p.current_round} />
                     </td>
                     <td className="px-6 py-4 hidden lg:table-cell">
                       <div className="flex items-center gap-2.5">
